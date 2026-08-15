@@ -1,0 +1,19 @@
+# 依赖与构建产物
+node_modules/
+lib/
+dist/
+*.tsbuildinfo
+
+# npm 认证配置（含令牌引用，禁止提交）
+.npmrc
+
+# 本地工具缓存
+*.log
+.DS_Store
+
+# pnpm 项目内包存储（本地依赖缓存，不入库）
+.pnpm-store/
+
+# 编辑器/IDE
+.idea/
+.vscode/

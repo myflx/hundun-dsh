@@ -1,0 +1,22 @@
+{
+  "name": "@hundun/dsh-all",
+  "description": "hundun-dsh 聚合插件：一键安装仓库内全部功能插件（依赖以 workspace:* 引用，cordis.patch.yml 拼接各子插件 insert 行）。",
+  "version": "0.1.0",
+  "type": "module",
+  "dsh": {
+    "bundle": {
+      "patch": "./cordis.patch.yml"
+    },
+    "client": {
+      "inject": [],
+      "platform": "web"
+    }
+  },
+  "files": [
+    "cordis.patch.yml"
+  ],
+  "license": "Apache-2.0",
+  "dependencies": {
+    "@hundun/dsh-hello": "workspace:*"
+  }
+}

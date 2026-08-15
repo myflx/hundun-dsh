@@ -1,0 +1,14 @@
+{
+  "name": "hundun-dsh-shared",
+  "version": "0.0.0",
+  "private": true,
+  "type": "module",
+  "description": "hundun-dsh 插件全家桶共享构建预设（客户端 bundle tsdown preset 等；内联进各消费者 bundle，永不发布）。派生自 dsh-web-ui（Apache-2.0）。",
+  "scripts": {
+    "typecheck": "tsc --noEmit"
+  },
+  "devDependencies": {
+    "@types/node": "^22.20.1",
+    "typescript": "~5.7.2"
+  }
+}

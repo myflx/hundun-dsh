@@ -1,0 +1,6 @@
+# dsh-{{NAME}} bundle patch：将双半区插件行插入 web profile 组合。
+# 经 package.json 的 dsh.bundle.patch 作为 profile bundle 层应用。
+# 激活方式：`dsh plugin --profile <name> add link:<repo>/packages/dsh-{{NAME}}`。
+- insert:
+    - id: {{ID}}
+      name: '@hundun/dsh-{{NAME}}'
