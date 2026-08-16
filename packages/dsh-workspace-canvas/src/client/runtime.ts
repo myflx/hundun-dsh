@@ -41,7 +41,12 @@ export class CanvasRuntime {
 
     // T018：工作区节点投影同步。
     const syncWorkspaces = (): void => {
-      const items = ctx.workspaces.list.getSnapshot().items ?? []
+      const state = ctx.workspaces.list.getSnapshot()
+      const items = state.items ?? []
+      // feed 未就绪（基线未加载且无条目，如刷新后首帧）时跳过对账：
+      // 否则会把暂缺的工作区误判「消失」而级联清除其节点与位置存档（bugfix：
+      // 页面刷新后画布位置被还原为 (0,0)）。
+      if (!state.baselinesReady && items.length === 0) return
       const removed = syncWorkspaceNodes(store, items)
       for (const id of removed) {
         console.warn(`[workspace-canvas] 工作区已消失，其画布节点与成员已清理：${id}`)
