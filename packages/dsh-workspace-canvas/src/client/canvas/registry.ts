@@ -38,6 +38,8 @@ export interface NodeViewProps {
 export interface NodeAction {
   id: string
   label: { zh: string; en: string }
+  /** 危险操作标记（右键菜单以警示色呈现，如删除）。 */
+  danger?: boolean
   run(node: CanvasNode, doc: CanvasDocument): void | Promise<void>
 }
 
@@ -187,9 +189,12 @@ export class CanvasRegistryImpl implements CanvasRegistry {
   }
 
   mergeActions(kind: string): NodeAction[] {
-    return [...(this.actionEntries.get(kind) ?? [])]
+    // 类型所有者 actions（若有）在前，扩展动作按 order 升序在后。
+    const owner = this.nodeTypes.get(kind)?.actions ?? []
+    const extensions = [...(this.actionEntries.get(kind) ?? [])]
       .sort((a, b) => a.order - b.order)
       .flatMap((e) => e.actions)
+    return [...owner, ...extensions]
   }
 
   mergeSections(kind: string): NodeDetailSection[] {

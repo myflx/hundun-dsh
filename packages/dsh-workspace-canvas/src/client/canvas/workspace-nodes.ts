@@ -9,6 +9,27 @@
  */
 import type { CanvasDocumentStore } from './document.ts'
 
+/**
+ * 删除工作区及其全部成员（T024）：级联移除成员节点与相关边 + 工作区节点本身。
+ * @returns 被级联删除的成员节点数（供确认提示）。
+ */
+export function removeWorkspaceCascade(store: CanvasDocumentStore, workspaceId: string): number {
+  let removedMembers = 0
+  store.mutate((doc) => {
+    const memberIds = new Set(
+      doc.nodes
+        .filter((n) => n.kind !== 'workspace' && n.workspaceId === workspaceId)
+        .map((n) => n.id),
+    )
+    removedMembers = memberIds.size
+    doc.nodes = doc.nodes.filter(
+      (n) => !memberIds.has(n.id) && !(n.kind === 'workspace' && n.ref === workspaceId),
+    )
+    doc.edges = doc.edges.filter((e) => !memberIds.has(e.source) && !memberIds.has(e.target))
+  })
+  return removedMembers
+}
+
 /** 按 feed 对账文档中的工作区节点；返回本次消失的工作区 id 列表。 */
 export function syncWorkspaceNodes(
   store: CanvasDocumentStore,

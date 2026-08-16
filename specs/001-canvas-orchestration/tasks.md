@@ -1,4 +1,4 @@
-# Tasks: 编排画布（Canvas Orchestration）
+﻿# Tasks: 编排画布（Canvas Orchestration）
 
 **Input**: Design documents from `/specs/001-canvas-orchestration/`
 
@@ -86,9 +86,9 @@
 **Goal**: 右键菜单（进入/重命名/删除级联/归档）+ 扩展动作合并。
 **Independent Test**: 右键菜单动作齐全；删除确认级联；扩展动作出现（E2E-10/11/12）。
 
-- [ ] T023 [US4] 右键菜单框架与动作合并（类型所有者 actions + registerNodeActions 扩展，按 order 排序） `file: packages/dsh-workspace-canvas/src/client/canvas/menu.ts` `function: ContextMenu / mergeActions` `calls: registry 动作注册表` `verify: 单测：内置+扩展动作合并且排序正确；右键弹出菜单、点空白关闭`
-- [ ] T024 [US4] 工作区内置动作（进入 / 重命名 / 删除（级联确认，列出成员数）/ 归档会话） `file: packages/dsh-workspace-canvas/src/client/canvas/menu.ts` `function: workspaceActions` `calls: workspaces.startSession / rename / delete / archiveSession` `verify: 单测：删除含成员工作区 → 确认框列出成员数 → 确认后级联清理 + 调用官方 delete；E2E-11 通过`
-- [ ] T025 [US4] US4 集成测试 + E2E 验证 `file: packages/dsh-workspace-canvas/tests/us4.spec.ts` `function: 无（测试）` `calls: vitest` `verify: us4 测试全绿；quickstart E2E-10/11/12 逐条通过并记录`
+- [X] T023 [US4] 右键菜单框架与动作合并（类型所有者 actions + registerNodeActions 扩展，按 order 排序） `file: packages/dsh-workspace-canvas/src/client/canvas/menu.ts` `function: ContextMenu / mergeActions` `calls: registry 动作注册表` `verify: 单测：内置+扩展动作合并且排序正确；右键弹出菜单、点空白关闭`
+- [X] T024 [US4] 工作区内置动作（进入 / 重命名 / 删除（级联确认，列出成员数）/ 归档会话） `file: packages/dsh-workspace-canvas/src/client/canvas/menu.ts` `function: workspaceActions` `calls: workspaces.startSession / rename / delete / archiveSession` `verify: 单测：删除含成员工作区 → 确认框列出成员数 → 确认后级联清理 + 调用官方 delete；E2E-11 通过`
+- [ ] T025 [US4] US4 集成测试 + E2E 验证 `file: packages/dsh-workspace-canvas/tests/us4.spec.ts` `function: 无（测试）` `calls: vitest` `verify: us4 测试全绿；quickstart E2E-10/11/12 逐条通过并记录`（自动化测试已全绿；E2E-10/11/12 待 GUI 挂载后人工验证，归 T037 门禁）
 
 ---
 
@@ -97,9 +97,9 @@
 **Goal**: 点击右侧弹出明细；工作区明细 = 基础信息 + 会话数（不列条目，clarify Q2）；扩展区块合并。
 **Independent Test**: 点击工作区 → 明细；注册区块 → 按序追加（E2E-13/14/15）。
 
-- [ ] T026 [US5] 明细面板框架与区块合并（类型所有者 detail + registerNodeDetailSection 扩展，按 order 渲染） `file: packages/dsh-workspace-canvas/src/client/canvas/detail/panel.tsx` `function: DetailPanel / mergeSections` `calls: registry 明细注册表` `verify: 单测：点击节点弹出面板；内置+扩展区块按序渲染；点空白/关闭收起`
-- [ ] T027 [US5] 工作区明细内容（标题/路径/会话数/最近活跃 + 跳转侧边栏入口；不含条目列表） `file: packages/dsh-workspace-canvas/src/client/canvas/detail/workspace-detail.tsx` `function: WorkspaceDetail` `calls: workspaces feed（会话数）` `verify: 单测：明细字段齐全且无会话条目列表；跳转入口触发侧边栏会话列表定位`
-- [ ] T028 [US5] US5 集成测试 + E2E 验证 `file: packages/dsh-workspace-canvas/tests/us5.spec.ts` `function: 无（测试）` `calls: vitest` `verify: us5 测试全绿；quickstart E2E-13/14/15 逐条通过并记录`
+- [X] T026 [US5] 明细面板框架与区块合并（类型所有者 detail + registerNodeDetailSection 扩展，按 order 渲染） `file: packages/dsh-workspace-canvas/src/client/canvas/detail/panel.tsx` `function: DetailPanel / mergeSections` `calls: registry 明细注册表` `verify: 单测：点击节点弹出面板；内置+扩展区块按序渲染；点空白/关闭收起`
+- [X] T027 [US5] 工作区明细内容（标题/路径/会话数/最近活跃 + 跳转侧边栏入口；不含条目列表） `file: packages/dsh-workspace-canvas/src/client/canvas/detail/workspace-detail.tsx` `function: WorkspaceDetail` `calls: workspaces feed（会话数）` `verify: 单测：明细字段齐全且无会话条目列表；跳转入口触发侧边栏会话列表定位`
+- [ ] T028 [US5] US5 集成测试 + E2E 验证 `file: packages/dsh-workspace-canvas/tests/us5.spec.ts` `function: 无（测试）` `calls: vitest` `verify: us5 测试全绿；quickstart E2E-13/14/15 逐条通过并记录`（自动化测试已全绿；E2E-13/14/15 待 GUI 挂载后人工验证，归 T037 门禁）
 
 ---
 

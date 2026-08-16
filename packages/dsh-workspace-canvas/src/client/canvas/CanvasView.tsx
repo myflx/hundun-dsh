@@ -3,8 +3,12 @@ import type { CSSProperties, PointerEvent as ReactPointerEvent } from 'react'
 import type { ClientContext } from '@deepseek-ai/dsh-client-runtime/client'
 import type { IWorkspaces, WorkspaceListState } from '@deepseek-ai/dsh-client-runtime/client'
 import type { WorkspaceId, WorkspaceView } from '@deepseek-ai/dsh-client-connection/client'
-import type { CanvasDocumentStore } from './document.ts'
+import type { CanvasDocumentStore, CanvasNode } from './document.ts'
 import type { CanvasRegistryImpl } from './registry.ts'
+import { ContextMenu, type MenuItem } from './menu.ts'
+import { workspaceActions } from './workspace-actions.ts'
+import { DetailPanel } from './detail/panel.tsx'
+import { WorkspaceDetail } from './detail/workspace-detail.tsx'
 import { openWorkspaceSession } from './workspace-open.ts'
 import { commitWorkspacePosition, readWorkspacePositions } from './workspace-position.ts'
 import { canvasText } from './text.ts'
@@ -149,12 +153,13 @@ function autoPosition(index: number): { x: number; y: number } {
 }
 
 /** 一张可拖拽的工作区卡片。 */
-function WorkspaceCard({ workspace, recent, position, onCommit, onOpen }: {
+function WorkspaceCard({ workspace, recent, position, onCommit, onOpen, onContextMenu }: {
   workspace: WorkspaceView
   recent: boolean
   position: { x: number; y: number }
   onCommit: (id: WorkspaceId, position: { x: number; y: number }) => void
   onOpen: (id: WorkspaceId) => void
+  onContextMenu?: (event: ReactPointerEvent<HTMLButtonElement>) => void
 }) {
   const dragRef = useRef<{ id: WorkspaceId; x0: number; y0: number; dx: number; dy: number; moved: boolean } | null>(null)
   const justDraggedRef = useRef(false)
@@ -218,6 +223,7 @@ function WorkspaceCard({ workspace, recent, position, onCommit, onOpen }: {
       onPointerMove={onPointerMove}
       onPointerUp={onPointerUp}
       onClick={onClick}
+      onContextMenu={onContextMenu}
       title={`${workspace.path}（${canvasText('canvas.sessions', { n: workspace.sessionIds.length })}）`}
     >
       <span style={CARD_TITLE_STYLE}>{workspace.title}</span>
@@ -262,6 +268,42 @@ export const CanvasView = memo(function CanvasView({ workspaces, store, onClose,
     })
   }
 
+  // 右键菜单与选中明细状态（T023-T027）。
+  const [menu, setMenu] = useState<{ x: number; y: number; node: CanvasNode; view?: { sessionIds: ReadonlyArray<string> } } | undefined>()
+  const [selectedId, setSelectedId] = useState<string | undefined>()
+
+  const openMenu = (
+    event: { clientX: number; clientY: number; preventDefault(): void },
+    node: CanvasNode,
+    view?: { sessionIds: ReadonlyArray<string> },
+  ): void => {
+    event.preventDefault()
+    setMenu({ x: event.clientX, y: event.clientY, node, view })
+  }
+
+  const menuItems = (): MenuItem[] => {
+    if (menu === undefined || ctx === undefined) return []
+    const actions = menu.node.kind === 'workspace'
+      ? [
+        ...workspaceActions({
+          ctx,
+          store,
+          doc,
+          view: menu.view,
+          onRequestDetail: (id) => setSelectedId(`ws:${id}`),
+          onNotify: (m) => setOpenError(m),
+        }),
+        ...(registry?.mergeActions('workspace') ?? []),
+      ]
+      : (registry?.mergeActions(menu.node.kind) ?? [])
+    return actions.map((a) => ({
+      id: a.id,
+      label: a.label.zh,
+      danger: a.id === 'delete',
+      run: () => { void a.run(menu.node, doc) },
+    }))
+  }
+
   const renderMember = (member: (typeof doc.nodes)[number], workspacePosition: { x: number; y: number }) => {
     const type = registry?.getNodeType(member.kind)
     const instance = type !== undefined && ctx !== undefined
@@ -273,9 +315,10 @@ export const CanvasView = memo(function CanvasView({ workspaces, store, onClose,
         key={member.id}
         data-dsh-canvas-member={member.id}
         style={{ position: 'absolute', left: abs.x, top: abs.y, zIndex: 2 }}
+        onContextMenu={(event) => openMenu(event, member)}
       >
         {type !== undefined
-          ? <type.render node={member} instance={instance} selected={false} dragging={false} onSelect={() => {}} onOpen={() => {}} />
+          ? <type.render node={member} instance={instance} selected={selectedId === member.id} dragging={false} onSelect={() => setSelectedId(member.id)} onOpen={() => setSelectedId(member.id)} />
           : (
             <span style={{ background: 'var(--dsw-alias-surface-raised, #fff)', border: '1px dashed var(--dsw-alias-border-l2, #ccc)', borderRadius: 8, padding: '4px 8px', fontSize: 12 }}>
               {member.kind}（未知类型）
@@ -310,6 +353,12 @@ export const CanvasView = memo(function CanvasView({ workspaces, store, onClose,
               {items.map((workspace, index) => {
                 const workspacePosition = positions[workspace.workspaceId] ?? autoPosition(index)
                 const members = orchestrationNodes.filter((n) => n.workspaceId === workspace.workspaceId)
+                const workspaceNode: CanvasNode = {
+                  id: `ws:${String(workspace.workspaceId)}`,
+                  kind: 'workspace',
+                  ref: String(workspace.workspaceId),
+                  position: workspacePosition,
+                }
                 return (
                   <Fragment key={workspace.workspaceId}>
                     <WorkspaceCard
@@ -318,6 +367,7 @@ export const CanvasView = memo(function CanvasView({ workspaces, store, onClose,
                       position={workspacePosition}
                       onCommit={commitPosition}
                       onOpen={handleOpen}
+                      onContextMenu={(event) => openMenu(event, workspaceNode, { sessionIds: workspace.sessionIds })}
                     />
                     {members.map((member) => renderMember(member, workspacePosition))}
                   </Fragment>
@@ -325,6 +375,44 @@ export const CanvasView = memo(function CanvasView({ workspaces, store, onClose,
               })}
             </div>
           )}
+      {menu !== undefined && ctx !== undefined && (
+        <ContextMenu x={menu.x} y={menu.y} items={menuItems()} onClose={() => setMenu(undefined)} />
+      )}
+      {selectedId !== undefined && ctx !== undefined && (() => {
+        const selectedNode = doc.nodes.find((n) => n.id === selectedId)
+        if (selectedNode === undefined) return null
+        if (selectedNode.kind === 'workspace') {
+          const wsView = items.find((w) => String(w.workspaceId) === selectedNode.ref)
+          if (wsView === undefined) return null
+          return (
+            <DetailPanel
+              node={selectedNode}
+              doc={doc}
+              sections={registry?.mergeSections('workspace') ?? []}
+              onClose={() => setSelectedId(undefined)}
+              ownerDetail={() => (
+                <WorkspaceDetail
+                  view={{ title: wsView.title, path: wsView.path, sessionIds: wsView.sessionIds }}
+                  recent={wsView.workspaceId === state.recentWorkspaceId}
+                  onJumpSidebar={() => { setSelectedId(undefined); onClose() }}
+                />
+              )}
+            />
+          )
+        }
+        const type = registry?.getNodeType(selectedNode.kind)
+        const instance = type?.data.list(ctx).getSnapshot().find((i) => i.id === selectedNode.ref)
+        return (
+          <DetailPanel
+            node={selectedNode}
+            instance={instance}
+            doc={doc}
+            ownerDetail={type?.detail}
+            sections={registry?.mergeSections(selectedNode.kind) ?? []}
+            onClose={() => setSelectedId(undefined)}
+          />
+        )
+      })()}
     </div>
   )
 })
