@@ -65,7 +65,7 @@ describe('画布操作栏（对齐 hundun-web：缩小/重置/放大/刷新，�
     const bar = container.querySelector<HTMLElement>('[data-dsh-action-bar]')
     const style = bar?.getAttribute('style') ?? ''
     expect(style).not.toMatch(/#[0-9a-fA-F]{3,6}/)
-    expect(style).toContain('var(--dsw-alias-surface-raised')
+    expect(style).toContain('var(--dsw-alias-bg-layer-1')
     expect(style).toContain('var(--dsw-alias-border-l2')
     // 图标颜色走 currentColor（跟随按钮 label 令牌）
     const svg = bar?.querySelector('svg')

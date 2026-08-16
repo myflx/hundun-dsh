@@ -27,10 +27,12 @@ const PANEL_STYLE: React.CSSProperties = {
   bottom: 0,
   width: 280,
   zIndex: 90,
-  background: 'var(--dsw-alias-surface-raised, #fff)',
-  borderLeft: '1px solid var(--dsw-alias-border-l2, #ccc)',
+  background: 'var(--dsw-alias-bg-layer-1)',
+  borderLeft: '1px solid var(--dsw-alias-border-l2)',
   padding: '12px 14px',
   overflowY: 'auto',
+  // 显式文字色走系统令牌（避免在画布浮层上下文继承浅色导致白字白底）
+  color: 'var(--dsw-alias-label-primary)',
 }
 
 /** 明细面板：标题栏 + 所有者视图 + 扩展区块。 */
@@ -47,7 +49,7 @@ export function DetailPanel({ node, instance, doc, ownerDetail, sections, onClos
           createElement('strong', { key: 'title' }, node.label ?? node.ref),
           createElement(
             'button',
-            { key: 'close', type: 'button', 'data-dsh-detail-close': '', onClick: close, style: { border: 'none', background: 'transparent', cursor: 'pointer', fontSize: 14 } },
+            { key: 'close', type: 'button', 'data-dsh-detail-close': '', onClick: close, style: { border: 'none', background: 'transparent', cursor: 'pointer', fontSize: 14, color: 'var(--dsw-alias-label-secondary)' } },
             '✕',
           ),
         ],
@@ -59,7 +61,7 @@ export function DetailPanel({ node, instance, doc, ownerDetail, sections, onClos
         'section',
         { key: `${node.id}-${section.label.zh}`, 'data-dsh-detail-section': section.label.zh, style: { marginTop: 10 } },
         [
-          createElement('h4', { key: 'label', style: { margin: '0 0 6px', fontSize: 12, color: 'var(--dsw-alias-label-tertiary, #888)' } }, section.label.zh),
+          createElement('h4', { key: 'label', style: { margin: '0 0 6px', fontSize: 12, color: 'var(--dsw-alias-label-tertiary)' } }, section.label.zh),
           createElement(section.render, { key: 'body', node, instance, doc, close }),
         ],
       )),

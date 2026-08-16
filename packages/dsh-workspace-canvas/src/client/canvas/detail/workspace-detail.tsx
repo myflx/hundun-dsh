@@ -14,7 +14,7 @@ export interface WorkspaceDetailProps {
   onJumpSidebar(): void
 }
 
-const ROW: React.CSSProperties = { fontSize: 13, margin: '4px 0', color: 'var(--dsw-alias-label-secondary, #555)' }
+const ROW: React.CSSProperties = { fontSize: 13, margin: '4px 0', color: 'var(--dsw-alias-label-secondary)' }
 
 /** 工作区明细：基础信息 + 会话数 + 侧边栏入口。 */
 export function WorkspaceDetail({ view, recent, onJumpSidebar }: WorkspaceDetailProps) {
@@ -25,7 +25,7 @@ export function WorkspaceDetail({ view, recent, onJumpSidebar }: WorkspaceDetail
       createElement('div', { key: 'title', style: ROW }, `标题：${view.title}`),
       createElement('div', { key: 'path', style: ROW }, `路径：${view.path}`),
       createElement('div', { key: 'sessions', style: ROW }, `会话：${view.sessionIds.length} 个`),
-      recent ? createElement('div', { key: 'recent', style: { ...ROW, color: 'var(--dsw-alias-state-business-primary, #4a7)' } }, '最近活跃') : null,
+      recent ? createElement('div', { key: 'recent', style: { ...ROW, color: 'var(--dsw-alias-state-business-primary)' } }, '最近活跃') : null,
       createElement(
         'button',
         {
@@ -33,7 +33,7 @@ export function WorkspaceDetail({ view, recent, onJumpSidebar }: WorkspaceDetail
           type: 'button',
           'data-dsh-jump-sidebar': '',
           onClick: onJumpSidebar,
-          style: { marginTop: 10, border: '1px solid var(--dsw-alias-border-l2, #ccc)', background: 'transparent', borderRadius: 6, padding: '6px 10px', cursor: 'pointer', fontSize: 12 },
+          style: { marginTop: 10, border: '1px solid var(--dsw-alias-border-l2)', background: 'transparent', borderRadius: 6, padding: '6px 10px', cursor: 'pointer', fontSize: 12 },
         },
         '在侧边栏查看会话',
       ),

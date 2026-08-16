@@ -127,7 +127,7 @@ const ACTION_BAR_STYLE: CSSProperties = {
   alignItems: 'center',
   gap: 2,
   padding: '4px 6px',
-  background: 'var(--dsw-alias-surface-raised)',
+  background: 'var(--dsw-alias-bg-layer-1)',
   border: '1px solid var(--dsw-alias-border-l2)',
   borderRadius: 8,
   whiteSpace: 'nowrap',
@@ -216,7 +216,7 @@ function IconRefresh() {
 }
 
 const CARD_STYLE: CSSProperties = {
-  background: 'var(--dsw-alias-surface-raised)',
+  background: 'var(--dsw-alias-bg-layer-1)',
   border: '1px solid var(--dsw-alias-border-l2)',
   borderRadius: '12px',
   boxSizing: 'border-box',
@@ -537,7 +537,7 @@ export const CanvasView = memo(function CanvasView({ workspaces, store, onClose,
         {type !== undefined
           ? <type.render node={member} instance={instance} selected={selectedId === member.id} dragging={false} onSelect={() => setSelectedId(member.id)} onOpen={() => setSelectedId(member.id)} />
           : (
-            <span style={{ background: 'var(--dsw-alias-surface-raised, #fff)', border: '1px dashed var(--dsw-alias-border-l2, #ccc)', borderRadius: 8, padding: '4px 8px', fontSize: 12 }}>
+            <span style={{ background: 'var(--dsw-alias-bg-layer-1)', border: '1px dashed var(--dsw-alias-border-l2)', borderRadius: 8, padding: '4px 8px', fontSize: 12 }}>
               {member.kind}（未知类型）
             </span>
           )}
@@ -557,7 +557,7 @@ export const CanvasView = memo(function CanvasView({ workspaces, store, onClose,
         </button>
       </div>
       {openError !== undefined && (
-        <div role="alert" style={{ ...EMPTY_STYLE, color: 'var(--dsw-alias-state-danger, #d64545)' }}>
+        <div role="alert" style={{ ...EMPTY_STYLE, color: 'var(--dsw-alias-state-danger)' }}>
           {canvasText('canvas.openError', { message: openError })}
         </div>
       )}

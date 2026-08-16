@@ -125,4 +125,22 @@ describe('ContextMenu（T023）', () => {
     expect(onClose).toHaveBeenCalled()
     await act(async () => root.unmount())
   })
+
+  it('菜单样式用系统令牌且可读：背景不透明、文字色显式 label-primary（白字白底 bugfix）', async () => {
+    const container = document.createElement('div')
+    document.body.appendChild(container)
+    const root = createRoot(container)
+    await act(async () => {
+      root.render(createElement(ContextMenu, { x: 10, y: 20, onClose: () => {}, items: [{ id: 'a', label: '动作A', run: () => {} }] }))
+    })
+    const menu = container.querySelector<HTMLElement>('[data-dsh-canvas-menu]')
+    const item = container.querySelector<HTMLElement>('[data-dsh-menu-item="a"]')
+    expect(menu?.style.background).toBe('var(--dsw-specific-menu)')
+    expect(menu?.style.color).toBe('var(--dsw-alias-label-primary)')
+    expect(item?.style.color).toBe('var(--dsw-alias-label-primary)')
+    // 不引入硬编码颜色 fallback（SC-004）
+    expect(menu?.getAttribute('style')).not.toMatch(/#[0-9a-fA-F]{3,6}/)
+    expect(item?.getAttribute('style')).not.toMatch(/#[0-9a-fA-F]{3,6}/)
+    await act(async () => root.unmount())
+  })
 })

@@ -25,7 +25,7 @@ export class CanvasErrorBoundary extends Component<CanvasErrorBoundaryProps, Can
     if (this.state.error !== null) {
       return this.props.fallback ?? createElement(
         'div',
-        { role: 'alert', 'data-dsh-canvas-error': '', style: { padding: 24, fontSize: 13, color: 'var(--dsw-alias-state-danger, #d64545)' } },
+        { role: 'alert', 'data-dsh-canvas-error': '', style: { padding: 24, fontSize: 13, color: 'var(--dsw-alias-state-danger)' } },
         '画布渲染出错，请关闭后重新打开。',
       )
     }
