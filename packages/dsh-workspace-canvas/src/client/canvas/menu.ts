@@ -81,10 +81,12 @@ export function ContextMenu({ x, y, items, onClose }: ContextMenuProps) {
             textAlign: 'left',
             // 不设 inline background（默认透明）——否则会覆盖 :hover 规则（inline 特异性最高）
             border: 'none',
-            padding: '6px 10px',
-            borderRadius: 6,
+            // 项样式对齐原生 dsh 菜单（实测：圆角 10px、padding 8px 10px、字号 14、行高 22）
+            padding: '8px 10px',
+            borderRadius: 10,
             cursor: 'pointer',
-            fontSize: 13,
+            fontSize: 14,
+            lineHeight: '22px',
             color: item.danger === true ? 'var(--dsw-alias-state-danger)' : 'var(--dsw-alias-label-primary)',
           },
         },
