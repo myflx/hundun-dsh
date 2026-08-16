@@ -147,7 +147,8 @@ const ICON_BUTTON_STYLE: CSSProperties = {
   padding: 0,
   border: 0,
   borderRadius: 5,
-  color: 'var(--dsw-alias-label-secondary)',
+  // 图标颜色与右键菜单项图标一致（--dsw-alias-label-tertiary，实测 rgb 173,178,184）
+  color: 'var(--dsw-alias-label-tertiary)',
   cursor: 'pointer',
 } as const
 
