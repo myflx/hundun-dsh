@@ -117,7 +117,7 @@ export function mountSearchButton(controller: CanvasController, supervisor: Moun
   let header: HTMLElement | undefined
 
   const tryPlace = (): void => {
-    const column = document.querySelector<HTMLElement>('[data-pane="sidebar"], [class*="sidebarCol"]')
+    const column = document.querySelector<HTMLElement>('[data-slot="sidebar"], [data-pane="sidebar"], [class*="sidebarCol"]')
     if (column === null) return
     // 标题行缺失或已被 React 重建时，重新定位（mutation 时序：sidebar 列
     // 先挂载、WorkspaceBrowser 内容后渲染，因此每次都要重新查）。

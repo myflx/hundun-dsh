@@ -28,15 +28,16 @@ import { CanvasView } from './CanvasView.tsx'
 /** 画布视图容器（保持挂载，隐藏时不可见）。 */
 export const CANVAS_VIEW_SELECTOR = '[data-dsh-canvas-view]'
 
-const CONVERSATION_COLUMN_SELECTOR = '[data-pane="conversation"]'
+const CONVERSATION_COLUMN_SELECTOR = '[data-slot="conversation"], [data-pane="conversation"]'
 /** 本面板名（单标记协议：`data-dsh-panel-active` 的值）。 */
 const OWN_NAME = PANELS.workspaceCanvas
 
 /** 隐藏对话内容、显示画布容器的样式（注入 <style data-plugin>，卸载时移除）。
  *  容器用 absolute + inset:0 铺满整个中间区域（dsh-ssh 面板同款），
- *  z-index 60 盖过对话/输入卡，背景不透底。显示条件 = 单标记为本面板名。 */
+ *  z-index 60 盖过对话/输入卡，背景不透底。显示条件 = 单标记为本面板名。
+ *  挂载点兼容新旧 shell：data-slot="conversation"（现行）与 data-pane="conversation"（旧版）。 */
 const CANVAS_STYLE = `
-[data-pane="conversation"] { position: relative; }
+[data-slot="conversation"], [data-pane="conversation"] { position: relative; }
 [data-dsh-canvas-view] {
   position: absolute;
   inset: 0;
@@ -45,6 +46,7 @@ const CANVAS_STYLE = `
   background: var(--dsw-alias-bg-base);
 }
 html[data-dsh-panel-active="workspace-canvas"] [data-dsh-canvas-view] { display: flex; }
+html[data-dsh-panel-active="workspace-canvas"] [data-slot="conversation"] > :not([data-dsh-canvas-view]),
 html[data-dsh-panel-active="workspace-canvas"] [data-pane="conversation"] > :not([data-dsh-canvas-view]),
 html[data-dsh-panel-active="workspace-canvas"] [class*="centerCol"] > :not([data-dsh-canvas-view]) { display: none !important; }
 `
