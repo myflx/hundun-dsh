@@ -17,6 +17,7 @@
   ],
   "license": "Apache-2.0",
   "dependencies": {
-    "@hundun/dsh-hello": "workspace:*"
+    "@hundun/dsh-hello": "workspace:*",
+    "@hundun/dsh-workspace-canvas": "workspace:*"
   }
 }

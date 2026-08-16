@@ -1,0 +1,10 @@
+# dsh-workspace-canvas bundle patch：往 web profile 的插件花名册插入一行。
+#
+# 本插件是纯浏览器半区插件：node 半区只做系统提示词公告，浏览器半区
+# （exports "./client"，经 /plugins/@hundun/dsh-workspace-canvas/client.js 提供）
+# 负责搜索框按钮注入 + 中间区域画布。
+#
+# 安装：dsh plugin --profile web add link:<本包绝对路径>，或经聚合包 @hundun/dsh-all。
+- insert:
+    - id: hundun-workspace-canvas
+      name: '@hundun/dsh-workspace-canvas'

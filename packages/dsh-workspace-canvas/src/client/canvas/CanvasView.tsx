@@ -1,0 +1,261 @@
+import { memo, useRef, useState, useSyncExternalStore } from 'react'
+import type { CSSProperties, PointerEvent as ReactPointerEvent } from 'react'
+import type { IWorkspaces, WorkspaceListState } from '@deepseek-ai/dsh-client-runtime/client'
+import type { WorkspaceId, WorkspaceView } from '@deepseek-ai/dsh-client-connection/client'
+import { canvasText } from './text.ts'
+
+/** 画布 props：官方 workspaces feed + 关闭回调。 */
+export interface CanvasViewProps {
+  workspaces: IWorkspaces
+  onClose: () => void
+}
+
+/** 网格步长（px）。 */
+const GRID = 24
+/** 自动布局参数：每行列数、卡片步进（宽 + 间距）。 */
+const AUTO_COLS = 4
+const CARD_STEP_X = 216
+const CARD_STEP_Y = 112
+/** 拖拽超过该距离视为拖动（否则算点击进入）。 */
+const DRAG_THRESHOLD = 5
+
+const WRAPPER_STYLE = {
+  alignItems: 'stretch',
+  boxSizing: 'border-box',
+  display: 'flex',
+  flexDirection: 'column',
+  flex: 1,
+  minHeight: 0,
+  padding: '0',
+  position: 'relative',
+} as const
+
+const HEADER_STYLE = {
+  alignItems: 'center',
+  borderBottom: '1px solid var(--dsw-alias-border-l2)',
+  display: 'flex',
+  flex: 'none',
+  justifyContent: 'space-between',
+  padding: '10px 20px',
+} as const
+
+const TITLE_STYLE = {
+  fontSize: '16px',
+  fontWeight: 600,
+  color: 'var(--dsw-alias-label-primary)',
+} as const
+
+const SUBTITLE_STYLE = {
+  fontSize: '12px',
+  color: 'var(--dsw-alias-label-tertiary)',
+  marginTop: '2px',
+} as const
+
+const CLOSE_STYLE = {
+  background: 'var(--dsw-alias-interactive-bg-hover)',
+  border: '1px solid var(--dsw-alias-border-l2)',
+  borderRadius: '8px',
+  color: 'var(--dsw-alias-label-secondary)',
+  cursor: 'pointer',
+  fontSize: '13px',
+  padding: '6px 12px',
+} as const
+
+/** 画布区域：铺满中间区域剩余空间，相对定位 + 网格背景（十字线）。 */
+const CANVAS_STYLE: CSSProperties = {
+  backgroundImage: [
+    'linear-gradient(var(--dsw-alias-border-l2) 1px, transparent 1px)',
+    'linear-gradient(90deg, var(--dsw-alias-border-l2) 1px, transparent 1px)',
+  ].join(', '),
+  backgroundSize: `${GRID}px ${GRID}px`,
+  flex: 1,
+  minHeight: '240px',
+  overflow: 'auto',
+  position: 'relative',
+} as const
+
+const CARD_STYLE: CSSProperties = {
+  background: 'var(--dsw-alias-surface-raised)',
+  border: '1px solid var(--dsw-alias-border-l2)',
+  borderRadius: '12px',
+  boxSizing: 'border-box',
+  cursor: 'grab',
+  display: 'flex',
+  flexDirection: 'column',
+  gap: '6px',
+  padding: '12px 14px',
+  position: 'absolute',
+  textAlign: 'left',
+  touchAction: 'none',
+  userSelect: 'none',
+  width: '200px',
+} as const
+
+const CARD_TITLE_STYLE = {
+  color: 'var(--dsw-alias-label-primary)',
+  fontSize: '14px',
+  fontWeight: 600,
+  overflow: 'hidden',
+  textOverflow: 'ellipsis',
+  whiteSpace: 'nowrap',
+} as const
+
+const CARD_PATH_STYLE = {
+  color: 'var(--dsw-alias-label-tertiary)',
+  fontSize: '11px',
+  overflow: 'hidden',
+  textOverflow: 'ellipsis',
+  whiteSpace: 'nowrap',
+} as const
+
+const CARD_META_STYLE = {
+  color: 'var(--dsw-alias-label-secondary)',
+  fontSize: '12px',
+} as const
+
+const EMPTY_STYLE = {
+  color: 'var(--dsw-alias-label-tertiary)',
+  fontSize: '13px',
+  padding: '32px 16px',
+  textAlign: 'center',
+} as const
+
+/** 拖拽中的卡片位置表：workspaceId -> 相对画布容器的坐标。 */
+type Positions = Record<string, { x: number; y: number }>
+
+/** 未拖过的工作区自动布局坐标。 */
+function autoPosition(index: number): { x: number; y: number } {
+  return {
+    x: (index % AUTO_COLS) * CARD_STEP_X + 12,
+    y: Math.floor(index / AUTO_COLS) * CARD_STEP_Y + 12,
+  }
+}
+
+/** 一张可拖拽的工作区卡片。 */
+function WorkspaceCard({ workspace, recent, position, onCommit, onOpen }: {
+  workspace: WorkspaceView
+  recent: boolean
+  position: { x: number; y: number }
+  onCommit: (id: WorkspaceId, position: { x: number; y: number }) => void
+  onOpen: (id: WorkspaceId) => void
+}) {
+  const dragRef = useRef<{ id: WorkspaceId; x0: number; y0: number; dx: number; dy: number; moved: boolean } | null>(null)
+  const justDraggedRef = useRef(false)
+
+  const onPointerDown = (event: ReactPointerEvent<HTMLButtonElement>): void => {
+    event.preventDefault()
+    const rect = event.currentTarget.getBoundingClientRect()
+    event.currentTarget.setPointerCapture(event.pointerId)
+    dragRef.current = {
+      id: workspace.workspaceId,
+      x0: event.clientX,
+      y0: event.clientY,
+      dx: event.clientX - rect.left,
+      dy: event.clientY - rect.top,
+      moved: false,
+    }
+  }
+
+  const onPointerMove = (event: ReactPointerEvent<HTMLButtonElement>): void => {
+    const drag = dragRef.current
+    if (drag === null) return
+    if (!drag.moved && Math.hypot(event.clientX - drag.x0, event.clientY - drag.y0) > DRAG_THRESHOLD) {
+      drag.moved = true
+    }
+    if (!drag.moved) return
+    const canvas = event.currentTarget.parentElement
+    if (canvas === null) return
+    const rect = canvas.getBoundingClientRect()
+    onCommit(drag.id, {
+      x: event.clientX - rect.left - drag.dx,
+      y: event.clientY - rect.top - drag.dy,
+    })
+  }
+
+  const onPointerUp = (): void => {
+    justDraggedRef.current = dragRef.current?.moved ?? false
+    dragRef.current = null
+  }
+
+  const onClick = (): void => {
+    if (justDraggedRef.current) {
+      justDraggedRef.current = false
+      return
+    }
+    // 未拖动 = 点击进入该工作区的新会话。
+    onOpen(workspace.workspaceId)
+  }
+
+  return (
+    <button
+      type="button"
+      style={{
+        ...CARD_STYLE,
+        left: position.x,
+        top: position.y,
+        borderColor: recent ? 'var(--dsw-alias-state-business-primary)' : undefined,
+        zIndex: 1,
+      }}
+      onPointerDown={onPointerDown}
+      onPointerMove={onPointerMove}
+      onPointerUp={onPointerUp}
+      onClick={onClick}
+      title={`${workspace.path}（${canvasText('canvas.sessions', { n: workspace.sessionIds.length })}）`}
+    >
+      <span style={CARD_TITLE_STYLE}>{workspace.title}</span>
+      <span style={CARD_PATH_STYLE}>{workspace.path}</span>
+      <span style={CARD_META_STYLE}>{canvasText('canvas.sessions', { n: workspace.sessionIds.length })}</span>
+    </button>
+  )
+}
+
+/** 中间区域画布：网格背景 + 全部工作区可拖拽卡片。 */
+export const CanvasView = memo(function CanvasView({ workspaces, onClose }: CanvasViewProps) {
+  // 官方 workspaces 标准 feed：ObservableSnapshot —— subscribe + getSnapshot
+  // 直接喂给 useSyncExternalStore，工作区增删实时反映到画布。
+  const list = workspaces.list
+  const state: WorkspaceListState = useSyncExternalStore(
+    (fn) => list.subscribe(fn),
+    () => list.getSnapshot(),
+  )
+  const [positions, setPositions] = useState<Positions>({})
+
+  const items = state.items ?? []
+  const ready = state.baselinesReady || items.length > 0
+
+  const commitPosition = (id: WorkspaceId, position: { x: number; y: number }): void => {
+    setPositions((prev) => ({ ...prev, [String(id)]: position }))
+  }
+
+  return (
+    <div style={WRAPPER_STYLE}>
+      <div style={HEADER_STYLE}>
+        <div>
+          <div style={TITLE_STYLE}>{canvasText('canvas.title')}</div>
+          <div style={SUBTITLE_STYLE}>{canvasText('canvas.subtitle')}</div>
+        </div>
+        <button type="button" style={CLOSE_STYLE} onClick={onClose}>
+          {canvasText('canvas.close')}
+        </button>
+      </div>
+      {!ready
+        ? <div style={EMPTY_STYLE}>{canvasText('canvas.loading')}</div>
+        : items.length === 0
+          ? <div style={EMPTY_STYLE}>{canvasText('canvas.empty')}</div>
+          : (
+            <div style={CANVAS_STYLE}>
+              {items.map((workspace, index) => (
+                <WorkspaceCard
+                  key={workspace.workspaceId}
+                  workspace={workspace}
+                  recent={workspace.workspaceId === state.recentWorkspaceId}
+                  position={positions[workspace.workspaceId] ?? autoPosition(index)}
+                  onCommit={commitPosition}
+                  onOpen={(id) => workspaces.startSession(id)}
+                />
+              ))}
+            </div>
+          )}
+    </div>
+  )
+})

@@ -1,0 +1,14 @@
+/**
+ * Standalone build config for the dsh-workspace-canvas plugin（迁移到
+ * monorepo 共享的 tsdown.client.ts 预设，源出 dsh-web-ui / DeepSeek Harness
+ * 官方 client 构建）：node 半区产出 lib/，浏览器半区产出 lib/client.js
+ * （供 GUI 的 __ModuleLoader__ 加载的闭包工厂产物）。
+ *
+ * 客户端导入审计：react / react-dom / @deepseek-ai/dsh-client-ui-primitives
+ * 均在平台模块表（shared/web-platform.ts），SDK 其余均为类型导入（被擦除），
+ * 共享预设的纯度门可干净放行。宿主侧 schemastery 为 devDep，会被打进 node
+ * bundle（与源仓库行为一致）。
+ */
+import { clientBundle } from '../../shared/tsdown.client.ts'
+
+export default clientBundle('@hundun/dsh-workspace-canvas', ['src/index.ts'])

@@ -2,5 +2,7 @@
 # dependencies 由 scripts/aggregate.mjs 据此生成，勿手改生成物）。
 patchFrom:
   - ../dsh-hello
+  - ../dsh-workspace-canvas
 deps:
   - ../dsh-hello
+  - ../dsh-workspace-canvas
