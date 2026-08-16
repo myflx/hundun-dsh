@@ -136,10 +136,10 @@ await sleep(5000)
   record('E2E-20', zoomed && reset && wheelChanged === true && panned, { zoomed, reset, wheelChanged, panned, beforeT, afterT, zoomText: f.zoomText })
 }
 
-// ── E2E-02 点卡片 → 进入该工作区新会话并退出画布 ──
+// ── E2E-02 双击卡片 → 进入该工作区新会话并退出画布 ──
 {
   const before = await canvasFacts()
-  await page.locator('[data-dsh-canvas-card]').first().click()
+  await page.locator('[data-dsh-canvas-card]').first().dblclick()
   await sleep(1800)
   const f = await canvasFacts()
   const exited = !f.viewDisplayed || f.active !== 'workspace-canvas'

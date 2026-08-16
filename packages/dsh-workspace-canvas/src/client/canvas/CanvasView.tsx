@@ -270,12 +270,14 @@ function autoPosition(index: number): { x: number; y: number } {
 }
 
 /** 一张可拖拽的工作区卡片。 */
-function WorkspaceCard({ workspace, recent, position, onCommit, onOpen, onContextMenu, zoom, toScene, archivedSessionIds }: {
+function WorkspaceCard({ workspace, recent, position, onCommit, onOpen, onSelect, onContextMenu, zoom, toScene, archivedSessionIds }: {
   workspace: WorkspaceView
   recent: boolean
   position: { x: number; y: number }
   onCommit: (id: WorkspaceId, position: { x: number; y: number }) => void
   onOpen: (id: WorkspaceId) => void
+  /** 单击选中（弹详情）。 */
+  onSelect: (id: WorkspaceId) => void
   onContextMenu?: (event: ReactPointerEvent<HTMLButtonElement>) => void
   /** 当前缩放（拖拽偏移换算 scene 坐标用）。 */
   zoom: number
@@ -324,12 +326,31 @@ function WorkspaceCard({ workspace, recent, position, onCommit, onOpen, onContex
     dragRef.current = null
   }
 
+  // 单击延迟 250ms 判双击（hundun-web 同款）：单击 = 选中+详情；双击 = 进入新会话。
+  const clickTimer = useRef<ReturnType<typeof setTimeout> | undefined>(undefined)
   const onClick = (): void => {
     if (justDraggedRef.current) {
       justDraggedRef.current = false
       return
     }
-    // 未拖动 = 点击进入该工作区的新会话。
+    if (clickTimer.current !== undefined) {
+      // 250ms 内第二次点击 = 双击 → 进入新会话（取消单击的延迟选中）
+      clearTimeout(clickTimer.current)
+      clickTimer.current = undefined
+      onOpen(workspace.workspaceId)
+      return
+    }
+    clickTimer.current = setTimeout(() => {
+      clickTimer.current = undefined
+      onSelect(workspace.workspaceId)
+    }, 250)
+  }
+  const onDoubleClick = (): void => {
+    // 双击：取消单击延迟选中，直接进入新会话
+    if (clickTimer.current !== undefined) {
+      clearTimeout(clickTimer.current)
+      clickTimer.current = undefined
+    }
     onOpen(workspace.workspaceId)
   }
 
@@ -348,6 +369,7 @@ function WorkspaceCard({ workspace, recent, position, onCommit, onOpen, onContex
       onPointerMove={onPointerMove}
       onPointerUp={onPointerUp}
       onClick={onClick}
+      onDoubleClick={onDoubleClick}
       onContextMenu={onContextMenu}
       title={`${workspace.path}（${canvasText('canvas.sessions', { n: activeCount })}${totalCount > activeCount ? `，${totalCount - activeCount} 个已归档` : ''}）`}
     >
@@ -626,6 +648,7 @@ export const CanvasView = memo(function CanvasView({ workspaces, store, onClose,
                         position={workspacePosition}
                         onCommit={commitPosition}
                         onOpen={handleOpen}
+                        onSelect={(id) => setSelectedId(`ws:${String(id)}`)}
                         onContextMenu={(event) => openMenu(event, workspaceNode, { sessionIds: workspace.sessionIds })}
                         zoom={view.zoom}
                         toScene={toScene}
