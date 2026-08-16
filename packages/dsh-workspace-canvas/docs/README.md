@@ -7,7 +7,7 @@
 | 文档 | 内容 | 适合谁 |
 | --- | --- | --- |
 | [../README.md](../README.md) | 插件功能总览、安装/卸载/开发（HMR） | 使用者 |
-| [orchestration-design.md](orchestration-design.md) | **架构设计**：角色分工、数据边界、关系模型、存储、扩展约定（概念层） | 架构师 / 新加入者 |
+| [orchestration-design.md](orchestration-design.md) | **架构设计**：角色分工、数据边界、关系模型、存储、扩展约定（概念层）；§9 含设计决策记录 | 架构师 / 新加入者 |
 | [capability-boundaries.md](capability-boundaries.md) | **能力边界**：画布做什么/不做什么、系统边界、Non-goals、判定准则 | 所有人（扩展前必读） |
 
 ## 协议与实现
