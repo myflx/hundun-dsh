@@ -115,7 +115,7 @@ const NODE_LAYER_STYLE: CSSProperties = {
   zIndex: 1,
 } as const
 
-/** 画布底部操作栏（Canvas Action Bar）：缩放控件 + 重置视图 + 自动布局 + 聚焦。
+/** 画布底部操作栏（对齐 hundun-web canvas-controls）：四图标按钮（缩小/重置/放大/刷新）。
  *  复用系统设计令牌（--dsw-alias-*），与系统控件视觉一致；低干扰浮层。 */
 const ACTION_BAR_STYLE: CSSProperties = {
   position: 'absolute',
@@ -125,22 +125,32 @@ const ACTION_BAR_STYLE: CSSProperties = {
   zIndex: 70,
   display: 'flex',
   alignItems: 'center',
-  gap: 4,
-  padding: '4px 8px',
+  gap: 2,
+  padding: '4px 6px',
   background: 'var(--dsw-alias-surface-raised)',
   border: '1px solid var(--dsw-alias-border-l2)',
   borderRadius: 8,
-  fontSize: 12,
   whiteSpace: 'nowrap',
 } as const
 
-/** 操作栏分隔线。 */
-const BAR_DIVIDER_STYLE: CSSProperties = {
-  width: 1,
-  height: 16,
-  margin: '0 4px',
-  background: 'var(--dsw-alias-border-l2)',
+/** 图标按钮（hundun-web .canvas-controls button 形态：30×30、透明、悬停高亮）。 */
+const ICON_BUTTON_STYLE: CSSProperties = {
+  display: 'grid',
+  width: 30,
+  height: 30,
+  placeItems: 'center',
+  padding: 0,
+  border: 0,
+  borderRadius: 5,
+  background: 'transparent',
+  color: 'var(--dsw-alias-label-secondary)',
+  cursor: 'pointer',
 } as const
+
+/** 图标按钮悬停高亮（注入 style，颜色走系统令牌）。 */
+const ACTION_BAR_HOVER_CSS = `
+[data-dsh-action-bar] button:hover { background: var(--dsw-alias-interactive-bg-hover); color: var(--dsw-alias-label-primary); }
+`
 
 function toolButton(label: string): CSSProperties {
   return {
@@ -152,6 +162,57 @@ function toolButton(label: string): CSSProperties {
     fontSize: 13,
     lineHeight: 1,
   }
+}
+
+/** ── 操作栏图标（内联 SVG，lucide 同款 path，ISC 开源；颜色走 currentColor = 系统令牌） ── */
+
+/** 缩小（hundun-web ZoomOut）：放大镜 + 减号。 */
+function IconZoomOut() {
+  return (
+    <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+      <circle cx="11" cy="11" r="8" />
+      <line x1="21" y1="21" x2="16.65" y2="16.65" />
+      <line x1="8" y1="11" x2="14" y2="11" />
+    </svg>
+  )
+}
+
+/** 重置（hundun-web LocateFixed）：十字准星 + 中心点。 */
+function IconLocateFixed() {
+  return (
+    <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+      <line x1="2" x2="5" y1="12" y2="12" />
+      <line x1="19" x2="22" y1="12" y2="12" />
+      <line x1="12" x2="12" y1="2" y2="5" />
+      <line x1="12" x2="12" y1="19" y2="22" />
+      <circle cx="12" cy="12" r="7" />
+      <circle cx="12" cy="12" r="3" />
+    </svg>
+  )
+}
+
+/** 放大（hundun-web ZoomIn）：放大镜 + 加号。 */
+function IconZoomIn() {
+  return (
+    <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+      <circle cx="11" cy="11" r="8" />
+      <line x1="21" y1="21" x2="16.65" y2="16.65" />
+      <line x1="11" y1="8" x2="11" y2="14" />
+      <line x1="8" y1="11" x2="14" y2="11" />
+    </svg>
+  )
+}
+
+/** 刷新（hundun-web RefreshCw）：循环箭头。 */
+function IconRefresh() {
+  return (
+    <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+      <path d="M3 12a9 9 0 0 1 9-9 9.75 9.75 0 0 1 6.74 2.74L21 8" />
+      <path d="M21 3v5h-5" />
+      <path d="M21 12a9 9 0 0 1-9 9 9.75 9.75 0 0 1-6.74-2.74L3 16" />
+      <path d="M8 16H3v5" />
+    </svg>
+  )
 }
 
 const CARD_STYLE: CSSProperties = {
@@ -556,16 +617,13 @@ export const CanvasView = memo(function CanvasView({ workspaces, store, onClose,
                   )
                 })}
               </div>
-              {/* 底部操作栏（对齐 hundun-web canvas-controls）：缩小 → 重置 → 放大 → 刷新 */}
+              {/* 底部操作栏（对齐 hundun-web canvas-controls）：缩小 → 重置 → 放大 → 刷新（纯图标按钮） */}
+              <style>{ACTION_BAR_HOVER_CSS}</style>
               <div style={ACTION_BAR_STYLE} data-dsh-action-bar="">
-                <button type="button" style={toolButton('')} data-dsh-action-zoom-out onClick={() => zoomBy(0.9)} aria-label="缩小">−</button>
-                <button type="button" style={toolButton('')} data-dsh-action-reset onClick={resetViewTransform} aria-label="重置视图" title="重置视图">重置</button>
-                <button type="button" style={toolButton('')} data-dsh-action-zoom-in onClick={() => zoomBy(1.1)} aria-label="放大">+</button>
-                <button type="button" style={toolButton('')} data-dsh-action-refresh onClick={handleRefresh} aria-label="刷新" title="刷新">刷新</button>
-                <span style={BAR_DIVIDER_STYLE} />
-                <span data-dsh-action-zoom-percent style={{ minWidth: 44, textAlign: 'center', color: 'var(--dsw-alias-label-tertiary)' }}>
-                  {Math.round(view.zoom * 100)}%
-                </span>
+                <button type="button" style={ICON_BUTTON_STYLE} data-dsh-action-zoom-out onClick={() => zoomBy(0.9)} aria-label="缩小" title="缩小"><IconZoomOut /></button>
+                <button type="button" style={ICON_BUTTON_STYLE} data-dsh-action-reset onClick={resetViewTransform} aria-label="重置视图" title="重置视图"><IconLocateFixed /></button>
+                <button type="button" style={ICON_BUTTON_STYLE} data-dsh-action-zoom-in onClick={() => zoomBy(1.1)} aria-label="放大" title="放大"><IconZoomIn /></button>
+                <button type="button" style={ICON_BUTTON_STYLE} data-dsh-action-refresh onClick={handleRefresh} aria-label="刷新" title="刷新"><IconRefresh /></button>
               </div>
             </div>
           )}

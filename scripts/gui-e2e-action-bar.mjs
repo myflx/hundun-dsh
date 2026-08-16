@@ -15,7 +15,7 @@ await p.waitForTimeout(1500)
 const R = []
 const rec = (id, pass, detail) => R.push({ id, pass: pass ? 'PASS' : 'FAIL', detail })
 
-// E2E-01 四按钮顺序 + 右上角无独立缩放工具 + 无自动布局/聚焦
+// E2E-01 四图标按钮顺序 + 无文字 + 右上角无独立缩放工具
 const order = await p.evaluate(() => {
   const bar = document.querySelector('[data-dsh-action-bar]')
   const btns = bar ? [...bar.querySelectorAll('button')].map((btn) => {
@@ -28,36 +28,35 @@ const order = await p.evaluate(() => {
   return {
     bar: !!bar,
     order: btns,
+    hasSvg: bar ? bar.querySelectorAll('button svg').length : 0,
+    allIconOnly: bar ? [...bar.querySelectorAll('button')].every((b) => (b.textContent ?? '').trim() === '') : false,
     oldToolbar: !!document.querySelector('[data-dsh-canvas-toolbar]'),
-    layout: !!document.querySelector('[data-dsh-action-layout]'),
-    focus: !!document.querySelector('[data-dsh-action-focus]'),
-    percent: document.querySelector('[data-dsh-action-zoom-percent]')?.textContent,
   }
 })
-rec('E2E-01', order.bar && JSON.stringify(order.order) === JSON.stringify(['zoom-out', 'reset', 'zoom-in', 'refresh']) && !order.oldToolbar && !order.layout && !order.focus, order)
+rec('E2E-01', order.bar && JSON.stringify(order.order) === JSON.stringify(['zoom-out', 'reset', 'zoom-in', 'refresh']) && order.hasSvg === 4 && order.allIconOnly && !order.oldToolbar, order)
 
-// E2E-02 放大 110% → 缩小 99%
+// E2E-02 放大 110% → 缩小 99%（viewport transform）
+const vpTransform = () => p.evaluate(() => document.querySelector('[data-dsh-canvas-viewport]')?.style.transform)
+const t0 = await vpTransform()
 await p.locator('[data-dsh-action-zoom-in]').click()
 await p.waitForTimeout(300)
-const pct1 = await p.locator('[data-dsh-action-zoom-percent]').textContent()
+const t1 = await vpTransform()
 await p.locator('[data-dsh-action-zoom-out]').click()
 await p.waitForTimeout(300)
-const pct2 = await p.locator('[data-dsh-action-zoom-percent]').textContent()
-rec('E2E-02', pct1.includes('110') && pct2.includes('99'), { pct1, pct2 })
+const t2 = await vpTransform()
+rec('E2E-02', t0 !== t1 && t1.includes('scale(1.1') && t2.includes('scale(0.99'), { t0, t1, t2 })
 
 // E2E-03 重置 → 100% + 原点
 await p.locator('[data-dsh-action-reset]').click()
 await p.waitForTimeout(300)
-const pct3 = await p.locator('[data-dsh-action-zoom-percent]').textContent()
-const resetOk = await p.evaluate(() => document.querySelector('[data-dsh-canvas-viewport]')?.style.transform)
-rec('E2E-03', pct3.includes('100') && resetOk === 'translate(0px, 0px) scale(1)', { pct3, resetOk })
+const resetOk = await vpTransform()
+rec('E2E-03', resetOk === 'translate(0px, 0px) scale(1)', { resetOk })
 
 // E2E-04/05 刷新 → 无报错（基线重拉由 workspaces 服务处理，feed 无变化时画布稳定）
 await p.locator('[data-dsh-action-refresh]').click()
 await p.waitForTimeout(800)
 const afterRefresh = await p.evaluate(() => ({
   cards: document.querySelectorAll('[data-dsh-canvas-card]').length,
-  percent: document.querySelector('[data-dsh-action-zoom-percent]')?.textContent,
   bar: !!document.querySelector('[data-dsh-action-bar]'),
 }))
 rec('E2E-04', afterRefresh.cards > 0 && afterRefresh.bar, afterRefresh)
