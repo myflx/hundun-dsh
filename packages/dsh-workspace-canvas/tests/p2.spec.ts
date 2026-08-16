@@ -59,4 +59,29 @@ describe('P2 视图（T038-T041 集成）', () => {
     expect(viewport!.style.transform).toBe('translate(40px, -20px) scale(1.5)')
     await act(async () => root.unmount())
   })
+
+  it('无限网格底：固定格距 + 取模跟随平移 + 缩放仅作用于节点层', async () => {
+    const store = new CanvasDocumentStore(localStorage)
+    store.mutate((d) => { d.view = { x: 40, y: -20, zoom: 1.5 } })
+    const container = document.createElement('div')
+    document.body.appendChild(container)
+    const root = createRoot(container)
+    await act(async () => {
+      root.render(createElement(CanvasView, { workspaces: feedWith([ws]), store, onClose: () => {} }))
+    })
+    const grid = container.querySelector<HTMLElement>('[data-dsh-canvas-grid]')
+    expect(grid).not.toBeNull()
+    expect(grid!.style.backgroundSize).toBe('24px 24px')
+    // 平移取模：40%24=16；-20%24=-20（负值等价 +4，周期 24 视觉连续）
+    expect(grid!.style.backgroundPosition).toBe('16px -20px')
+    expect(grid!.style.transform).toBe('') // 网格无 transform，不随缩放/平移变换
+    // 缩放操作：网格仍无 transform，节点层 scale 变化（锚点为中心，x/y 同步调整）
+    const zoomIn = container.querySelector<HTMLButtonElement>('[data-dsh-zoom-in]')
+    await act(async () => { zoomIn!.click() })
+    expect(grid!.style.transform).toBe('')
+    const viewport = container.querySelector<HTMLElement>('[data-dsh-canvas-viewport]')
+    expect(viewport!.style.transform).toMatch(/scale\(1\.65/) // 浮点精度：1.5×1.1=1.65（可能带尾差）
+    expect(grid!.style.backgroundSize).toBe('24px 24px') // 格距始终固定
+    await act(async () => root.unmount())
+  })
 })

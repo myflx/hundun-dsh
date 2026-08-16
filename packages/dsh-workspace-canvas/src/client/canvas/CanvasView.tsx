@@ -83,7 +83,8 @@ const CLOSE_STYLE = {
   padding: '6px 12px',
 } as const
 
-/** 画布区域（P2）：未变换的坐标参考层，铺满剩余空间；overflow hidden（平移代替滚动）。 */
+/** 画布区域：未变换的坐标参考层，铺满剩余空间；overflow hidden（平移代替滚动）。
+ *  无限画布：底色铺满；网格层与节点层分离（见下），平移永不露白。 */
 const CANVAS_STYLE: CSSProperties = {
   flex: 1,
   minHeight: '240px',
@@ -92,16 +93,26 @@ const CANVAS_STYLE: CSSProperties = {
   touchAction: 'none',
 } as const
 
-/** 视口层（P2）：承载网格背景 + 全部节点，经 view 变换（translate + scale，原点 0 0）。 */
-const VIEWPORT_STYLE: CSSProperties = {
+/** 网格层（无限画布底）：铺满区域，网格尺寸固定，不随缩放变化；
+ *  平移时以 background-position 取模跟随（周期 = 格距），永不露白，制造无限大观感。 */
+const GRID_STYLE: CSSProperties = {
   position: 'absolute',
   inset: 0,
-  transformOrigin: '0 0',
   backgroundImage: [
     'linear-gradient(var(--dsw-alias-border-l2) 1px, transparent 1px)',
     'linear-gradient(90deg, var(--dsw-alias-border-l2) 1px, transparent 1px)',
   ].join(', '),
   backgroundSize: `${GRID}px ${GRID}px`,
+  zIndex: 0,
+} as const
+
+/** 节点层：全部卡片/成员，经 view 变换（translate + scale，原点 0 0）。
+ *  缩放只作用于本层——网格底保持不变，仅节点随 zoom 放大/缩小。 */
+const NODE_LAYER_STYLE: CSSProperties = {
+  position: 'absolute',
+  inset: 0,
+  transformOrigin: '0 0',
+  zIndex: 1,
 } as const
 
 /** 画布工具栏（P2 功能项）：缩放控件 + 重置视图。 */
@@ -484,9 +495,18 @@ export const CanvasView = memo(function CanvasView({ workspaces, store, onClose,
               onPointerLeave={onAreaPointerUp}
               data-dsh-canvas-area=""
             >
+              {/* 无限网格底：固定格距，background-position 取模跟随平移（永不露白）；不随缩放变化 */}
               <div
                 style={{
-                  ...VIEWPORT_STYLE,
+                  ...GRID_STYLE,
+                  backgroundPosition: `${view.x % GRID}px ${view.y % GRID}px`,
+                }}
+                data-dsh-canvas-grid=""
+              />
+              {/* 节点层：缩放/平移只作用于本层 */}
+              <div
+                style={{
+                  ...NODE_LAYER_STYLE,
                   transform: `translate(${view.x}px, ${view.y}px) scale(${view.zoom})`,
                 }}
                 data-dsh-canvas-viewport=""
