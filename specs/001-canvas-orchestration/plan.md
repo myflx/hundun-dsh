@@ -6,6 +6,11 @@
 
 > 依据：spec.md（含 4 项 clarify 结论）+ `packages/dsh-workspace-canvas/docs/` 四份定稿设计文档 +
 > 项目章程 v1.0.0。本计划面向**当前阶段（P0.5 + P1）**；US8 缩放平移（P2）不在本计划实现范围。
+>
+> **更新（P2 本轮激活）**：US8 / FR-015 视图与布局已于后续轮次激活并落地——view 变换助手
+> （`canvas/view-transform.ts`）、画布滚轮缩放 / 空白拖拽平移、工具栏功能项（缩放 +/− / 百分比 / 重置）、
+> view 持久化（防抖写入 CanvasDocument.view）；对应任务 T038–T041（tasks.md Phase 11），
+> 已通过单测 + playwright 真机验证。对齐辅助线、碰撞推挤、GRID 自动布局、拖拽 ghost 仍为后续增量。
 
 ## Summary
 

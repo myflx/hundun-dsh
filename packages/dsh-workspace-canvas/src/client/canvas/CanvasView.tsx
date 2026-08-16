@@ -1,5 +1,5 @@
-import { Fragment, memo, useRef, useState, useSyncExternalStore } from 'react'
-import type { CSSProperties, PointerEvent as ReactPointerEvent } from 'react'
+import { Fragment, memo, useEffect, useRef, useState, useSyncExternalStore } from 'react'
+import type { CSSProperties, PointerEvent as ReactPointerEvent, WheelEvent as ReactWheelEvent } from 'react'
 import type { ClientContext } from '@deepseek-ai/dsh-client-runtime/client'
 import type { IWorkspaces, WorkspaceListState } from '@deepseek-ai/dsh-client-runtime/client'
 import type { WorkspaceId, WorkspaceView } from '@deepseek-ai/dsh-client-connection/client'
@@ -11,6 +11,7 @@ import { DetailPanel } from './detail/panel.tsx'
 import { WorkspaceDetail } from './detail/workspace-detail.tsx'
 import { openWorkspaceSession } from './workspace-open.ts'
 import { commitWorkspacePosition, readWorkspacePositions } from './workspace-position.ts'
+import { defaultView, panBy, resetView, scenePoint, wheelZoomFactor, zoomAt, type ViewTransform } from './view-transform.ts'
 import { canvasText } from './text.ts'
 
 /** 画布 props：官方 workspaces feed + 文档存储（布局持久化）+ 关闭回调。
@@ -82,18 +83,54 @@ const CLOSE_STYLE = {
   padding: '6px 12px',
 } as const
 
-/** 画布区域：铺满中间区域剩余空间，相对定位 + 网格背景（十字线）。 */
+/** 画布区域（P2）：未变换的坐标参考层，铺满剩余空间；overflow hidden（平移代替滚动）。 */
 const CANVAS_STYLE: CSSProperties = {
+  flex: 1,
+  minHeight: '240px',
+  overflow: 'hidden',
+  position: 'relative',
+  touchAction: 'none',
+} as const
+
+/** 视口层（P2）：承载网格背景 + 全部节点，经 view 变换（translate + scale，原点 0 0）。 */
+const VIEWPORT_STYLE: CSSProperties = {
+  position: 'absolute',
+  inset: 0,
+  transformOrigin: '0 0',
   backgroundImage: [
     'linear-gradient(var(--dsw-alias-border-l2) 1px, transparent 1px)',
     'linear-gradient(90deg, var(--dsw-alias-border-l2) 1px, transparent 1px)',
   ].join(', '),
   backgroundSize: `${GRID}px ${GRID}px`,
-  flex: 1,
-  minHeight: '240px',
-  overflow: 'auto',
-  position: 'relative',
 } as const
+
+/** 画布工具栏（P2 功能项）：缩放控件 + 重置视图。 */
+const TOOLBAR_STYLE: CSSProperties = {
+  position: 'absolute',
+  top: 10,
+  right: 12,
+  zIndex: 80,
+  display: 'flex',
+  alignItems: 'center',
+  gap: 4,
+  padding: '4px 6px',
+  background: 'var(--dsw-alias-surface-raised, rgba(255,255,255,.9))',
+  border: '1px solid var(--dsw-alias-border-l2, #ccc)',
+  borderRadius: 8,
+  fontSize: 12,
+} as const
+
+function toolButton(label: string): CSSProperties {
+  return {
+    border: 'none',
+    background: 'transparent',
+    cursor: 'pointer',
+    borderRadius: 6,
+    padding: '4px 8px',
+    fontSize: 13,
+    lineHeight: 1,
+  }
+}
 
 const CARD_STYLE: CSSProperties = {
   background: 'var(--dsw-alias-surface-raised)',
@@ -153,13 +190,17 @@ function autoPosition(index: number): { x: number; y: number } {
 }
 
 /** 一张可拖拽的工作区卡片。 */
-function WorkspaceCard({ workspace, recent, position, onCommit, onOpen, onContextMenu }: {
+function WorkspaceCard({ workspace, recent, position, onCommit, onOpen, onContextMenu, zoom, toScene }: {
   workspace: WorkspaceView
   recent: boolean
   position: { x: number; y: number }
   onCommit: (id: WorkspaceId, position: { x: number; y: number }) => void
   onOpen: (id: WorkspaceId) => void
   onContextMenu?: (event: ReactPointerEvent<HTMLButtonElement>) => void
+  /** 当前缩放（拖拽偏移换算 scene 坐标用）。 */
+  zoom: number
+  /** 屏幕坐标 → scene 坐标（P2 view 变换）。 */
+  toScene: (clientX: number, clientY: number) => { x: number; y: number }
 }) {
   const dragRef = useRef<{ id: WorkspaceId; x0: number; y0: number; dx: number; dy: number; moved: boolean } | null>(null)
   const justDraggedRef = useRef(false)
@@ -185,12 +226,11 @@ function WorkspaceCard({ workspace, recent, position, onCommit, onOpen, onContex
       drag.moved = true
     }
     if (!drag.moved) return
-    const canvas = event.currentTarget.parentElement
-    if (canvas === null) return
-    const rect = canvas.getBoundingClientRect()
+    // P2：视口带 view 变换，拖拽落点须换算回 scene 坐标（按下偏移按 zoom 缩放）。
+    const scene = toScene(event.clientX, event.clientY)
     onCommit(drag.id, {
-      x: event.clientX - rect.left - drag.dx,
-      y: event.clientY - rect.top - drag.dy,
+      x: scene.x - drag.dx / zoom,
+      y: scene.y - drag.dy / zoom,
     })
   }
 
@@ -272,6 +312,92 @@ export const CanvasView = memo(function CanvasView({ workspaces, store, onClose,
   const [menu, setMenu] = useState<{ x: number; y: number; node: CanvasNode; view?: { sessionIds: ReadonlyArray<string> } } | undefined>()
   const [selectedId, setSelectedId] = useState<string | undefined>()
 
+  // ── P2 视图（缩放/平移/持久化）────────────────────────────────────────
+  const areaRef = useRef<HTMLDivElement | null>(null)
+  const wheelHandlerRef = useRef<((event: WheelEvent) => void) | null>(null)
+  const [view, setView] = useState<ViewTransform>(() => store.read().view ?? defaultView())
+  const viewRef = useRef(view)
+  const viewTimer = useRef<ReturnType<typeof setTimeout> | undefined>()
+
+  // 滚轮缩放（以鼠标为锚；原生监听 passive:false 才能 preventDefault）。
+  // 画布区域是条件渲染（feed 就绪后出现），因此用回调 ref 在元素出现时再挂监听。
+  useEffect(() => {
+    const handler = (event: WheelEvent): void => {
+      event.preventDefault()
+      const rect = areaRef.current?.getBoundingClientRect()
+      if (rect === undefined) return
+      const current = viewRef.current
+      setView(zoomAt(
+        current,
+        current.zoom * wheelZoomFactor(event.deltaY),
+        { x: event.clientX - rect.left, y: event.clientY - rect.top },
+      ))
+    }
+    wheelHandlerRef.current = handler
+    if (areaRef.current !== null) {
+      areaRef.current.addEventListener('wheel', handler, { passive: false })
+    }
+    return () => {
+      if (areaRef.current !== null) areaRef.current.removeEventListener('wheel', handler)
+      wheelHandlerRef.current = null
+    }
+  }, [])
+
+  /** 画布区域回调 ref：元素出现/消失时维护滚轮监听。 */
+  const setAreaRef = (el: HTMLDivElement | null): void => {
+    if (areaRef.current !== null && wheelHandlerRef.current !== null) {
+      areaRef.current.removeEventListener('wheel', wheelHandlerRef.current)
+    }
+    areaRef.current = el
+    if (el !== null && wheelHandlerRef.current !== null) {
+      el.addEventListener('wheel', wheelHandlerRef.current, { passive: false })
+    }
+  }
+
+  // 屏幕坐标 → scene 坐标（未变换的区域层为坐标参考）。
+  const toScene = (clientX: number, clientY: number): { x: number; y: number } => {
+    const rect = areaRef.current?.getBoundingClientRect()
+    if (rect === undefined) return { x: 0, y: 0 }
+    return scenePoint(viewRef.current, { x: clientX - rect.left, y: clientY - rect.top })
+  }
+
+  useEffect(() => {
+    viewRef.current = view
+    if (viewTimer.current !== undefined) clearTimeout(viewTimer.current)
+    // view 尾随防抖持久化到 CanvasDocument.view（store 写入自身再防抖，双层兜底）。
+    viewTimer.current = setTimeout(() => {
+      viewTimer.current = undefined
+      store.mutate((doc) => { doc.view = viewRef.current })
+    }, 400)
+    return () => {
+      if (viewTimer.current !== undefined) clearTimeout(viewTimer.current)
+    }
+  }, [view, store])
+
+  // 空白拖拽平移（卡片/成员上的按下不触发）。
+  const panRef = useRef<{ startX: number; startY: number; view: ViewTransform } | null>(null)
+  const onAreaPointerDown = (event: ReactPointerEvent<HTMLDivElement>): void => {
+    const target = event.target as HTMLElement
+    if (target.closest('[data-dsh-canvas-card], [data-dsh-canvas-member]') !== null) return
+    if (event.button !== 0) return
+    panRef.current = { startX: event.clientX, startY: event.clientY, view: viewRef.current }
+  }
+  const onAreaPointerMove = (event: ReactPointerEvent<HTMLDivElement>): void => {
+    const pan = panRef.current
+    if (pan === null) return
+    setView(panBy(pan.view, event.clientX - pan.startX, event.clientY - pan.startY))
+  }
+  const onAreaPointerUp = (): void => { panRef.current = null }
+
+  // 工具栏：以区域中心为锚缩放 / 重置视图。
+  const zoomBy = (factor: number): void => {
+    const rect = areaRef.current?.getBoundingClientRect()
+    const center = rect !== undefined ? { x: rect.width / 2, y: rect.height / 2 } : { x: 0, y: 0 }
+    const current = viewRef.current
+    setView(zoomAt(current, current.zoom * factor, center))
+  }
+  const resetViewTransform = (): void => setView(resetView())
+
   const openMenu = (
     event: { clientX: number; clientY: number; preventDefault(): void },
     node: CanvasNode,
@@ -349,30 +475,54 @@ export const CanvasView = memo(function CanvasView({ workspaces, store, onClose,
         : items.length === 0
           ? <div style={EMPTY_STYLE}>{canvasText('canvas.empty')}</div>
           : (
-            <div style={CANVAS_STYLE}>
-              {items.map((workspace, index) => {
-                const workspacePosition = positions[workspace.workspaceId] ?? autoPosition(index)
-                const members = orchestrationNodes.filter((n) => n.workspaceId === workspace.workspaceId)
-                const workspaceNode: CanvasNode = {
-                  id: `ws:${String(workspace.workspaceId)}`,
-                  kind: 'workspace',
-                  ref: String(workspace.workspaceId),
-                  position: workspacePosition,
-                }
-                return (
-                  <Fragment key={workspace.workspaceId}>
-                    <WorkspaceCard
-                      workspace={workspace}
-                      recent={workspace.workspaceId === state.recentWorkspaceId}
-                      position={workspacePosition}
-                      onCommit={commitPosition}
-                      onOpen={handleOpen}
-                      onContextMenu={(event) => openMenu(event, workspaceNode, { sessionIds: workspace.sessionIds })}
-                    />
-                    {members.map((member) => renderMember(member, workspacePosition))}
-                  </Fragment>
-                )
-              })}
+            <div
+              ref={setAreaRef}
+              style={CANVAS_STYLE}
+              onPointerDown={onAreaPointerDown}
+              onPointerMove={onAreaPointerMove}
+              onPointerUp={onAreaPointerUp}
+              onPointerLeave={onAreaPointerUp}
+              data-dsh-canvas-area=""
+            >
+              <div
+                style={{
+                  ...VIEWPORT_STYLE,
+                  transform: `translate(${view.x}px, ${view.y}px) scale(${view.zoom})`,
+                }}
+                data-dsh-canvas-viewport=""
+              >
+                {items.map((workspace, index) => {
+                  const workspacePosition = positions[workspace.workspaceId] ?? autoPosition(index)
+                  const members = orchestrationNodes.filter((n) => n.workspaceId === workspace.workspaceId)
+                  const workspaceNode: CanvasNode = {
+                    id: `ws:${String(workspace.workspaceId)}`,
+                    kind: 'workspace',
+                    ref: String(workspace.workspaceId),
+                    position: workspacePosition,
+                  }
+                  return (
+                    <Fragment key={workspace.workspaceId}>
+                      <WorkspaceCard
+                        workspace={workspace}
+                        recent={workspace.workspaceId === state.recentWorkspaceId}
+                        position={workspacePosition}
+                        onCommit={commitPosition}
+                        onOpen={handleOpen}
+                        onContextMenu={(event) => openMenu(event, workspaceNode, { sessionIds: workspace.sessionIds })}
+                        zoom={view.zoom}
+                        toScene={toScene}
+                      />
+                      {members.map((member) => renderMember(member, workspacePosition))}
+                    </Fragment>
+                  )
+                })}
+              </div>
+              <div style={TOOLBAR_STYLE} data-dsh-canvas-toolbar="">
+                <button type="button" style={toolButton('')} data-dsh-zoom-out onClick={() => zoomBy(0.9)} aria-label="缩小">−</button>
+                <span style={{ minWidth: 44, textAlign: 'center' }}>{Math.round(view.zoom * 100)}%</span>
+                <button type="button" style={toolButton('')} data-dsh-zoom-in onClick={() => zoomBy(1.1)} aria-label="放大">+</button>
+                <button type="button" style={toolButton('')} data-dsh-zoom-reset onClick={resetViewTransform}>重置</button>
+              </div>
             </div>
           )}
       {menu !== undefined && ctx !== undefined && (

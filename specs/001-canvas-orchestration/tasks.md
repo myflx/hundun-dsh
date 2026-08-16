@@ -1,4 +1,4 @@
-﻿# Tasks: 编排画布（Canvas Orchestration）
+# Tasks: 编排画布（Canvas Orchestration）
 
 **Input**: Design documents from `/specs/001-canvas-orchestration/`
 
@@ -159,3 +159,14 @@ US 相互独立，Foundational 完成后可并行；Phase 10（T035-T037）最�
 - 增量顺序：US2（持久化，修复 P0 最大缺陷）→ US3（平台）→ US4/US5（管理/明细）→ US6/US7（互斥/设置，依赖前置基础件）；
 - 每个 Phase 完成后运行 `$speckit-converge` 对照 spec 检查缺口（章程 V 条），不等到全部完成；
 - E2E 门禁：quickstart.md 逐条记录（章程 IV 条）；E2E-08/09（拖线）标注待 P1.4 手势租户。
+
+---
+
+## Phase 11: P2 视图与布局（本轮激活，参考 hundun-web）
+
+**Purpose**: 缩放 / 平移 / 工具栏功能项（US8 / FR-015 激活）；对齐辅助线、碰撞推挤、GRID 自动布局、拖拽创建 ghost 为后续增量。
+
+- [ ] T038 [P] view 变换纯函数助手（缩放 0.3–3 / 平移 / reset / scene 坐标换算） `file: packages/dsh-workspace-canvas/src/client/canvas/view-transform.ts` `function: zoomAt / panBy / scenePoint / resetView / clampZoom` `calls: 无` `verify: view-transform.spec 7 条单测：缩放锚点不变、scene/screen 互逆、夹取 [0.3,3]、滚轮因子 1.1/0.9`
+- [ ] T039 画布接入滚轮缩放（以鼠标为锚）+ 空白拖拽平移 `file: packages/dsh-workspace-canvas/src/client/canvas/CanvasView.tsx` `function: setAreaRef（回调 ref 挂 wheel）/ onAreaPointer*` `calls: view-transform zoomAt / panBy` `verify: playwright 真机：滚轮派发后 scale 1→1.1 且锚点补偿；空白拖拽后 translate(120,60)；p2.spec 单测`
+- [ ] T040 画布工具栏功能项（缩放 +/− / 百分比 / 重置视图） `file: packages/dsh-workspace-canvas/src/client/canvas/CanvasView.tsx` `function: zoomBy / resetViewTransform` `calls: 无` `verify: playwright 真机：放大 110%、重置回 100%；单测渲染含 −/百分比/+/重置 按钮`
+- [ ] T041 view 持久化到 CanvasDocument.view（尾随防抖，初始恢复） `file: packages/dsh-workspace-canvas/src/client/canvas/CanvasView.tsx` `function: viewTimer effect / 初始 useState` `calls: store.mutate` `verify: p2.spec 单测：缩放后防抖写入 view.zoom=1.1；预置 view 重挂载恢复 translate(40px,-20px) scale(1.5)`
