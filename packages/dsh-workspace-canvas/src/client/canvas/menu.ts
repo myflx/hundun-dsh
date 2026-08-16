@@ -51,7 +51,7 @@ export function ContextMenu({ x, y, items, onClose }: ContextMenuProps) {
     portal: true,
     // 锚点：隐藏 span（portal 模式定位用 getAnchorRect，锚点无需可见）
     anchor: createElement('span', { style: { display: 'none' } }),
-    getAnchorRect: () => ({ left: x, top: y, width: 0, height: 0 }) as DOMRect,
+    getAnchorRect: () => new DOMRect(x, y, 0, 0),
     items: items.map((item) => ({
       id: item.id,
       label: item.label,
