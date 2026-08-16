@@ -42,7 +42,7 @@ const canvasFacts = () => page.evaluate(() => {
     cardTexts: [...document.querySelectorAll('[data-dsh-canvas-card]')].map((c) => c.textContent.trim().slice(0, 60)),
     sidebarWorkspaces: document.querySelectorAll('[aria-label^="工作区\u201C"]').length,
     detail: !!document.querySelector('[data-dsh-canvas-detail]'),
-    menuItems: [...document.querySelectorAll('[data-dsh-menu-item]')].map((b) => b.textContent),
+    menuItems: [...document.querySelectorAll('[role="menuitem"]')].map((b) => b.textContent),
     errorBoundary: !!document.querySelector('[data-dsh-canvas-error]'),
     viewportTransform: (() => { const v = document.querySelector('[data-dsh-canvas-viewport]'); return v ? v.style.transform : null })(),
     zoomText: (() => { const t = document.querySelector('[data-dsh-action-bar]'); return t ? t.textContent : null })(),
@@ -80,7 +80,7 @@ await sleep(5000)
 
 // ── E2E-13 右键详情 → 右侧明细（基础信息 + 会话数） ──
 {
-  const detailItem = page.locator('[data-dsh-menu-item="detail"]')
+  const detailItem = page.locator('[role="menuitem"]', { hasText: '详情' })
   await detailItem.click()
   await sleep(700)
   const f = await canvasFacts()
@@ -209,7 +209,7 @@ await sleep(5000)
   await sleep(600)
   let dialogMsg = null
   page.once('dialog', async (d) => { dialogMsg = d.message(); await d.dismiss() })
-  const delItem = page.locator('[data-dsh-menu-item="delete"]')
+  const delItem = page.locator('[role="menuitem"]', { hasText: '删除' })
   await delItem.click()
   await sleep(800)
   const cardsAfter = await page.locator('[data-dsh-canvas-card]').count()

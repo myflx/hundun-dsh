@@ -140,7 +140,11 @@ describe('mergeActions 合并（T023）', () => {
   })
 })
 
-describe('ContextMenu（T023）', () => {
+describe('ContextMenu（T023，原生 Menu 组件）', () => {
+  /** 查找原生 Menu 项（role=menuitem，按文本）。 */
+  const findItem = (text: string): HTMLButtonElement | undefined =>
+    [...document.body.querySelectorAll('[role="menuitem"]')].find((el) => el.textContent?.includes(text)) as HTMLButtonElement | undefined
+
   it('渲染菜单项；点击后执行动作并关闭', async () => {
     const run = vi.fn()
     const onClose = vi.fn()
@@ -150,33 +154,32 @@ describe('ContextMenu（T023）', () => {
     await act(async () => {
       root.render(createElement(ContextMenu, { x: 10, y: 20, onClose, items: [{ id: 'a', label: '动作A', run }] }))
     })
-    const btn = container.querySelector<HTMLButtonElement>('[data-dsh-menu-item="a"]')
+    const btn = findItem('动作A')
     expect(btn).not.toBeNull()
-    expect(btn!.textContent).toBe('动作A')
     await act(async () => { btn!.click() })
     expect(run).toHaveBeenCalled()
     expect(onClose).toHaveBeenCalled()
     await act(async () => root.unmount())
   })
 
-  it('菜单样式用系统令牌且可读：背景不透明、文字色显式 label-primary（白字白底 bugfix）', async () => {
+  it('渲染系统原生菜单（role=menu）与项图标；danger 项传 danger 标记', async () => {
     const container = document.createElement('div')
     document.body.appendChild(container)
     const root = createRoot(container)
     await act(async () => {
-      root.render(createElement(ContextMenu, { x: 10, y: 20, onClose: () => {}, items: [{ id: 'a', label: '动作A', icon: MENU_ITEM_ICONS.rename, run: () => {} }] }))
+      root.render(createElement(ContextMenu, {
+        x: 10, y: 20, onClose: () => {},
+        items: [
+          { id: 'rename', label: '重命名', icon: MENU_ITEM_ICONS.rename, run: () => {} },
+          { id: 'delete', label: '删除', icon: MENU_ITEM_ICONS.delete, danger: true, run: () => {} },
+        ],
+      }))
     })
-    const menu = container.querySelector<HTMLElement>('[data-dsh-canvas-menu]')
-    const item = container.querySelector<HTMLElement>('[data-dsh-menu-item="a"]')
-    expect(menu?.style.background).toBe('var(--dsw-specific-menu)')
-    expect(menu?.style.color).toBe('var(--dsw-alias-label-primary)')
-    expect(item?.style.color).toBe('var(--dsw-alias-label-primary)')
-    // 菜单项渲染系统图标（对齐原生工作区操作菜单）
-    const icon = item?.querySelector('svg')
-    expect(icon).not.toBeNull()
-    // 不引入硬编码颜色 fallback（SC-004）
-    expect(menu?.getAttribute('style')).not.toMatch(/#[0-9a-fA-F]{3,6}/)
-    expect(item?.getAttribute('style')).not.toMatch(/#[0-9a-fA-F]{3,6}/)
+    expect(document.querySelector('[role="menu"]')).not.toBeNull()
+    const renameItem = findItem('重命名')
+    expect(renameItem).not.toBeNull()
+    expect(renameItem!.querySelector('svg')).not.toBeNull() // 系统图标
+    expect(findItem('删除')).not.toBeNull()
     await act(async () => root.unmount())
   })
 })

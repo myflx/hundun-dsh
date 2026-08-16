@@ -35,11 +35,11 @@ if (await entry.count() > 0) {
   if (await card.count() > 0) {
     await card.click({ button: 'right' })
     await page.waitForTimeout(800)
-    const menu = await page.evaluate(() => [...document.querySelectorAll('[data-dsh-menu-item]')].map((b) => b.textContent))
+    const menu = await page.evaluate(() => [...document.querySelectorAll('[role="menuitem"]')].map((b) => b.textContent))
     results.push({ step: 'context-menu-items', menu })
 
     // 3) 点「详情」→ 明细面板
-    const detailItem = page.locator('[data-dsh-menu-item="detail"]')
+    const detailItem = page.locator('[role="menuitem"]', { hasText: '详情' })
     if (await detailItem.count() > 0) {
       await detailItem.click()
       await page.waitForTimeout(800)

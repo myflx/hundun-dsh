@@ -162,8 +162,9 @@ describe('画布空白交互（手型光标 + 取消选中）与归档计数', (
     const card = container.querySelector<HTMLElement>('[data-dsh-canvas-card]')
     await act(async () => { card!.dispatchEvent(new MouseEvent('contextmenu', { bubbles: true, cancelable: true })) })
     await act(async () => {
-      const detail = container.querySelector<HTMLButtonElement>('[data-dsh-menu-item="detail"]')
-      expect(detail).not.toBeNull()
+      // 原生 Menu portal 到 body：按文本找「详情」项
+      const detail = [...document.body.querySelectorAll('[role="menuitem"]')].find((el) => el.textContent?.includes('详情')) as HTMLButtonElement | undefined
+      expect(detail).not.toBeUndefined()
       detail!.click()
     })
     expect(container.querySelector('[data-dsh-canvas-detail]')).not.toBeNull()
