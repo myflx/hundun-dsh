@@ -135,8 +135,6 @@ const ACTION_BAR_STYLE: CSSProperties = {
   border: '1px solid var(--dsw-alias-border-l2)',
   borderRadius: 8,
   whiteSpace: 'nowrap',
-  // 默认图标色（与 hover 对调）：label-primary 白；按钮继承，hover 规则覆盖为灰
-  color: 'var(--dsw-alias-label-primary)',
 } as const
 
 /** 图标按钮（hundun-web .canvas-controls button 形态：30×30、透明、悬停高亮）。
@@ -153,9 +151,10 @@ const ICON_BUTTON_STYLE: CSSProperties = {
   cursor: 'pointer',
 } as const
 
-/** 图标按钮悬停（与默认显示色对调：hover 变 label-tertiary 灰 + 背景高亮）。 */
+/** 操作栏按钮颜色规则（默认灰 → hover 白高亮；特异性高于 dsh 全局 button 样式）。 */
 const ACTION_BAR_HOVER_CSS = `
-[data-dsh-action-bar] button:hover { background: var(--dsw-alias-interactive-bg-hover); color: var(--dsw-alias-label-tertiary); }
+[data-dsh-action-bar] button { color: var(--dsw-alias-label-tertiary); }
+[data-dsh-action-bar] button:hover { background: var(--dsw-alias-interactive-bg-hover); color: var(--dsw-alias-label-primary); }
 `
 
 function toolButton(label: string): CSSProperties {
