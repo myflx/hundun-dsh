@@ -3,8 +3,8 @@ import type { CSSProperties, PointerEvent as ReactPointerEvent, WheelEvent as Re
 import type { ClientContext } from '@deepseek-ai/dsh-client-runtime/client'
 import type { IWorkspaces, WorkspaceListState } from '@deepseek-ai/dsh-client-runtime/client'
 import type { WorkspaceId, WorkspaceView } from '@deepseek-ai/dsh-client-connection/client'
-// 系统图标（primitives 在客户端平台表；操作栏刷新与原生菜单同款）
-import { IconRefreshOutline16 } from '@deepseek-ai/dsh-client-ui-primitives'
+// 系统组件/图标（primitives 在客户端平台表；操作栏用系统 Button toolbar 变体，颜色交互系统保证）
+import { Button, IconRefreshOutline16 } from '@deepseek-ai/dsh-client-ui-primitives'
 import type { CanvasDocumentStore, CanvasNode } from './document.ts'
 import type { CanvasRegistryImpl } from './registry.ts'
 import { ContextMenu, MENU_ITEM_ICONS, type MenuItem } from './menu.ts'
@@ -137,26 +137,6 @@ const ACTION_BAR_STYLE: CSSProperties = {
   whiteSpace: 'nowrap',
 } as const
 
-/** 图标按钮（hundun-web .canvas-controls button 形态：30×30、透明、悬停高亮）。
- *  不设 inline background（默认透明）——否则覆盖 :hover 规则（inline 特异性最高）。 */
-const ICON_BUTTON_STYLE: CSSProperties = {
-  display: 'grid',
-  width: 30,
-  height: 30,
-  placeItems: 'center',
-  padding: 0,
-  border: 0,
-  borderRadius: 5,
-  // 不设 inline color（继承容器 label-primary 白）——否则覆盖 :hover 规则
-  cursor: 'pointer',
-} as const
-
-/** 操作栏按钮颜色规则（默认灰 → hover 白高亮；特异性高于 dsh 全局 button 样式）。 */
-const ACTION_BAR_HOVER_CSS = `
-[data-dsh-action-bar] button { color: var(--dsw-alias-label-tertiary); }
-[data-dsh-action-bar] button:hover { background: var(--dsw-alias-interactive-bg-hover); color: var(--dsw-alias-label-primary); }
-`
-
 function toolButton(label: string): CSSProperties {
   return {
     border: 'none',
@@ -168,6 +148,13 @@ function toolButton(label: string): CSSProperties {
     lineHeight: 1,
   }
 }
+
+/** ── 操作栏按钮颜色（系统 Button toolbar 结构/圆角/hover 背景系统保证；
+ *   颜色覆盖为用户要求的默认灰 → hover 白；特异性高于 Button class 规则） ── */
+const ACTION_BAR_HOVER_CSS = `
+[data-dsh-action-bar] button { color: var(--dsw-alias-label-tertiary); }
+[data-dsh-action-bar] button:hover { color: var(--dsw-alias-label-primary); }
+`
 
 /** ── 操作栏图标（内联 SVG，lucide 同款 path，ISC 开源；颜色走 currentColor = 系统令牌） ── */
 
@@ -684,13 +671,14 @@ export const CanvasView = memo(function CanvasView({ workspaces, store, onClose,
                   )
                 })}
               </div>
-              {/* 底部操作栏（对齐 hundun-web canvas-controls）：缩小 → 重置 → 放大 → 刷新（纯图标按钮） */}
+              {/* 底部操作栏（系统 Button toolbar 变体，结构/圆角/hover 背景系统保证）：
+                  缩小 → 重置 → 放大 → 刷新（纯图标按钮） */}
               <style>{ACTION_BAR_HOVER_CSS}</style>
               <div style={ACTION_BAR_STYLE} data-dsh-action-bar="">
-                <button type="button" style={ICON_BUTTON_STYLE} data-dsh-action-zoom-out onClick={() => zoomBy(0.9)} aria-label="缩小" title="缩小"><IconZoomOut /></button>
-                <button type="button" style={ICON_BUTTON_STYLE} data-dsh-action-reset onClick={resetViewTransform} aria-label="重置视图" title="重置视图"><IconLocateFixed /></button>
-                <button type="button" style={ICON_BUTTON_STYLE} data-dsh-action-zoom-in onClick={() => zoomBy(1.1)} aria-label="放大" title="放大"><IconZoomIn /></button>
-                <button type="button" style={ICON_BUTTON_STYLE} data-dsh-action-refresh onClick={handleRefresh} aria-label="刷新" title="刷新"><IconRefreshAction /></button>
+                <Button variant="toolbar" size="sm" data-dsh-action-zoom-out onClick={() => zoomBy(0.9)} aria-label="缩小" title="缩小"><IconZoomOut /></Button>
+                <Button variant="toolbar" size="sm" data-dsh-action-reset onClick={resetViewTransform} aria-label="重置视图" title="重置视图"><IconLocateFixed /></Button>
+                <Button variant="toolbar" size="sm" data-dsh-action-zoom-in onClick={() => zoomBy(1.1)} aria-label="放大" title="放大"><IconZoomIn /></Button>
+                <Button variant="toolbar" size="sm" data-dsh-action-refresh onClick={handleRefresh} aria-label="刷新" title="刷新"><IconRefreshAction /></Button>
               </div>
             </div>
           )}
