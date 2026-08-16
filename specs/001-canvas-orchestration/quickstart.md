@@ -4,9 +4,12 @@
 > **约束（项目章程 IV 条）**：场景 checkbox 与 tasks.md 任务 checkbox **同等约束力**——
 > 场景未全部通过时，对应任务的 `[X]` 无效（改回 `[ ]`）并 MUST 追加 Convergence 任务。
 
-**Feature**: [spec.md](./spec.md)
+**Feature**: [spec.md](./spec.md) | **Plan**: [plan.md](./plan.md) | **Data**: [data-model.md](./data-model.md) | **Contracts**: [contracts/](./contracts/)
 **验证环境**: DSH web profile（本机，HMR 开启）
 **Created**: 2026-08-16
+
+> 场景依据：spec.md 验收场景（含 clarify 结论）+ 边界情况；技术细节见 data-model.md 与 contracts/（本清单不重复）。
+> E2E 具体操作与预期以 GUI 实际交互为准；性能指标见 SC-002（首帧 ≤1s、拖动帧间隔 <100ms）。
 
 ## E2E 场景（按用户故事分组）
 
