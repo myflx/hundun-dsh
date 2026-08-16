@@ -86,12 +86,27 @@ export function workspaceActions(ac: WorkspaceActionContext): NodeAction[] {
         const memberCount = ac.store.read().nodes.filter(
           (n) => n.kind !== 'workspace' && n.workspaceId === node.ref,
         ).length
+        const sessionCount = ac.view?.sessionIds.length ?? 0
+        // 确认文案：会话将归档（dsh 语义归档=隐藏，避免散落到未分组）
         const ok = confirm(
-          memberCount > 0
-            ? `删除该工作区将同时删除其 ${memberCount} 个成员节点与关系，确定？`
-            : '确定删除该工作区？',
+          memberCount > 0 && sessionCount > 0
+            ? `删除该工作区将归档其 ${sessionCount} 个会话、删除其 ${memberCount} 个成员节点与关系，确定？`
+            : memberCount > 0
+              ? `删除该工作区将同时删除其 ${memberCount} 个成员节点与关系，确定？`
+              : sessionCount > 0
+                ? `删除该工作区将归档其 ${sessionCount} 个会话，确定？`
+                : '确定删除该工作区？',
         )
         if (!ok) return
+        // 先归档全部会话（避免散落到未分组），再级联清理并删除工作区；
+        // 归档失败不阻断删除（会话仍可落未分组）。
+        for (const sessionId of ac.view?.sessionIds ?? []) {
+          try {
+            await ac.ctx.workspaces.archiveSession(sessionId as never)
+          } catch {
+            // 忽略单个归档失败
+          }
+        }
         removeWorkspaceCascade(ac.store, node.ref)
         await ac.ctx.workspaces.delete(node.ref as never)
       },

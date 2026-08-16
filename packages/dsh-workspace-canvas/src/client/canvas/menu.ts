@@ -52,12 +52,13 @@ export function ContextMenu({ x, y, items, onClose }: ContextMenuProps) {
         top: y,
         zIndex: 100,
         minWidth: 150,
-        // 背景与文字色显式走系统令牌（避免在画布浮层上下文继承到浅色导致白字白底空白）
+        // 背景/边框/圆角/阴影对齐原生 dsh 菜单（实测：bg=specific-menu、border-l1、12px、三层阴影）
         background: 'var(--dsw-specific-menu)',
-        border: '1px solid var(--dsw-alias-border-l2)',
-        borderRadius: 8,
+        border: '1px solid var(--dsw-alias-border-l1)',
+        borderRadius: 12,
         padding: 4,
         color: 'var(--dsw-alias-label-primary)',
+        boxShadow: 'rgba(0, 0, 0, 0.2) 0px 0px 1px 0px, rgba(0, 0, 0, 0.02) 0px 0px 4px 0px, rgba(0, 0, 0, 0.08) 0px 12px 32px 0px',
       },
     },
     [

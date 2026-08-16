@@ -70,6 +70,21 @@ describe('工作区内置动作（T024）', () => {
     expect(ctx.workspaces.delete).not.toHaveBeenCalled()
   })
 
+  it('删除工作区前归档其全部会话（避免散落到未分组）；确认文案含归档提示', async () => {
+    const ctx = makeCtx()
+    const store = new CanvasDocumentStore(localStorage)
+    store.mutate((d) => { d.nodes.push(wsNode()) })
+    const confirm = vi.fn(() => true)
+    const actions = workspaceActions({
+      ctx, store, doc: store.read(), confirm,
+      view: { sessionIds: ['s1', 's2'] },
+    })
+    await actions.find((a) => a.id === 'delete')!.run(wsNode(), store.read())
+    expect(ctx.workspaces.archiveSession).toHaveBeenCalledTimes(2) // 先归档
+    expect(confirm).toHaveBeenCalledWith(expect.stringContaining('归档其 2 个会话'))
+    expect(ctx.workspaces.delete).toHaveBeenCalledWith('ws-1') // 再删除
+  })
+
   it('归档：对该工作区每个会话调 archiveSession（成功逐项归档）', async () => {
     const ctx = makeCtx()
     const actions = workspaceActions({
