@@ -593,6 +593,8 @@ export const CanvasView = memo(function CanvasView({ workspaces, store, onClose,
               onPointerMove={onAreaPointerMove}
               onPointerUp={onAreaPointerUp}
               onPointerLeave={onAreaPointerUp}
+              // 空白区域右键：阻止浏览器原生菜单（偏白无角长方形），保持画布内菜单一致性
+              onContextMenu={(event) => event.preventDefault()}
               data-dsh-canvas-area=""
             >
               {/* 无限网格底：固定格距，background-position 取模跟随平移（永不露白）；不随缩放变化 */}
