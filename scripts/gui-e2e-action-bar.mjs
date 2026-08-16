@@ -46,11 +46,26 @@ await p.waitForTimeout(300)
 const t2 = await vpTransform()
 rec('E2E-02', t0 !== t1 && t1.includes('scale(1.1') && t2.includes('scale(0.99'), { t0, t1, t2 })
 
-// E2E-03 重置 → 100% + 原点
+// E2E-03 重置 → 缩放回 100%，平移使工作区集群居中（大多数工作区在中心）
 await p.locator('[data-dsh-action-reset]').click()
 await p.waitForTimeout(300)
 const resetOk = await vpTransform()
-rec('E2E-03', resetOk === 'translate(0px, 0px) scale(1)', { resetOk })
+const resetCentered = await p.evaluate(() => {
+  const cards = [...document.querySelectorAll('[data-dsh-canvas-card]')]
+  if (cards.length === 0) return false
+  const area = document.querySelector('[data-dsh-canvas-area]').getBoundingClientRect()
+  let minX = Infinity, minY = Infinity, maxX = -Infinity, maxY = -Infinity
+  for (const el of cards) {
+    const r = el.getBoundingClientRect()
+    minX = Math.min(minX, r.left); minY = Math.min(minY, r.top)
+    maxX = Math.max(maxX, r.right); maxY = Math.max(maxY, r.bottom)
+  }
+  // 卡片集群包围盒中心应 ≈ 视口中心（误差 <10px）
+  const cx = (minX + maxX) / 2
+  const cy = (minY + maxY) / 2
+  return Math.abs(cx - (area.left + area.width / 2)) < 10 && Math.abs(cy - (area.top + area.height / 2)) < 10
+})
+rec('E2E-03', /scale\(1\)/.test(resetOk) && resetCentered, { resetOk, resetCentered })
 
 // E2E-04/05 刷新 → 无报错（基线重拉由 workspaces 服务处理，feed 无变化时画布稳定）
 await p.locator('[data-dsh-action-refresh]').click()

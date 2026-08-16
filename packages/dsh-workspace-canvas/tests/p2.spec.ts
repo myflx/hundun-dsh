@@ -36,12 +36,14 @@ describe('P2 视图（T038-T041 集成）', () => {
     await act(async () => { vi.advanceTimersByTime(500) })
     expect(store.read().view?.zoom).toBeCloseTo(1.1, 5)
 
-    // 重置视图 → view 回到 identity
+    // 重置视图 → 缩放回 1，平移使工作区集群居中（jsdom 视口 0×0 → x = -cx）
     const reset = container.querySelector<HTMLButtonElement>('[data-dsh-action-reset]')
     await act(async () => { reset!.click() })
     await act(async () => { vi.advanceTimersByTime(500) })
     expect(store.read().view?.zoom).toBe(1)
-    expect(store.read().view?.x).toBe(0)
+    // 单卡片 (12,12)→(212,92) 中心 (112,52)；视口 0 → x=-112, y=-52
+    expect(store.read().view?.x).toBe(-112)
+    expect(store.read().view?.y).toBe(-52)
 
     await act(async () => root.unmount())
   })

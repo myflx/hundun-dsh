@@ -271,8 +271,10 @@ function autoPosition(index: number): { x: number; y: number } {
 }
 
 /** 一张可拖拽的工作区卡片。 */
-function WorkspaceCard({ workspace, position, onCommit, onOpen, onSelect, onContextMenu, zoom, toScene, archivedSessionIds }: {
+function WorkspaceCard({ workspace, selected, position, onCommit, onOpen, onSelect, onContextMenu, zoom, toScene, archivedSessionIds }: {
   workspace: WorkspaceView
+  /** 是否选中（单击选中 → 蓝框）。 */
+  selected: boolean
   position: { x: number; y: number }
   onCommit: (id: WorkspaceId, position: { x: number; y: number }) => void
   onOpen: (id: WorkspaceId) => void
@@ -362,7 +364,9 @@ function WorkspaceCard({ workspace, position, onCommit, onOpen, onSelect, onCont
         ...CARD_STYLE,
         left: position.x,
         top: position.y,
-        zIndex: 1,
+        // 选中态：蓝色边框（单击选中；点空白取消）
+        borderColor: selected ? 'var(--dsw-alias-state-business-primary)' : undefined,
+        zIndex: selected ? 2 : 1,
       }}
       onPointerDown={onPointerDown}
       onPointerMove={onPointerMove}
@@ -515,7 +519,29 @@ export const CanvasView = memo(function CanvasView({ workspaces, store, onClose,
     const current = viewRef.current
     setView(zoomAt(current, current.zoom * factor, center))
   }
-  const resetViewTransform = (): void => setView(resetView())
+  // 重置视图：缩放回 1，并平移使工作区集群包围盒中心位于视口中心（大多数工作区居中）。
+  const resetViewTransform = (): void => {
+    const rect = areaRef.current?.getBoundingClientRect()
+    if (rect === undefined || items.length === 0) {
+      setView(resetView())
+      return
+    }
+    // 集群包围盒（scene 像素；卡片尺寸约 200×80）
+    let minX = Infinity
+    let minY = Infinity
+    let maxX = -Infinity
+    let maxY = -Infinity
+    items.forEach((w, index) => {
+      const pos = positions[w.workspaceId] ?? autoPosition(index)
+      minX = Math.min(minX, pos.x)
+      minY = Math.min(minY, pos.y)
+      maxX = Math.max(maxX, pos.x + 200)
+      maxY = Math.max(maxY, pos.y + 80)
+    })
+    const cx = (minX + maxX) / 2
+    const cy = (minY + maxY) / 2
+    setView({ x: rect.width / 2 - cx, y: rect.height / 2 - cy, zoom: 1 })
+  }
 
   // 刷新（hundun-web RefreshCw）：重新拉取工作区基线；feed 更新后画布自动重渲染。
   // IWorkspaces 接口未暴露 refresh（Wire-pump 入口在具体类），运行时可选链兜底，
@@ -643,6 +669,7 @@ export const CanvasView = memo(function CanvasView({ workspaces, store, onClose,
                     <Fragment key={workspace.workspaceId}>
                       <WorkspaceCard
                         workspace={workspace}
+                        selected={selectedId === `ws:${String(workspace.workspaceId)}`}
                         position={workspacePosition}
                         onCommit={commitPosition}
                         onOpen={handleOpen}

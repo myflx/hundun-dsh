@@ -96,7 +96,9 @@ describe('画布操作栏（对齐 hundun-web：缩小/重置/放大/刷新，�
     expect(viewTransformOf(container)).toMatch(/scale\(0\.99/) // 1.1×0.9
     const reset = container.querySelector<HTMLButtonElement>('[data-dsh-action-reset]')
     await act(async () => { reset!.click() })
-    expect(viewTransformOf(container)).toBe('translate(0px, 0px) scale(1)')
+    // 重置：缩放回 1，平移使集群居中（jsdom 视口 0 → x=-112, y=-52）
+    expect(viewTransformOf(container)).toMatch(/scale\(1\)/)
+    expect(viewTransformOf(container)).toContain('translate(-112px, -52px)')
     await act(async () => root.unmount())
   })
 
@@ -152,23 +154,22 @@ describe('画布空白交互（手型光标 + 取消选中）与归档计数', (
     await act(async () => root.unmount())
   })
 
-  it('点画布空白 → 取消工作区选中（明细收起）', async () => {
+  it('单击选中 → 蓝框 + 详情；点画布空白 → 取消选中（蓝框消失、明细收起）', async () => {
+    vi.useFakeTimers()
     const store = new CanvasDocumentStore(localStorage)
     // 预置工作区节点投影（真实画布由 syncWorkspaceNodes 补建；明细按 doc 节点渲染）
     store.mutate((d) => { d.nodes.push({ id: 'ws:w1', kind: 'workspace', ref: 'w1', position: { x: 12, y: 12 } }) })
     const ctx = { workspaces: { startSession: () => {}, rename: () => Promise.resolve(), delete: () => Promise.resolve(), archiveSession: () => Promise.resolve() } }
     const { container, root } = await renderView(feedWith([ws('w1', 'A')]), store, ctx as any)
-    // 先打开明细（右键详情）
     const card = container.querySelector<HTMLElement>('[data-dsh-canvas-card]')
-    await act(async () => { card!.dispatchEvent(new MouseEvent('contextmenu', { bubbles: true, cancelable: true })) })
-    await act(async () => {
-      // 原生 Menu portal 到 body：按文本找「详情」项
-      const detail = [...document.body.querySelectorAll('[role="menuitem"]')].find((el) => el.textContent?.includes('详情')) as HTMLButtonElement | undefined
-      expect(detail).not.toBeUndefined()
-      detail!.click()
-    })
+    // 初始无选中（无蓝框）
+    expect(card?.style.borderColor).toBe('')
+    // 单击 → 250ms 后选中：蓝框 + 详情
+    await act(async () => { card!.click() })
+    await act(async () => { vi.advanceTimersByTime(300) })
+    expect(card!.style.borderColor).toContain('state-business-primary')
     expect(container.querySelector('[data-dsh-canvas-detail]')).not.toBeNull()
-    // 点空白 → 明细收起
+    // 点空白 → 取消选中：蓝框消失、明细收起
     const area = container.querySelector<HTMLElement>('[data-dsh-canvas-area]')
     await act(async () => {
       area!.dispatchEvent(new PointerEvent('pointerdown', { bubbles: true, button: 0, clientX: 100, clientY: 100 }))
@@ -176,7 +177,9 @@ describe('画布空白交互（手型光标 + 取消选中）与归档计数', (
     await act(async () => {
       area!.dispatchEvent(new PointerEvent('pointerup', { bubbles: true, button: 0 }))
     })
+    expect(card!.style.borderColor).toBe('')
     expect(container.querySelector('[data-dsh-canvas-detail]')).toBeNull()
     await act(async () => root.unmount())
+    vi.useRealTimers()
   })
 })
