@@ -20,7 +20,9 @@ import type {} from '@deepseek-ai/dsh-client-locale/client'
 import type {} from '@deepseek-ai/dsh-client-runtime/client'
 import { claimCanvasApply, releaseCanvasApply } from './apply-guard.ts'
 import { CanvasController } from './canvas/controller.ts'
+import { CanvasDocumentStore } from './canvas/document.ts'
 import { MountSupervisor } from './canvas/mount-supervisor.ts'
+import { installCanvasRegistry } from './canvas/registry.ts'
 import { en, zh, type CanvasKey } from './locales.ts'
 import { mountSearchButton } from './search-button.tsx'
 
@@ -40,14 +42,28 @@ declare module '@deepseek-ai/dsh-client-ui-slots' {
 /** 需要的客户端服务：locale（文案）与 workspaces（工作区数据）。 */
 export const inject = ['locale', 'workspaces']
 
+/** 客户端半区配置（与宿主 Config 同值；enabled 总开关双半区生效）。 */
+export interface CanvasClientConfig {
+  enabled?: boolean
+}
+
 /**
  * 浏览器半区入口。GUI 加载本 bundle 后调用 apply(ctx)。
  * @param ctx - 客户端根上下文（已注入 locale / workspaces）。
+ * @param config - 组合文件配置（enabled=false 时跳过全部挂载；设置面联动见 T032/T033）。
  */
-export function apply(ctx: ClientContext): void {
+export function apply(ctx: ClientContext, config?: CanvasClientConfig): void {
   // 防重复挂载：同页面重复 factory 执行只让首次生效（T006）。
   if (!claimCanvasApply()) return
   ctx.effect(() => releaseCanvasApply, 'workspace-canvas: apply claim')
+
+  // 组合配置总开关（T010）：关闭时入口/画布/服务一律不挂载。
+  if (config?.enabled === false) return
+
+  // 画布文档存储 + ctx.canvas 注册服务（T008/T009）：消费方经 ctx.get('canvas') 接入。
+  const store = new CanvasDocumentStore()
+  ctx.effect(() => () => store.dispose(), 'workspace-canvas: document store')
+  installCanvasRegistry(ctx, store)
 
   // 注册中英文案字典。
   ctx.effect(() => ctx.locale.register(NS, { zh, en }), 'workspace-canvas: dictionaries')

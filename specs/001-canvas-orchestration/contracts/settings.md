@@ -12,7 +12,7 @@
 
 | 插件 | 栏目 id | 配置项 | 命名空间 |
 |---|---|---|---|
-| dsh-workspace-canvas | `canvas` | `enabled`（启用画布开关）| `hundun.canvas` |
+| dsh-workspace-canvas | `canvas` | `enabled`（启用画布开关）| `hundun-canvas` |
 | （未来）dsh-hello / task-board / ssh | 各自栏目 | — | — |
 
 ## 画布栏目 schema（schemastery）
@@ -27,7 +27,7 @@ const Config = z.object({
 ## 生效链路（双半区实时联动）
 
 1. 用户在设置页切换 `enabled`
-2. 客户端：`settingsScope.bind({ namespace: 'hundun.canvas' })` 订阅 → `enabled=false` 时
+2. 客户端：`settingsScope.bind({ namespace: 'hundun-canvas' })` 订阅 → `enabled=false` 时
    **立即**卸载画布入口按钮与画布视图（clarify Q1）、移除互斥标记；`true` 时重新挂载（布局保留）
 3. 宿主：`installSettingsSection` 联动 → `enabled=false` 时移除公告段落
 4. 无设置服务时：读组合文件配置兜底（缺省 enabled=true）
