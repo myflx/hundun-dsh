@@ -20,6 +20,7 @@ import { createRoot, type Root } from 'react-dom/client'
 import type { ClientContext } from '@deepseek-ai/dsh-client-runtime/client'
 import { ACTIVE_ATTR, PANELS, activate, isActive, onOtherActivate } from '@hundun/dsh-panel-protocol'
 import type { MountSupervisor } from './mount-supervisor.ts'
+import type { CanvasDocumentStore } from './document.ts'
 import { CanvasView } from './CanvasView.tsx'
 
 /** 画布视图容器（保持挂载，隐藏时不可见）。 */
@@ -70,7 +71,10 @@ export class CanvasController {
     if (target.closest(SIDEBAR_ROW_SELECTOR) !== null) this.close()
   }
 
-  constructor(private readonly ctx: ClientContext) {}
+  constructor(
+    private readonly ctx: ClientContext,
+    private readonly store: CanvasDocumentStore,
+  ) {}
 
   getSnapshot(): CanvasControllerSnapshot {
     return { open: this.opened }
@@ -157,6 +161,7 @@ export class CanvasController {
     this.root = createRoot(this.container)
     this.root.render(createElement(CanvasView, {
       workspaces: this.ctx.workspaces,
+      store: this.store,
       onClose: () => this.close(),
     }))
   }

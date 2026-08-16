@@ -13,6 +13,7 @@ export const zh = {
   'canvas.button': '画布视图',
   'canvas.buttonTooltip': '打开工作区画布视图',
   'canvas.openHint': '画布已打开',
+  'canvas.openError': '进入会话失败：{message}',
 } satisfies Record<string, string>
 
 /** 键集并集。 */
@@ -29,6 +30,7 @@ export const en = {
   'canvas.button': 'Canvas',
   'canvas.buttonTooltip': 'Open workspace canvas view',
   'canvas.openHint': 'Canvas is open',
+  'canvas.openError': 'Failed to open session: {message}',
 } satisfies Record<CanvasKey, string>
 
 /** 微型插值：{name} -> value（参照 dsh-ssh 的 t 实现）。 */

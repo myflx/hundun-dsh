@@ -74,7 +74,7 @@ export function apply(ctx: ClientContext, config?: CanvasClientConfig): void {
   ctx.effect(() => () => supervisor.dispose(), 'workspace-canvas: mount supervisor')
 
   // 画布控制器：状态 + 中间区域挂载 + 单标记互斥（T005）。
-  const canvas = new CanvasController(ctx)
+  const canvas = new CanvasController(ctx, store)
   canvas.start(supervisor)
   ctx.effect(() => () => canvas.dispose(), 'workspace-canvas: canvas')
 

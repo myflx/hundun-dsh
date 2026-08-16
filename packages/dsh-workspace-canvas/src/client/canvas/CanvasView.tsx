@@ -2,11 +2,15 @@ import { memo, useRef, useState, useSyncExternalStore } from 'react'
 import type { CSSProperties, PointerEvent as ReactPointerEvent } from 'react'
 import type { IWorkspaces, WorkspaceListState } from '@deepseek-ai/dsh-client-runtime/client'
 import type { WorkspaceId, WorkspaceView } from '@deepseek-ai/dsh-client-connection/client'
+import type { CanvasDocumentStore } from './document.ts'
+import { openWorkspaceSession } from './workspace-open.ts'
+import { commitWorkspacePosition, readWorkspacePositions } from './workspace-position.ts'
 import { canvasText } from './text.ts'
 
-/** 画布 props：官方 workspaces feed + 关闭回调。 */
+/** 画布 props：官方 workspaces feed + 文档存储（布局持久化）+ 关闭回调。 */
 export interface CanvasViewProps {
   workspaces: IWorkspaces
+  store: CanvasDocumentStore
   onClose: () => void
 }
 
@@ -189,6 +193,7 @@ function WorkspaceCard({ workspace, recent, position, onCommit, onOpen }: {
   return (
     <button
       type="button"
+      data-dsh-canvas-card={workspace.workspaceId}
       style={{
         ...CARD_STYLE,
         left: position.x,
@@ -210,7 +215,7 @@ function WorkspaceCard({ workspace, recent, position, onCommit, onOpen }: {
 }
 
 /** 中间区域画布：网格背景 + 全部工作区可拖拽卡片。 */
-export const CanvasView = memo(function CanvasView({ workspaces, onClose }: CanvasViewProps) {
+export const CanvasView = memo(function CanvasView({ workspaces, store, onClose }: CanvasViewProps) {
   // 官方 workspaces 标准 feed：ObservableSnapshot —— subscribe + getSnapshot
   // 直接喂给 useSyncExternalStore，工作区增删实时反映到画布。
   const list = workspaces.list
@@ -218,13 +223,24 @@ export const CanvasView = memo(function CanvasView({ workspaces, onClose }: Canv
     (fn) => list.subscribe(fn),
     () => list.getSnapshot(),
   )
-  const [positions, setPositions] = useState<Positions>({})
+  // 初始布局来自文档（T016 恢复）；拖动时本地即时 + 落盘（T015）。
+  const [positions, setPositions] = useState<Positions>(() => readWorkspacePositions(store))
+  const [openError, setOpenError] = useState<string | undefined>()
 
   const items = state.items ?? []
   const ready = state.baselinesReady || items.length > 0
 
   const commitPosition = (id: WorkspaceId, position: { x: number; y: number }): void => {
     setPositions((prev) => ({ ...prev, [String(id)]: position }))
+    commitWorkspacePosition(store, String(id), position)
+  }
+
+  const handleOpen = (id: WorkspaceId): void => {
+    setOpenError(undefined)
+    openWorkspaceSession(workspaces, id, (message) => {
+      console.error(`[workspace-canvas] 进入会话失败：${message}`)
+      setOpenError(message)
+    })
   }
 
   return (
@@ -238,6 +254,11 @@ export const CanvasView = memo(function CanvasView({ workspaces, onClose }: Canv
           {canvasText('canvas.close')}
         </button>
       </div>
+      {openError !== undefined && (
+        <div role="alert" style={{ ...EMPTY_STYLE, color: 'var(--dsw-alias-state-danger, #d64545)' }}>
+          {canvasText('canvas.openError', { message: openError })}
+        </div>
+      )}
       {!ready
         ? <div style={EMPTY_STYLE}>{canvasText('canvas.loading')}</div>
         : items.length === 0
@@ -251,7 +272,7 @@ export const CanvasView = memo(function CanvasView({ workspaces, onClose }: Canv
                   recent={workspace.workspaceId === state.recentWorkspaceId}
                   position={positions[workspace.workspaceId] ?? autoPosition(index)}
                   onCommit={commitPosition}
-                  onOpen={(id) => workspaces.startSession(id)}
+                  onOpen={handleOpen}
                 />
               ))}
             </div>

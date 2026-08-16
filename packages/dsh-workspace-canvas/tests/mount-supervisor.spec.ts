@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest'
 import { CanvasController } from '../src/client/canvas/controller.ts'
+import { CanvasDocumentStore } from '../src/client/canvas/document.ts'
 import { MountSupervisor } from '../src/client/canvas/mount-supervisor.ts'
 import { ENTRY_SELECTOR, mountSearchButton } from '../src/client/search-button.tsx'
 
@@ -49,7 +50,7 @@ describe('画布入口按钮自愈（T007）', () => {
   it('侧边栏标题行出现后按钮容器自动插入；容器被挤出后自动重插', async () => {
     const supervisor = new MountSupervisor()
     supervisor.start()
-    const controller = new CanvasController(makeCtx())
+    const controller = new CanvasController(makeCtx(), new CanvasDocumentStore(localStorage))
     const dispose = mountSearchButton(controller, supervisor)
 
     // 构造侧边栏结构（搜索行所在标题行）。
@@ -72,6 +73,9 @@ describe('画布入口按钮自愈（T007）', () => {
     expect(document.querySelector(ENTRY_SELECTOR)).toBeDefined() // 按钮元素树存在
 
     dispose()
+    expect(header.querySelector('[data-dsh-canvas-entry-root]')).toBeNull() // 卸载移除容器
+    expect(document.querySelector('style[data-plugin-css="dsh-workspace-canvas-entry"]')).toBeNull() // 卸载移除注入样式
+
     supervisor.dispose()
     controller.dispose()
   })

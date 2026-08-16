@@ -1,6 +1,7 @@
 import { afterEach, describe, expect, it } from 'vitest'
 import { ACTIVE_ATTR, ACTIVATE_EVENT, PANELS, activate } from '@hundun/dsh-panel-protocol'
 import { CanvasController } from '../src/client/canvas/controller.ts'
+import { CanvasDocumentStore } from '../src/client/canvas/document.ts'
 import { MountSupervisor } from '../src/client/canvas/mount-supervisor.ts'
 
 function makeCtx(): any {
@@ -12,7 +13,7 @@ function makeCtx(): any {
 function makeController(): { controller: CanvasController; supervisor: MountSupervisor } {
   const supervisor = new MountSupervisor()
   supervisor.start()
-  const controller = new CanvasController(makeCtx())
+  const controller = new CanvasController(makeCtx(), new CanvasDocumentStore(localStorage))
   controller.start(supervisor)
   return { controller, supervisor }
 }

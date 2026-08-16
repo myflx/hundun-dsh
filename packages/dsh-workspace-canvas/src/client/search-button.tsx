@@ -141,5 +141,7 @@ export function mountSearchButton(controller: CanvasController, supervisor: Moun
     unregister()
     root.unmount()
     container.remove()
+    // 移除注入的按钮样式（与容器同生命周期）。
+    document.querySelector('style[data-plugin-css="dsh-workspace-canvas-entry"]')?.remove()
   }
 }

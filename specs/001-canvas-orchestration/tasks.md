@@ -1,4 +1,4 @@
-﻿# Tasks: 编排画布（Canvas Orchestration）
+# Tasks: 编排画布（Canvas Orchestration）
 
 **Input**: Design documents from `/specs/001-canvas-orchestration/`
 
@@ -50,10 +50,10 @@
 **Goal**: 画布入口稳定挂载；一屏总览全部工作区；点击直达新会话；空/加载状态完整。
 **Independent Test**: 打开画布 → 全部工作区卡片 → 点击进入新会话 → 关闭恢复对话（E2E-01/02/03）。
 
-- [ ] T011 [US1] 画布入口按钮接入挂载监督器（原自愈逻辑迁移，观察器并入 T007） `file: packages/dsh-workspace-canvas/src/client/search-button.tsx` `function: mountSearchButton / tryPlace` `calls: MountSupervisor` `verify: 单测：搜索行渲染后按钮出现；行重建后同帧重插；卸载后按钮与样式移除`
-- [ ] T012 [US1] 点击进入新会话 + startSession 失败兜底 `file: packages/dsh-workspace-canvas/src/client/canvas/CanvasView.tsx` `function: WorkspaceCard.onOpen` `calls: workspaces.startSession` `verify: 单测：点击卡片调用 startSession(workspaceId)；mock 失败时提示且无 unhandled rejection`
-- [ ] T013 [US1] 空状态与加载状态（无工作区 / feed 未就绪） `file: packages/dsh-workspace-canvas/src/client/canvas/CanvasView.tsx` `function: CanvasView 渲染分支` `calls: 无` `verify: 单测：无工作区渲染空状态引导；baselinesReady 前渲染加载态`
-- [ ] T014 [US1] US1 集成测试 + E2E 验证 `file: packages/dsh-workspace-canvas/tests/us1.spec.ts` `function: 无（测试）` `calls: vitest` `verify: us1 测试全绿；quickstart E2E-01/02/03 逐条通过并记录`
+- [X] T011 [US1] 画布入口按钮接入挂载监督器（原自愈逻辑迁移，观察器并入 T007） `file: packages/dsh-workspace-canvas/src/client/search-button.tsx` `function: mountSearchButton / tryPlace` `calls: MountSupervisor` `verify: 单测：搜索行渲染后按钮出现；行重建后同帧重插；卸载后按钮与样式移除`
+- [X] T012 [US1] 点击进入新会话 + startSession 失败兜底 `file: packages/dsh-workspace-canvas/src/client/canvas/CanvasView.tsx` `function: WorkspaceCard.onOpen` `calls: workspaces.startSession` `verify: 单测：点击卡片调用 startSession(workspaceId)；mock 失败时提示且无 unhandled rejection`
+- [X] T013 [US1] 空状态与加载状态（无工作区 / feed 未就绪） `file: packages/dsh-workspace-canvas/src/client/canvas/CanvasView.tsx` `function: CanvasView 渲染分支` `calls: 无` `verify: 单测：无工作区渲染空状态引导；baselinesReady 前渲染加载态`
+- [ ] T014 [US1] US1 集成测试 + E2E 验证 `file: packages/dsh-workspace-canvas/tests/us1.spec.ts` `function: 无（测试）` `calls: vitest` `verify: us1 测试全绿；quickstart E2E-01/02/03 逐条通过并记录`（自动化测试已全绿；E2E-01/02/03 待 GUI 挂载后人工验证，归 T037 门禁）
 
 ---
 
@@ -62,9 +62,9 @@
 **Goal**: 拖拽位置刷新不丢；损坏数据不崩溃。
 **Independent Test**: 拖乱卡片 → 刷新 → 位置一致；坏数据 → 提示 + 空布局（E2E-04/05）。
 
-- [ ] T015 [US2] 拖拽位置提交画布文档（防抖写入 document，接入 T008） `file: packages/dsh-workspace-canvas/src/client/canvas/CanvasView.tsx` `function: commitPosition` `calls: document.mutate` `verify: 单测：拖动提交后 localStorage 中 nodes 位置更新；连续拖动合并为一次写；拖动过程帧间隔 <100ms（性能断言，SC-002）`
-- [ ] T016 [US2] 加载恢复与损坏提示流程（启动时读文档 → 恢复位置 / 提示 + 空文档） `file: packages/dsh-workspace-canvas/src/client/canvas/document.ts` `function: loadDocument 启动分支` `calls: 无` `verify: 单测：预置文档加载后画布位置与文档一致；坏 JSON 走 .bak 恢复路径`
-- [ ] T017 [US2] US2 集成测试 + E2E 验证 `file: packages/dsh-workspace-canvas/tests/us2.spec.ts` `function: 无（测试）` `calls: vitest` `verify: us2 测试全绿；quickstart E2E-04/05 逐条通过并记录`
+- [X] T015 [US2] 拖拽位置提交画布文档（防抖写入 document，接入 T008） `file: packages/dsh-workspace-canvas/src/client/canvas/CanvasView.tsx` `function: commitPosition` `calls: document.mutate` `verify: 单测：拖动提交后 localStorage 中 nodes 位置更新；连续拖动合并为一次写；拖动过程帧间隔 <100ms（性能断言，SC-002）`
+- [X] T016 [US2] 加载恢复与损坏提示流程（启动时读文档 → 恢复位置 / 提示 + 空文档） `file: packages/dsh-workspace-canvas/src/client/canvas/document.ts` `function: loadDocument 启动分支` `calls: 无` `verify: 单测：预置文档加载后画布位置与文档一致；坏 JSON 走 .bak 恢复路径`
+- [ ] T017 [US2] US2 集成测试 + E2E 验证 `file: packages/dsh-workspace-canvas/tests/us2.spec.ts` `function: 无（测试）` `calls: vitest` `verify: us2 测试全绿；quickstart E2E-04/05 逐条通过并记录`（自动化测试已全绿；E2E-04/05 待 GUI 挂载后人工验证，归 T037 门禁）
 
 ---
 
