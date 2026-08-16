@@ -3,14 +3,36 @@
  *
  * 定位式浮层：给定坐标与菜单项，点击外部 / Escape 关闭；菜单项点击后先关
  * 闭再执行。动作由调用方合并（类型所有者 + registerNodeActions 扩展）。
+ * 样式与图标对齐 dsh 原生工作区操作菜单（侧边栏工作区行「操作」按钮弹出的
+ * Menu 组件：specific-menu 背景、12px 圆角、三层阴影、项带系统图标）。
  */
 import { useEffect, useRef } from 'react'
 import { createElement } from 'react'
+import type { ComponentType } from 'react'
+// 系统图标（primitives 在客户端平台表；菜单项图标与原生工作区操作菜单同源）
+import {
+  IconEditOutline16,
+  IconTrashOutline16,
+  IconRightUpOutline16,
+  IconPanelLeftOutline16,
+  IconFolderOpenOutline16,
+} from '@deepseek-ai/dsh-client-ui-primitives'
+
+/** 菜单项图标映射（按动作 id，与原生工作区操作菜单图标同款）。 */
+export const MENU_ITEM_ICONS: Record<string, ComponentType<{ size?: number }>> = {
+  enter: IconRightUpOutline16,
+  detail: IconPanelLeftOutline16,
+  rename: IconEditOutline16,
+  archive: IconFolderOpenOutline16,
+  delete: IconTrashOutline16,
+}
 
 export interface MenuItem {
   id: string
   label: string
   danger?: boolean
+  /** 菜单项图标（系统 Icon*Outline16 同款；对齐原生工作区操作菜单）。 */
+  icon?: ComponentType<{ size?: number }>
   run(): void
 }
 
@@ -20,6 +42,9 @@ export interface ContextMenuProps {
   items: MenuItem[]
   onClose(): void
 }
+
+/** 菜单项图标尺寸（与原生 16px 图标一致）。 */
+const MENU_ICON_SIZE = 16
 
 /** 右键菜单浮层（absolute 定位，zIndex 100）。 */
 export function ContextMenu({ x, y, items, onClose }: ContextMenuProps) {
@@ -51,10 +76,9 @@ export function ContextMenu({ x, y, items, onClose }: ContextMenuProps) {
         left: x,
         top: y,
         zIndex: 100,
-        minWidth: 150,
-        // 背景与工作区卡片一致（--dsw-alias-bg-layer-1，用户要求「右键颜色与卡片一致」）；
-        // 边框/圆角/阴影对齐原生 dsh 菜单浮层（border-l1、12px、三层阴影）
-        background: 'var(--dsw-alias-bg-layer-1)',
+        minWidth: 218,
+        // 对齐原生 dsh 工作区操作菜单（实测：bg=specific-menu、border-l1、12px、三层阴影、minWidth 218）
+        background: 'var(--dsw-specific-menu)',
         border: '1px solid var(--dsw-alias-border-l1)',
         borderRadius: 12,
         padding: 4,
@@ -77,7 +101,9 @@ export function ContextMenu({ x, y, items, onClose }: ContextMenuProps) {
             item.run()
           },
           style: {
-            display: 'block',
+            display: 'flex',
+            alignItems: 'center',
+            gap: 8,
             width: '100%',
             textAlign: 'left',
             // 不设 inline background（默认透明）——否则会覆盖 :hover 规则（inline 特异性最高）
@@ -91,7 +117,13 @@ export function ContextMenu({ x, y, items, onClose }: ContextMenuProps) {
             color: item.danger === true ? 'var(--dsw-alias-state-error-primary)' : 'var(--dsw-alias-label-primary)',
           },
         },
-        item.label,
+        [
+          // 菜单项图标（系统 Icon*Outline16，颜色 currentColor 跟随项文字色）
+          item.icon !== undefined
+            ? createElement(item.icon, { key: 'icon', size: MENU_ICON_SIZE })
+            : null,
+          createElement('span', { key: 'label' }, item.label),
+        ],
       )),
     ],
   )

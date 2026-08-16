@@ -3,9 +3,11 @@ import type { CSSProperties, PointerEvent as ReactPointerEvent, WheelEvent as Re
 import type { ClientContext } from '@deepseek-ai/dsh-client-runtime/client'
 import type { IWorkspaces, WorkspaceListState } from '@deepseek-ai/dsh-client-runtime/client'
 import type { WorkspaceId, WorkspaceView } from '@deepseek-ai/dsh-client-connection/client'
+// 系统图标（primitives 在客户端平台表；操作栏刷新与原生菜单同款）
+import { IconRefreshOutline16 } from '@deepseek-ai/dsh-client-ui-primitives'
 import type { CanvasDocumentStore, CanvasNode } from './document.ts'
 import type { CanvasRegistryImpl } from './registry.ts'
-import { ContextMenu, type MenuItem } from './menu.ts'
+import { ContextMenu, MENU_ITEM_ICONS, type MenuItem } from './menu.ts'
 import { workspaceActions } from './workspace-actions.ts'
 import { DetailPanel } from './detail/panel.tsx'
 import { WorkspaceDetail } from './detail/workspace-detail.tsx'
@@ -205,16 +207,9 @@ function IconZoomIn() {
   )
 }
 
-/** 刷新（hundun-web RefreshCw）：循环箭头。 */
-function IconRefresh() {
-  return (
-    <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
-      <path d="M3 12a9 9 0 0 1 9-9 9.75 9.75 0 0 1 6.74 2.74L21 8" />
-      <path d="M21 3v5h-5" />
-      <path d="M21 12a9 9 0 0 1-9 9 9.75 9.75 0 0 1-6.74-2.74L3 16" />
-      <path d="M8 16H3v5" />
-    </svg>
-  )
+/** 刷新（系统图标 IconRefreshOutline16，与原生同款）。 */
+function IconRefreshAction() {
+  return <IconRefreshOutline16 size={16} />
 }
 
 const CARD_STYLE: CSSProperties = {
@@ -537,6 +532,7 @@ export const CanvasView = memo(function CanvasView({ workspaces, store, onClose,
       id: a.id,
       label: a.label.zh,
       danger: a.id === 'delete',
+      icon: MENU_ITEM_ICONS[a.id],
       run: () => { void a.run(menu.node, doc) },
     }))
   }
@@ -646,7 +642,7 @@ export const CanvasView = memo(function CanvasView({ workspaces, store, onClose,
                 <button type="button" style={ICON_BUTTON_STYLE} data-dsh-action-zoom-out onClick={() => zoomBy(0.9)} aria-label="缩小" title="缩小"><IconZoomOut /></button>
                 <button type="button" style={ICON_BUTTON_STYLE} data-dsh-action-reset onClick={resetViewTransform} aria-label="重置视图" title="重置视图"><IconLocateFixed /></button>
                 <button type="button" style={ICON_BUTTON_STYLE} data-dsh-action-zoom-in onClick={() => zoomBy(1.1)} aria-label="放大" title="放大"><IconZoomIn /></button>
-                <button type="button" style={ICON_BUTTON_STYLE} data-dsh-action-refresh onClick={handleRefresh} aria-label="刷新" title="刷新"><IconRefresh /></button>
+                <button type="button" style={ICON_BUTTON_STYLE} data-dsh-action-refresh onClick={handleRefresh} aria-label="刷新" title="刷新"><IconRefreshAction /></button>
               </div>
             </div>
           )}

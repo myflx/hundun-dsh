@@ -2,7 +2,7 @@ import { act, createElement } from 'react'
 import { createRoot } from 'react-dom/client'
 import { afterEach, describe, expect, it, vi } from 'vitest'
 import { CanvasDocumentStore } from '../src/client/canvas/document.ts'
-import { ContextMenu } from '../src/client/canvas/menu.ts'
+import { ContextMenu, MENU_ITEM_ICONS } from '../src/client/canvas/menu.ts'
 import { CanvasRegistryImpl } from '../src/client/canvas/registry.ts'
 import { workspaceActions } from '../src/client/canvas/workspace-actions.ts'
 
@@ -164,13 +164,16 @@ describe('ContextMenu（T023）', () => {
     document.body.appendChild(container)
     const root = createRoot(container)
     await act(async () => {
-      root.render(createElement(ContextMenu, { x: 10, y: 20, onClose: () => {}, items: [{ id: 'a', label: '动作A', run: () => {} }] }))
+      root.render(createElement(ContextMenu, { x: 10, y: 20, onClose: () => {}, items: [{ id: 'a', label: '动作A', icon: MENU_ITEM_ICONS.rename, run: () => {} }] }))
     })
     const menu = container.querySelector<HTMLElement>('[data-dsh-canvas-menu]')
     const item = container.querySelector<HTMLElement>('[data-dsh-menu-item="a"]')
-    expect(menu?.style.background).toBe('var(--dsw-alias-bg-layer-1)')
+    expect(menu?.style.background).toBe('var(--dsw-specific-menu)')
     expect(menu?.style.color).toBe('var(--dsw-alias-label-primary)')
     expect(item?.style.color).toBe('var(--dsw-alias-label-primary)')
+    // 菜单项渲染系统图标（对齐原生工作区操作菜单）
+    const icon = item?.querySelector('svg')
+    expect(icon).not.toBeNull()
     // 不引入硬编码颜色 fallback（SC-004）
     expect(menu?.getAttribute('style')).not.toMatch(/#[0-9a-fA-F]{3,6}/)
     expect(item?.getAttribute('style')).not.toMatch(/#[0-9a-fA-F]{3,6}/)
