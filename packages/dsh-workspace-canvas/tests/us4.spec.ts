@@ -70,7 +70,7 @@ describe('工作区内置动作（T024）', () => {
     expect(ctx.workspaces.delete).not.toHaveBeenCalled()
   })
 
-  it('归档：对该工作区每个会话调 archiveSession', () => {
+  it('归档：对该工作区每个会话调 archiveSession（成功逐项归档）', async () => {
     const ctx = makeCtx()
     const actions = workspaceActions({
       ctx,
@@ -78,8 +78,26 @@ describe('工作区内置动作（T024）', () => {
       doc: emptyDoc(),
       view: { sessionIds: ['s1', 's2'] },
     })
-    actions.find((a) => a.id === 'archive')!.run(wsNode(), emptyDoc())
+    await actions.find((a) => a.id === 'archive')!.run(wsNode(), emptyDoc())
     expect(ctx.workspaces.archiveSession).toHaveBeenCalledTimes(2)
+    expect(ctx.workspaces.archiveSession).toHaveBeenCalledWith('s1')
+    expect(ctx.workspaces.archiveSession).toHaveBeenCalledWith('s2')
+  })
+
+  it('归档失败 → onNotify 提示且不再继续（不静默）', async () => {
+    const ctx = makeCtx()
+    ctx.workspaces.archiveSession.mockRejectedValueOnce(new Error('gone'))
+    const onNotify = vi.fn()
+    const actions = workspaceActions({
+      ctx,
+      store: new CanvasDocumentStore(localStorage),
+      doc: emptyDoc(),
+      view: { sessionIds: ['s1', 's2'] },
+      onNotify,
+    })
+    await actions.find((a) => a.id === 'archive')!.run(wsNode(), emptyDoc())
+    expect(onNotify).toHaveBeenCalledWith('归档会话失败：gone')
+    expect(ctx.workspaces.archiveSession).toHaveBeenCalledTimes(1) // 失败即停
   })
 
   it('详情：触发 onRequestDetail(workspaceId)', () => {

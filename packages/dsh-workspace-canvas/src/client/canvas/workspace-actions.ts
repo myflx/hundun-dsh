@@ -65,9 +65,16 @@ export function workspaceActions(ac: WorkspaceActionContext): NodeAction[] {
     {
       id: 'archive',
       label: { zh: '归档会话', en: 'Archive sessions' },
-      run: () => {
+      run: async () => {
+        // dsh 语义：归档保留在 sessionIds 账目，分组界面隐藏——逐个归档，
+        // 失败时提示（不静默），全部成功则画布计数随 feed 更新（未归档数减少）。
         for (const sessionId of ac.view?.sessionIds ?? []) {
-          void ac.ctx.workspaces.archiveSession(sessionId as never)
+          try {
+            await ac.ctx.workspaces.archiveSession(sessionId as never)
+          } catch (err) {
+            ac.onNotify?.(err instanceof Error ? `归档会话失败：${err.message}` : '归档会话失败')
+            return
+          }
         }
       },
     },

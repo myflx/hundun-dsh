@@ -1,4 +1,4 @@
-import { Fragment, memo, useEffect, useRef, useState, useSyncExternalStore } from 'react'
+import { Fragment, memo, useEffect, useMemo, useRef, useState, useSyncExternalStore } from 'react'
 import type { CSSProperties, PointerEvent as ReactPointerEvent, WheelEvent as ReactWheelEvent } from 'react'
 import type { ClientContext } from '@deepseek-ai/dsh-client-runtime/client'
 import type { IWorkspaces, WorkspaceListState } from '@deepseek-ai/dsh-client-runtime/client'
@@ -91,6 +91,8 @@ const CANVAS_STYLE: CSSProperties = {
   overflow: 'hidden',
   position: 'relative',
   touchAction: 'none',
+  // 空白区域手型光标（拖拽平移中由 panning 状态切 grabbing）
+  cursor: 'grab',
 } as const
 
 /** 网格层（无限画布底）：铺满区域，网格尺寸固定，不随缩放变化；
@@ -133,7 +135,8 @@ const ACTION_BAR_STYLE: CSSProperties = {
   whiteSpace: 'nowrap',
 } as const
 
-/** 图标按钮（hundun-web .canvas-controls button 形态：30×30、透明、悬停高亮）。 */
+/** 图标按钮（hundun-web .canvas-controls button 形态：30×30、透明、悬停高亮）。
+ *  不设 inline background（默认透明）——否则覆盖 :hover 规则（inline 特异性最高）。 */
 const ICON_BUTTON_STYLE: CSSProperties = {
   display: 'grid',
   width: 30,
@@ -142,7 +145,6 @@ const ICON_BUTTON_STYLE: CSSProperties = {
   padding: 0,
   border: 0,
   borderRadius: 5,
-  background: 'transparent',
   color: 'var(--dsw-alias-label-secondary)',
   cursor: 'pointer',
 } as const
@@ -273,7 +275,7 @@ function autoPosition(index: number): { x: number; y: number } {
 }
 
 /** 一张可拖拽的工作区卡片。 */
-function WorkspaceCard({ workspace, recent, position, onCommit, onOpen, onContextMenu, zoom, toScene }: {
+function WorkspaceCard({ workspace, recent, position, onCommit, onOpen, onContextMenu, zoom, toScene, archivedSessionIds }: {
   workspace: WorkspaceView
   recent: boolean
   position: { x: number; y: number }
@@ -284,9 +286,14 @@ function WorkspaceCard({ workspace, recent, position, onCommit, onOpen, onContex
   zoom: number
   /** 屏幕坐标 → scene 坐标（P2 view 变换）。 */
   toScene: (clientX: number, clientY: number) => { x: number; y: number }
+  /** 全局已归档会话集合（分组界面隐藏；卡片计数按未归档显示）。 */
+  archivedSessionIds?: ReadonlySet<string>
 }) {
   const dragRef = useRef<{ id: WorkspaceId; x0: number; y0: number; dx: number; dy: number; moved: boolean } | null>(null)
   const justDraggedRef = useRef(false)
+  // 未归档会话数（dsh 语义：归档保留在 sessionIds 账目，分组界面隐藏——卡片计数与侧边栏一致）
+  const activeCount = workspace.sessionIds.filter((id) => !archivedSessionIds?.has(String(id))).length
+  const totalCount = workspace.sessionIds.length
 
   const onPointerDown = (event: ReactPointerEvent<HTMLButtonElement>): void => {
     event.preventDefault()
@@ -347,11 +354,14 @@ function WorkspaceCard({ workspace, recent, position, onCommit, onOpen, onContex
       onPointerUp={onPointerUp}
       onClick={onClick}
       onContextMenu={onContextMenu}
-      title={`${workspace.path}（${canvasText('canvas.sessions', { n: workspace.sessionIds.length })}）`}
+      title={`${workspace.path}（${canvasText('canvas.sessions', { n: activeCount })}${totalCount > activeCount ? `，${totalCount - activeCount} 个已归档` : ''}）`}
     >
       <span style={CARD_TITLE_STYLE}>{workspace.title}</span>
       <span style={CARD_PATH_STYLE}>{workspace.path}</span>
-      <span style={CARD_META_STYLE}>{canvasText('canvas.sessions', { n: workspace.sessionIds.length })}</span>
+      <span style={CARD_META_STYLE}>
+        {canvasText('canvas.sessions', { n: activeCount })}
+        {totalCount > activeCount ? ` · ${totalCount - activeCount} 归档` : ''}
+      </span>
     </button>
   )
 }
@@ -376,6 +386,8 @@ export const CanvasView = memo(function CanvasView({ workspaces, store, onClose,
 
   const items = state.items ?? []
   const ready = state.baselinesReady || items.length > 0
+  // 全局已归档会话集合（dsh 语义：归档保留在 sessionIds 账目，分组界面隐藏）
+  const archivedSessionIds = useMemo(() => new Set((state.archivedSessionIds ?? []).map(String)), [state.archivedSessionIds])
   const orchestrationNodes = doc.nodes.filter((n) => n.kind !== 'workspace')
 
   const commitPosition = (id: WorkspaceId, position: { x: number; y: number }): void => {
@@ -459,10 +471,15 @@ export const CanvasView = memo(function CanvasView({ workspaces, store, onClose,
 
   // 空白拖拽平移（卡片/成员上的按下不触发）。
   const panRef = useRef<{ startX: number; startY: number; view: ViewTransform } | null>(null)
+  // 空白平移拖拽中：光标 grabbing（悬停 grab）
+  const [panning, setPanning] = useState(false)
   const onAreaPointerDown = (event: ReactPointerEvent<HTMLDivElement>): void => {
     const target = event.target as HTMLElement
     if (target.closest('[data-dsh-canvas-card], [data-dsh-canvas-member]') !== null) return
     if (event.button !== 0) return
+    // 点画布空白 → 取消工作区/节点选中（明细收起）+ 进入平移拖拽（手型握紧）
+    setSelectedId(undefined)
+    setPanning(true)
     panRef.current = { startX: event.clientX, startY: event.clientY, view: viewRef.current }
   }
   const onAreaPointerMove = (event: ReactPointerEvent<HTMLDivElement>): void => {
@@ -470,7 +487,10 @@ export const CanvasView = memo(function CanvasView({ workspaces, store, onClose,
     if (pan === null) return
     setView(panBy(pan.view, event.clientX - pan.startX, event.clientY - pan.startY))
   }
-  const onAreaPointerUp = (): void => { panRef.current = null }
+  const onAreaPointerUp = (): void => {
+    panRef.current = null
+    setPanning(false)
+  }
 
   // 操作栏：以区域中心为锚缩放 / 重置视图。
   const zoomBy = (factor: number): void => {
@@ -568,7 +588,7 @@ export const CanvasView = memo(function CanvasView({ workspaces, store, onClose,
           : (
             <div
               ref={setAreaRef}
-              style={CANVAS_STYLE}
+              style={{ ...CANVAS_STYLE, cursor: panning ? 'grabbing' : 'grab' }}
               onPointerDown={onAreaPointerDown}
               onPointerMove={onAreaPointerMove}
               onPointerUp={onAreaPointerUp}
@@ -611,6 +631,7 @@ export const CanvasView = memo(function CanvasView({ workspaces, store, onClose,
                         onContextMenu={(event) => openMenu(event, workspaceNode, { sessionIds: workspace.sessionIds })}
                         zoom={view.zoom}
                         toScene={toScene}
+                        archivedSessionIds={archivedSessionIds}
                       />
                       {members.map((member) => renderMember(member, workspacePosition))}
                     </Fragment>

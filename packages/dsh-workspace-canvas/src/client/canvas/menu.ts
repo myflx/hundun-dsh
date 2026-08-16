@@ -60,31 +60,35 @@ export function ContextMenu({ x, y, items, onClose }: ContextMenuProps) {
         color: 'var(--dsw-alias-label-primary)',
       },
     },
-    items.map((item) => createElement(
-      'button',
-      {
-        key: item.id,
-        'data-dsh-menu-item': item.id,
-        role: 'menuitem',
-        type: 'button',
-        onClick: () => {
-          onClose()
-          item.run()
+    [
+      // 菜单项悬停高亮（对齐原生 dsh 菜单：interactive-bg-hover）
+      createElement('style', { key: 'hover', dangerouslySetInnerHTML: { __html: '[data-dsh-canvas-menu] [data-dsh-menu-item]:hover { background: var(--dsw-alias-interactive-bg-hover); }' } }),
+      ...items.map((item) => createElement(
+        'button',
+        {
+          key: item.id,
+          'data-dsh-menu-item': item.id,
+          role: 'menuitem',
+          type: 'button',
+          onClick: () => {
+            onClose()
+            item.run()
+          },
+          style: {
+            display: 'block',
+            width: '100%',
+            textAlign: 'left',
+            // 不设 inline background（默认透明）——否则会覆盖 :hover 规则（inline 特异性最高）
+            border: 'none',
+            padding: '6px 10px',
+            borderRadius: 6,
+            cursor: 'pointer',
+            fontSize: 13,
+            color: item.danger === true ? 'var(--dsw-alias-state-danger)' : 'var(--dsw-alias-label-primary)',
+          },
         },
-        style: {
-          display: 'block',
-          width: '100%',
-          textAlign: 'left',
-          background: 'transparent',
-          border: 'none',
-          padding: '6px 10px',
-          borderRadius: 6,
-          cursor: 'pointer',
-          fontSize: 13,
-          color: item.danger === true ? 'var(--dsw-alias-state-danger)' : 'var(--dsw-alias-label-primary)',
-        },
-      },
-      item.label,
-    )),
+        item.label,
+      )),
+    ],
   )
 }

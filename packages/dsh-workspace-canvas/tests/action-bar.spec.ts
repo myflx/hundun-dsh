@@ -1,15 +1,28 @@
 import { act, createElement } from 'react'
 import { createRoot } from 'react-dom/client'
-import { afterEach, describe, expect, it, vi } from 'vitest'
+import { afterEach, beforeAll, describe, expect, it, vi } from 'vitest'
 import { CanvasDocumentStore } from '../src/client/canvas/document.ts'
 import { CanvasView } from '../src/client/canvas/CanvasView.tsx'
 
-function feedWith(items: unknown[]): any {
-  const snapshot = { items, baselinesReady: true, recentWorkspaceId: undefined }
+// jsdom 环境缺 PointerEvent：polyfill 最小实现（React pointer 处理器需要）。
+beforeAll(() => {
+  if (typeof globalThis.PointerEvent === 'undefined') {
+    class PointerEventPolyfill extends MouseEvent {
+      pointerId = 1
+      constructor(type: string, params: PointerEventInit = {}) {
+        super(type, params)
+      }
+    }
+    ;(globalThis as any).PointerEvent = PointerEventPolyfill
+  }
+})
+
+function feedWith(items: unknown[], archived: string[] = []): any {
+  const snapshot = { items, baselinesReady: true, recentWorkspaceId: undefined, archivedSessionIds: archived }
   return { list: { subscribe: () => () => {}, getSnapshot: () => snapshot } }
 }
 
-const ws = (id: string, title: string) => ({ workspaceId: id, title, path: `/repo/${id}`, sessionIds: [] })
+const ws = (id: string, title: string, sessionIds: string[] = []) => ({ workspaceId: id, title, path: `/repo/${id}`, sessionIds })
 
 afterEach(() => {
   document.body.innerHTML = ''
@@ -105,6 +118,64 @@ describe('画布操作栏（对齐 hundun-web：缩小/重置/放大/刷新，�
     await act(async () => { await Promise.resolve() })
     expect(container.querySelector('[data-dsh-action-bar]')).not.toBeNull()
     expect(viewTransformOf(container)).toContain('scale(1)')
+    await act(async () => root.unmount())
+  })
+})
+
+describe('画布空白交互（手型光标 + 取消选中）与归档计数', () => {
+  it('卡片会话数按未归档显示（dsh 语义：归档保留在 sessionIds，分组界面隐藏）', async () => {
+    const { container, root } = await renderView(
+      feedWith([ws('w1', 'A', ['s1', 's2', 's3'])], ['s2']), // s2 已归档
+      new CanvasDocumentStore(localStorage),
+    )
+    const card = container.querySelector<HTMLElement>('[data-dsh-canvas-card]')
+    // 3 个会话中 2 个未归档：显示「2 个会话 · 1 归档」
+    expect(card?.textContent).toContain('2 个会话')
+    expect(card?.textContent).toContain('1 归档')
+    await act(async () => root.unmount())
+  })
+
+  it('画布空白区域光标 grab；空白拖拽平移中 grabbing', async () => {
+    const { container, root } = await renderView(feedWith([ws('w1', 'A')]), new CanvasDocumentStore(localStorage))
+    const area = container.querySelector<HTMLElement>('[data-dsh-canvas-area]')
+    expect(area).not.toBeNull()
+    expect(area!.style.cursor).toBe('grab')
+    // 空白按下 → grabbing（pointer 事件；jsdom 需派发 PointerEvent）
+    await act(async () => {
+      area!.dispatchEvent(new PointerEvent('pointerdown', { bubbles: true, button: 0, clientX: 100, clientY: 100 }))
+    })
+    expect(area!.style.cursor).toBe('grabbing')
+    await act(async () => {
+      area!.dispatchEvent(new PointerEvent('pointerup', { bubbles: true, button: 0 }))
+    })
+    expect(area!.style.cursor).toBe('grab')
+    await act(async () => root.unmount())
+  })
+
+  it('点画布空白 → 取消工作区选中（明细收起）', async () => {
+    const store = new CanvasDocumentStore(localStorage)
+    // 预置工作区节点投影（真实画布由 syncWorkspaceNodes 补建；明细按 doc 节点渲染）
+    store.mutate((d) => { d.nodes.push({ id: 'ws:w1', kind: 'workspace', ref: 'w1', position: { x: 12, y: 12 } }) })
+    const ctx = { workspaces: { startSession: () => {}, rename: () => Promise.resolve(), delete: () => Promise.resolve(), archiveSession: () => Promise.resolve() } }
+    const { container, root } = await renderView(feedWith([ws('w1', 'A')]), store, ctx as any)
+    // 先打开明细（右键详情）
+    const card = container.querySelector<HTMLElement>('[data-dsh-canvas-card]')
+    await act(async () => { card!.dispatchEvent(new MouseEvent('contextmenu', { bubbles: true, cancelable: true })) })
+    await act(async () => {
+      const detail = container.querySelector<HTMLButtonElement>('[data-dsh-menu-item="detail"]')
+      expect(detail).not.toBeNull()
+      detail!.click()
+    })
+    expect(container.querySelector('[data-dsh-canvas-detail]')).not.toBeNull()
+    // 点空白 → 明细收起
+    const area = container.querySelector<HTMLElement>('[data-dsh-canvas-area]')
+    await act(async () => {
+      area!.dispatchEvent(new PointerEvent('pointerdown', { bubbles: true, button: 0, clientX: 100, clientY: 100 }))
+    })
+    await act(async () => {
+      area!.dispatchEvent(new PointerEvent('pointerup', { bubbles: true, button: 0 }))
+    })
+    expect(container.querySelector('[data-dsh-canvas-detail]')).toBeNull()
     await act(async () => root.unmount())
   })
 })
