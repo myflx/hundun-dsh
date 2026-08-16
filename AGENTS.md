@@ -69,3 +69,17 @@ deps:
 `shared/tsdown.client.ts` / `shared/web-platform.ts` 派生自 dsh-web-ui（Apache-2.0，其源出 DeepSeek Harness
 官方 client 构建）。改动前先理解：它产出 `window.__ModuleLoader__.load` 闭包工厂产物，CSS Modules 内联注入，
 并带客户端 bundle 纯度门。改坏它 = 全仓客户端全部构建失败。
+
+## speckit 工作流（已项目级安装）
+
+本仓库已安装 spec-kit 技能与脚手架（参考 myflx-home/hundun-desktop 的 0.16.1 结构）：
+
+- **技能**：`speckit-*` 共 10 个，位于 `.dsh/skills/`（DSH 项目技能根，跟随仓库分发）；用户级副本在
+  `~/.dsh/skills/`。技能目录由 DSH 自动扫描，无需额外配置。
+- **脚手架**：`.specify/`（scripts / templates / memory / integrations / workflows），由技能按需调用：
+  - 工作产物约定：`spec.md` / `plan.md` / `tasks.md` 按功能存于 `.specify/features/<n>/`（scripts 决定路径）；
+  - `memory/constitution.md` = 项目章程（当前为模板初始态，用 `speckit-constitution` 或手工填写）；
+  - 扩展钩子：`.specify/extensions.yml`（当前不存在，技能会静默跳过）。
+- **工作流顺序**：specify → clarify → plan → tasks → analyze → implement → converge；checklist / constitution /
+  taskstoissues 按需。PowerShell 脚本为本机（Windows）路径。
+- 注意：speckit CLI 未安装；脚手架是拷贝自参考项目的官方骨架，将来装了 CLI 可 `speckit init` 重新生成。
