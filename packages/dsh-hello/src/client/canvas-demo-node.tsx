@@ -67,7 +67,7 @@ const def: NodeTypeDefinition = {
       'data-dsh-demo-node': props.node.id,
       style: {
         background: 'var(--dsw-alias-bg-layer-1)',
-        border: '1px solid var(--dsw-alias-state-business-primary, #4a7)',
+        border: '1px solid var(--dsw-alias-state-business-primary)',
         borderRadius: 8,
         padding: '4px 8px',
         fontSize: 12,

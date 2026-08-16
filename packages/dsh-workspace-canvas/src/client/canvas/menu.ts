@@ -87,7 +87,7 @@ export function ContextMenu({ x, y, items, onClose }: ContextMenuProps) {
             cursor: 'pointer',
             fontSize: 14,
             lineHeight: '22px',
-            color: item.danger === true ? 'var(--dsw-alias-state-danger)' : 'var(--dsw-alias-label-primary)',
+            color: item.danger === true ? 'var(--dsw-alias-state-error-primary)' : 'var(--dsw-alias-label-primary)',
           },
         },
         item.label,

@@ -577,7 +577,7 @@ export const CanvasView = memo(function CanvasView({ workspaces, store, onClose,
         </button>
       </div>
       {openError !== undefined && (
-        <div role="alert" style={{ ...EMPTY_STYLE, color: 'var(--dsw-alias-state-danger)' }}>
+        <div role="alert" style={{ ...EMPTY_STYLE, color: 'var(--dsw-alias-state-error-primary)' }}>
           {canvasText('canvas.openError', { message: openError })}
         </div>
       )}
