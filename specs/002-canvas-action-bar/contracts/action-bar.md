@@ -1,54 +1,40 @@
-# Contract: 画布底部操作栏（Action Bar）
+# Contract: 画布操作栏（Canvas Controls，对齐 hundun-web）
 
-**Phase 1 输出**。操作栏是画布内部 UI 契约——DOM 标记与行为供单测、E2E 与未来功能点扩展引用。
+**Phase 1 输出（v2）**。操作栏是画布内部 UI 契约——DOM 标记与行为供单测、E2E 与未来扩展引用。
 
 ## DOM 标记
 
 | 标记 | 元素 | 含义 |
 | --- | --- | --- |
-| `[data-dsh-action-bar]` | `div` | 操作栏容器（画布底部浮层） |
-| `[data-dsh-action-zoom-out]` | `button` | 缩小（步进 10%，夹取 ≥30%） |
-| `[data-dsh-action-zoom-percent]` | `span` | 当前缩放百分比（整数，如 `110%`） |
-| `[data-dsh-action-zoom-in]` | `button` | 放大（步进 10%，夹取 ≤300%） |
-| `[data-dsh-action-reset]` | `button` | 重置视图（100% + 原点归位） |
-| `[data-dsh-action-layout]` | `button` | 自动布局（GRID 重排全部工作区） |
-| `[data-dsh-action-focus]` | `button` | 聚焦工作区（展开目标选择；仅平移、zoom 不变） |
+| `[data-dsh-action-bar]` | `div` | 操作栏容器（画布底部浮层，水平居中） |
+| `[data-dsh-action-zoom-out]` | `button` | 缩小（步进 10%，夹取 ≥30%）——hundun-web ZoomOut |
+| `[data-dsh-action-reset]` | `button` | 重置视图（100% + 原点归位）——hundun-web LocateFixed/resetView |
+| `[data-dsh-action-zoom-in]` | `button` | 放大（步进 10%，夹取 ≤300%）——hundun-web ZoomIn |
+| `[data-dsh-action-refresh]` | `button` | 刷新（重新拉取工作区基线）——hundun-web RefreshCw |
 
-> 右上角不再渲染独立缩放工具（整合后 `[data-dsh-canvas-toolbar]` 不复存在）。
+> 四按钮顺序固定：缩小 → 重置 → 放大 → 刷新（SC-003）。
+> 右上角不再渲染独立缩放工具（`[data-dsh-canvas-toolbar]` 不复存在，FR-002）。
 
 ## 行为契约
 
-### 缩放（FR-003）
+### 缩小 / 放大（FR-003）
 
-- 点放大/缩小：`zoom` 乘 1.1 / 0.9，夹取 `[0.3, 3]`；百分比显示实时更新
-- 点重置（FR-004）：`zoom = 1`、`x = 0`、`y = 0`
-- 视口/节点层变换随 view 更新（既有节点层 translate+scale，网格层不变）
+- 点击：`zoom` 乘 0.9 / 1.1，夹取 `[0.3, 3]`；百分比显示实时更新
+- 视口/节点层变换随 view 更新（既有：节点层 translate+scale，网格层不变）
 
-### 自动布局（FR-007/FR-008）
+### 重置（FR-004）
 
-- 输入：当前 feed 顺序的工作区列表
-- 输出：每个工作区 position 重写为 `autoPosition(index)`；成员节点相对位置不变（成员存工作区局部坐标）
-- 持久化：复用 `commitWorkspacePosition`（防抖写 doc）
-- 无工作区：按钮禁用（`disabled`）
+- 点击：`zoom = 1`、`x = 0`、`y = 0`；已是默认态时幂等（无多余写入）
 
-### 聚焦（FR-009）
+### 刷新（FR-005）
 
-- 选择目标工作区 → `focusView(view, 目标中心 scene 坐标, 视口尺寸)` → view 平移使目标居中，zoom 不变
-- 目标不存在（feed 中消失）：不可选/提示，视图不变
-- 无工作区：按钮禁用
+- 点击：调用 `ctx.workspaces.refresh?.()`（workspaces 基线重新拉取）
+- feed 更新 → 画布自动反映最新工作区（新增出现、移除消失）
+- 刷新失败/能力缺失：静默降级（可选链兜底），画布保持原数据，零未处理异常
 
-### UI 一致性（FR-005/FR-006）
+### UI 一致性（FR-006/FR-007）
 
-- 操作栏样式使用系统设计令牌（`--dsw-alias-surface-raised` 背景 / `--dsw-alias-border-l2` 边框 / `--dsw-alias-label-*` 文字 / `--dsw-alias-interactive-bg-hover` 悬停 / `--dsw-alias-state-*` 语义色）
+- 操作栏样式使用系统设计令牌（`--dsw-alias-surface-raised` / `--dsw-alias-border-l2` /
+  `--dsw-alias-label-*` / `--dsw-alias-interactive-bg-hover`）
+- 按钮形态参考 hundun-web（约 30×30、圆角、透明背景、hover 高亮），视觉值走系统令牌
 - 浮层 `z-index` 低于右键菜单/明细面板；`pointer-events` 只作用于自身元素（不拦截画布拖拽/平移）
-
-## 纯函数契约
-
-### `focusView(view: ViewTransform, targetCenter: {x,y}, viewport: {w,h}): ViewTransform`
-
-- 返回新 view：`{ x: viewport.w/2 - targetCenter.x * zoom, y: viewport.h/2 - targetCenter.y * zoom, zoom: view.zoom }`
-- 纯函数（不改入参）；zoom 保持不变
-
-### `autoLayoutWorkspaces(store, workspaceIds: string[]): void`
-
-- 按 index 计算 `autoPosition(index)` 并批量 `commitWorkspacePosition`；空数组 = 空操作

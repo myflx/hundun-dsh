@@ -10,8 +10,8 @@ import { workspaceActions } from './workspace-actions.ts'
 import { DetailPanel } from './detail/panel.tsx'
 import { WorkspaceDetail } from './detail/workspace-detail.tsx'
 import { openWorkspaceSession } from './workspace-open.ts'
-import { commitWorkspacePosition, readWorkspacePositions, autoLayoutWorkspaces } from './workspace-position.ts'
-import { defaultView, focusView, panBy, resetView, scenePoint, wheelZoomFactor, zoomAt, type ViewTransform } from './view-transform.ts'
+import { commitWorkspacePosition, readWorkspacePositions } from './workspace-position.ts'
+import { defaultView, panBy, resetView, scenePoint, wheelZoomFactor, zoomAt, type ViewTransform } from './view-transform.ts'
 import { canvasText } from './text.ts'
 
 /** 画布 props：官方 workspaces feed + 文档存储（布局持久化）+ 关闭回调。
@@ -142,26 +142,6 @@ const BAR_DIVIDER_STYLE: CSSProperties = {
   background: 'var(--dsw-alias-border-l2)',
 } as const
 
-/** 聚焦目标选择弹层（操作栏上方）。 */
-const FOCUS_MENU_STYLE: CSSProperties = {
-  position: 'absolute',
-  bottom: 40,
-  left: '50%',
-  transform: 'translateX(-50%)',
-  zIndex: 75,
-  display: 'flex',
-  flexDirection: 'column',
-  gap: 2,
-  minWidth: 160,
-  maxHeight: 240,
-  overflowY: 'auto',
-  padding: 4,
-  background: 'var(--dsw-alias-surface-raised)',
-  border: '1px solid var(--dsw-alias-border-l2)',
-  borderRadius: 8,
-  fontSize: 12,
-} as const
-
 function toolButton(label: string): CSSProperties {
   return {
     border: 'none',
@@ -172,10 +152,6 @@ function toolButton(label: string): CSSProperties {
     fontSize: 13,
     lineHeight: 1,
   }
-}
-
-function toolButtonDisabled(): CSSProperties {
-  return { opacity: 0.4, cursor: 'default' }
 }
 
 const CARD_STYLE: CSSProperties = {
@@ -444,25 +420,12 @@ export const CanvasView = memo(function CanvasView({ workspaces, store, onClose,
   }
   const resetViewTransform = (): void => setView(resetView())
 
-  // 自动布局（US2）：按 feed 顺序 GRID 重排全部工作区，本地 state 同步 + 持久化。
-  const handleAutoLayout = (): void => {
-    const ids = items.map((w) => String(w.workspaceId))
-    if (ids.length === 0) return
-    autoLayoutWorkspaces(store, ids)
-    setPositions(readWorkspacePositions(store))
-  }
-
-  // 聚焦工作区（US3）：选择目标 → focusView 平移居中（zoom 不变）；目标缺失时不动视图。
-  const [focusOpen, setFocusOpen] = useState(false)
-  const handleFocus = (workspaceId: string): void => {
-    setFocusOpen(false)
-    const target = items.find((w) => String(w.workspaceId) === workspaceId)
-    const rect = areaRef.current?.getBoundingClientRect()
-    if (target === undefined || rect === undefined) return
-    const pos = positions[workspaceId] ?? autoPosition(items.indexOf(target))
-    // 卡片中心 scene 坐标（卡宽 200、高约 80）
-    const center = { x: pos.x + 100, y: pos.y + 40 }
-    setView(focusView(viewRef.current, center, { w: rect.width, h: rect.height }))
+  // 刷新（hundun-web RefreshCw）：重新拉取工作区基线；feed 更新后画布自动重渲染。
+  // IWorkspaces 接口未暴露 refresh（Wire-pump 入口在具体类），运行时可选链兜底，
+  // 失败/缺失安全降级（不报错、保持原数据）。
+  const handleRefresh = (): void => {
+    const workspaces = ctx?.workspaces as { refresh?: () => Promise<void> } | undefined
+    void workspaces?.refresh?.()
   }
 
   const openMenu = (
@@ -593,43 +556,16 @@ export const CanvasView = memo(function CanvasView({ workspaces, store, onClose,
                   )
                 })}
               </div>
-              {/* 底部操作栏：缩放 + 重置视图 + 自动布局 + 聚焦（US1/US2/US3） */}
+              {/* 底部操作栏（对齐 hundun-web canvas-controls）：缩小 → 重置 → 放大 → 刷新 */}
               <div style={ACTION_BAR_STYLE} data-dsh-action-bar="">
                 <button type="button" style={toolButton('')} data-dsh-action-zoom-out onClick={() => zoomBy(0.9)} aria-label="缩小">−</button>
-                <span data-dsh-action-zoom-percent style={{ minWidth: 44, textAlign: 'center' }}>{Math.round(view.zoom * 100)}%</span>
+                <button type="button" style={toolButton('')} data-dsh-action-reset onClick={resetViewTransform} aria-label="重置视图" title="重置视图">重置</button>
                 <button type="button" style={toolButton('')} data-dsh-action-zoom-in onClick={() => zoomBy(1.1)} aria-label="放大">+</button>
-                <button type="button" style={toolButton('')} data-dsh-action-reset onClick={resetViewTransform} aria-label="重置视图">重置视图</button>
+                <button type="button" style={toolButton('')} data-dsh-action-refresh onClick={handleRefresh} aria-label="刷新" title="刷新">刷新</button>
                 <span style={BAR_DIVIDER_STYLE} />
-                <button
-                  type="button"
-                  style={items.length === 0 ? { ...toolButton(''), ...toolButtonDisabled() } : toolButton('')}
-                  data-dsh-action-layout
-                  disabled={items.length === 0}
-                  onClick={handleAutoLayout}
-                  aria-label="自动布局"
-                >自动布局</button>
-                <button
-                  type="button"
-                  style={items.length === 0 ? { ...toolButton(''), ...toolButtonDisabled() } : toolButton('')}
-                  data-dsh-action-focus
-                  disabled={items.length === 0}
-                  onClick={() => setFocusOpen((v) => !v)}
-                  aria-label="聚焦工作区"
-                >聚焦</button>
-                {focusOpen && items.length > 0 && (
-                  <div style={FOCUS_MENU_STYLE} data-dsh-action-focus-menu="">
-                    {items.map((w) => (
-                      <button
-                        key={w.workspaceId}
-                        type="button"
-                        style={{ ...toolButton(''), textAlign: 'left' }}
-                        onClick={() => handleFocus(String(w.workspaceId))}
-                      >
-                        {w.title}
-                      </button>
-                    ))}
-                  </div>
-                )}
+                <span data-dsh-action-zoom-percent style={{ minWidth: 44, textAlign: 'center', color: 'var(--dsw-alias-label-tertiary)' }}>
+                  {Math.round(view.zoom * 100)}%
+                </span>
               </div>
             </div>
           )}
