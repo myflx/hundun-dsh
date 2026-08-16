@@ -52,8 +52,9 @@ export function ContextMenu({ x, y, items, onClose }: ContextMenuProps) {
         top: y,
         zIndex: 100,
         minWidth: 150,
-        // 背景/边框/圆角/阴影对齐原生 dsh 菜单（实测：bg=specific-menu、border-l1、12px、三层阴影）
-        background: 'var(--dsw-specific-menu)',
+        // 背景与工作区卡片一致（--dsw-alias-bg-layer-1，用户要求「右键颜色与卡片一致」）；
+        // 边框/圆角/阴影对齐原生 dsh 菜单浮层（border-l1、12px、三层阴影）
+        background: 'var(--dsw-alias-bg-layer-1)',
         border: '1px solid var(--dsw-alias-border-l1)',
         borderRadius: 12,
         padding: 4,

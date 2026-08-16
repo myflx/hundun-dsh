@@ -168,7 +168,7 @@ describe('ContextMenu（T023）', () => {
     })
     const menu = container.querySelector<HTMLElement>('[data-dsh-canvas-menu]')
     const item = container.querySelector<HTMLElement>('[data-dsh-menu-item="a"]')
-    expect(menu?.style.background).toBe('var(--dsw-specific-menu)')
+    expect(menu?.style.background).toBe('var(--dsw-alias-bg-layer-1)')
     expect(menu?.style.color).toBe('var(--dsw-alias-label-primary)')
     expect(item?.style.color).toBe('var(--dsw-alias-label-primary)')
     // 不引入硬编码颜色 fallback（SC-004）
