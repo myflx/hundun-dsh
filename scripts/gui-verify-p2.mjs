@@ -24,7 +24,7 @@ else {
 
   const readViewport = () => page.evaluate(() => {
     const vp = document.querySelector('[data-dsh-canvas-viewport]')
-    const toolbar = document.querySelector('[data-dsh-canvas-toolbar]')
+    const toolbar = document.querySelector('[data-dsh-action-bar]')
     return {
       transform: vp ? vp.style.transform : null,
       toolbarText: toolbar ? toolbar.textContent : null,
@@ -35,12 +35,12 @@ else {
   out.push({ step: 'initial', ...(await readViewport()) })
 
   // 工具栏放大
-  await page.locator('[data-dsh-zoom-in]').click()
+  await page.locator('[data-dsh-action-zoom-in]').click()
   await page.waitForTimeout(200)
   out.push({ step: 'toolbar-zoom-in', ...(await readViewport()) })
 
   // 工具栏重置
-  await page.locator('[data-dsh-zoom-reset]').click()
+  await page.locator('[data-dsh-action-reset]').click()
   await page.waitForTimeout(200)
   out.push({ step: 'toolbar-reset', ...(await readViewport()) })
 

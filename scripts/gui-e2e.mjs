@@ -45,7 +45,7 @@ const canvasFacts = () => page.evaluate(() => {
     menuItems: [...document.querySelectorAll('[data-dsh-menu-item]')].map((b) => b.textContent),
     errorBoundary: !!document.querySelector('[data-dsh-canvas-error]'),
     viewportTransform: (() => { const v = document.querySelector('[data-dsh-canvas-viewport]'); return v ? v.style.transform : null })(),
-    zoomText: (() => { const t = document.querySelector('[data-dsh-canvas-toolbar]'); return t ? t.textContent : null })(),
+    zoomText: (() => { const t = document.querySelector('[data-dsh-action-bar]'); return t ? t.textContent : null })(),
   }
 })
 
@@ -102,12 +102,12 @@ await sleep(5000)
 // ── E2E-20 缩放/平移/重置（本轮已实现部分） ──
 {
   // 工具栏放大 → 110%
-  await page.locator('[data-dsh-zoom-in]').click()
+  await page.locator('[data-dsh-action-zoom-in]').click()
   await sleep(500)
   let f = await canvasFacts()
   const zoomed = f.zoomText !== null && f.zoomText.includes('110')
   // 重置 → 100%
-  await page.locator('[data-dsh-zoom-reset]').click()
+  await page.locator('[data-dsh-action-reset]').click()
   await sleep(500)
   f = await canvasFacts()
   const reset = f.zoomText !== null && f.zoomText.includes('100')

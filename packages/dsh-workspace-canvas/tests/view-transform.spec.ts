@@ -1,4 +1,5 @@
 import { describe, expect, it } from 'vitest'
+import { clampZoom, focusView, panBy, resetView, scenePoint, screenPoint, wheelZoomFactor, zoomAt } from '../src/client/canvas/view-transform.ts'
 import {
   ZOOM_MAX,
   ZOOM_MIN,
@@ -61,5 +62,19 @@ describe('view 变换（P2）', () => {
   it('wheelZoomFactor：上滚放大 1.1 / 下滚缩小 0.9', () => {
     expect(wheelZoomFactor(-100)).toBe(1.1)
     expect(wheelZoomFactor(100)).toBe(0.9)
+  })
+
+  it('focusView 平移使 scene 目标居中且 zoom 不变', () => {
+    const view = { x: 100, y: 50, zoom: 1.5 }
+    const next = focusView(view, { x: 200, y: 100 }, { w: 1000, h: 700 })
+    // x = 1000/2 - 200*1.5 = 500 - 300 = 200；y = 700/2 - 100*1.5 = 350 - 150 = 200
+    expect(next).toEqual({ x: 200, y: 200, zoom: 1.5 })
+  })
+
+  it('focusView 纯函数：不改入参', () => {
+    const view = { x: 10, y: 20, zoom: 2 }
+    const snapshot = { ...view }
+    focusView(view, { x: 30, y: 40 }, { w: 800, h: 600 })
+    expect(view).toEqual(snapshot)
   })
 })

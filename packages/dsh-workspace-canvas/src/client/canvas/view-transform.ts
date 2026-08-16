@@ -79,3 +79,23 @@ export function screenPoint(
 export function wheelZoomFactor(deltaY: number): number {
   return deltaY < 0 ? 1.1 : 0.9
 }
+
+/**
+ * 聚焦视图：平移使 scene 目标点位于视口中心（缩放保持不变）。
+ * 纯函数（不改入参）。
+ * @param view - 当前视图。
+ * @param targetCenter - 目标 scene 坐标（如工作区卡片中心）。
+ * @param viewport - 画布可视区尺寸（宽/高，像素）。
+ * @returns 新视图（zoom 不变；x = w/2 - tx*zoom，y = h/2 - ty*zoom）。
+ */
+export function focusView(
+  view: ViewTransform,
+  targetCenter: { x: number; y: number },
+  viewport: { w: number; h: number },
+): ViewTransform {
+  return {
+    x: viewport.w / 2 - targetCenter.x * view.zoom,
+    y: viewport.h / 2 - targetCenter.y * view.zoom,
+    zoom: view.zoom,
+  }
+}

@@ -18,7 +18,7 @@ afterEach(() => {
 })
 
 describe('P2 视图（T038-T041 集成）', () => {
-  it('工具栏放大 → view 尾随防抖持久化到 CanvasDocument.view', async () => {
+  it('操作栏放大 → view 尾随防抖持久化到 CanvasDocument.view', async () => {
     vi.useFakeTimers()
     const store = new CanvasDocumentStore(localStorage)
     const container = document.createElement('div')
@@ -28,7 +28,7 @@ describe('P2 视图（T038-T041 集成）', () => {
       root.render(createElement(CanvasView, { workspaces: feedWith([ws]), store, onClose: () => {} }))
     })
 
-    const zoomIn = container.querySelector<HTMLButtonElement>('[data-dsh-zoom-in]')
+    const zoomIn = container.querySelector<HTMLButtonElement>('[data-dsh-action-zoom-in]')
     expect(zoomIn).not.toBeNull()
     await act(async () => { zoomIn!.click() })
     expect(store.read().view).toBeUndefined() // 防抖未到
@@ -37,7 +37,7 @@ describe('P2 视图（T038-T041 集成）', () => {
     expect(store.read().view?.zoom).toBeCloseTo(1.1, 5)
 
     // 重置视图 → view 回到 identity
-    const reset = container.querySelector<HTMLButtonElement>('[data-dsh-zoom-reset]')
+    const reset = container.querySelector<HTMLButtonElement>('[data-dsh-action-reset]')
     await act(async () => { reset!.click() })
     await act(async () => { vi.advanceTimersByTime(500) })
     expect(store.read().view?.zoom).toBe(1)
@@ -76,7 +76,7 @@ describe('P2 视图（T038-T041 集成）', () => {
     expect(grid!.style.backgroundPosition).toBe('16px -20px')
     expect(grid!.style.transform).toBe('') // 网格无 transform，不随缩放/平移变换
     // 缩放操作：网格仍无 transform，节点层 scale 变化（锚点为中心，x/y 同步调整）
-    const zoomIn = container.querySelector<HTMLButtonElement>('[data-dsh-zoom-in]')
+    const zoomIn = container.querySelector<HTMLButtonElement>('[data-dsh-action-zoom-in]')
     await act(async () => { zoomIn!.click() })
     expect(grid!.style.transform).toBe('')
     const viewport = container.querySelector<HTMLElement>('[data-dsh-canvas-viewport]')

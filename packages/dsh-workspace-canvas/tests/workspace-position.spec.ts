@@ -1,6 +1,6 @@
 import { afterEach, describe, expect, it, vi } from 'vitest'
 import { CanvasDocumentStore } from '../src/client/canvas/document.ts'
-import { commitWorkspacePosition, readWorkspacePositions } from '../src/client/canvas/workspace-position.ts'
+import { autoLayoutWorkspaces, commitWorkspacePosition, readWorkspacePositions } from '../src/client/canvas/workspace-position.ts'
 
 afterEach(() => {
   localStorage.clear()
@@ -49,5 +49,50 @@ describe('工作区位置持久化（T015/T016）', () => {
     } finally {
       vi.useRealTimers()
     }
+  })
+
+  it('autoLayoutWorkspaces 按顺序 GRID 重排（消除重叠、对齐网格）', () => {
+    vi.useFakeTimers()
+    try {
+      const store = new CanvasDocumentStore(localStorage)
+      // 预置错位位置
+      commitWorkspacePosition(store, 'a', { x: 500, y: 500 })
+      commitWorkspacePosition(store, 'b', { x: 510, y: 510 })
+      commitWorkspacePosition(store, 'c', { x: 0, y: 0 })
+      autoLayoutWorkspaces(store, ['a', 'b', 'c'])
+      vi.advanceTimersByTime(600) // 防抖落盘
+      const store2 = new CanvasDocumentStore(localStorage)
+      const pos = readWorkspacePositions(store2)
+      // autoPosition(0)=12,12；autoPosition(1)=228,12；autoPosition(2)=444,12
+      expect(pos.a).toEqual({ x: 12, y: 12 })
+      expect(pos.b).toEqual({ x: 228, y: 12 })
+      expect(pos.c).toEqual({ x: 444, y: 12 })
+      // 不重叠（x 间隔 216 > 卡宽 200）
+    } finally {
+      vi.useRealTimers()
+    }
+  })
+
+  it('autoLayoutWorkspaces 空数组 = 空操作（不 mutate）', () => {
+    const store = new CanvasDocumentStore(localStorage)
+    commitWorkspacePosition(store, 'a', { x: 1, y: 2 })
+    autoLayoutWorkspaces(store, [])
+    expect(readWorkspacePositions(store)).toEqual({ a: { x: 1, y: 2 } })
+  })
+
+  it('autoLayoutWorkspaces 成员节点局部坐标不受影响（随工作区移动保留相对位置）', () => {
+    const store = new CanvasDocumentStore(localStorage)
+    store.mutate((d) => {
+      d.nodes.push(
+        { id: 'ws:w1', kind: 'workspace', ref: 'w1', position: { x: 100, y: 100 } },
+        { id: 'm1', kind: 'hundun:demo', ref: 'r1', workspaceId: 'w1', position: { x: 20, y: 30 } },
+      )
+    })
+    autoLayoutWorkspaces(store, ['w1'])
+    const doc = store.read()
+    const ws = doc.nodes.find((n) => n.kind === 'workspace')
+    const member = doc.nodes.find((n) => n.id === 'm1')
+    expect(ws?.position).toEqual({ x: 12, y: 12 }) // 工作区重排
+    expect(member?.position).toEqual({ x: 20, y: 30 }) // 成员局部坐标不变
   })
 })
