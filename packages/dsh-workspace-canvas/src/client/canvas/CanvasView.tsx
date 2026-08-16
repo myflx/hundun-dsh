@@ -270,9 +270,8 @@ function autoPosition(index: number): { x: number; y: number } {
 }
 
 /** 一张可拖拽的工作区卡片。 */
-function WorkspaceCard({ workspace, recent, position, onCommit, onOpen, onSelect, onContextMenu, zoom, toScene, archivedSessionIds }: {
+function WorkspaceCard({ workspace, position, onCommit, onOpen, onSelect, onContextMenu, zoom, toScene, archivedSessionIds }: {
   workspace: WorkspaceView
-  recent: boolean
   position: { x: number; y: number }
   onCommit: (id: WorkspaceId, position: { x: number; y: number }) => void
   onOpen: (id: WorkspaceId) => void
@@ -362,7 +361,6 @@ function WorkspaceCard({ workspace, recent, position, onCommit, onOpen, onSelect
         ...CARD_STYLE,
         left: position.x,
         top: position.y,
-        borderColor: recent ? 'var(--dsw-alias-state-business-primary)' : undefined,
         zIndex: 1,
       }}
       onPointerDown={onPointerDown}
@@ -644,7 +642,6 @@ export const CanvasView = memo(function CanvasView({ workspaces, store, onClose,
                     <Fragment key={workspace.workspaceId}>
                       <WorkspaceCard
                         workspace={workspace}
-                        recent={workspace.workspaceId === state.recentWorkspaceId}
                         position={workspacePosition}
                         onCommit={commitPosition}
                         onOpen={handleOpen}
