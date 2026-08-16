@@ -4,10 +4,11 @@
  * GUI 通过 window.__ModuleLoader__ 从 /plugins/dsh-workspace-canvas/client.js
  * 加载本半区。职责：
  * - apply-guard 防重复挂载（T006）；
- * - enabled 总开关双半区实时联动（T033，clarify Q1）：设置面（hundun-canvas
- *   命名空间）优先、组合配置兜底；false 时立即卸载全部画布效果；
- * - 其余装配（文档存储 / ctx.canvas 注册服务 / 挂载监督器 / 控制器 / 按钮 /
- *   设置栏目）集中在 CanvasRuntime.mount()。
+ * - enabled 总开关（T033，平台限制修正）：客户端本地持久化（enabled-store）
+ *   优先、组合配置兜底；false 时立即卸载画布本体（文档/注册服务/入口/控制器）；
+ *   设置栏目常驻注册，用户始终可从设置页重新开启；
+ * - 其余装配（文档存储 / ctx.canvas 注册服务 / 挂载监督器 / 控制器 / 按钮）
+ *   集中在 CanvasRuntime.mount()。
  */
 // 客户端根上下文：带 slots / sessions / workspaces 等客户端服务合并的类型。
 import type { ClientContext } from '@deepseek-ai/dsh-client-runtime/client'
@@ -18,6 +19,8 @@ import type {} from '@deepseek-ai/dsh-client-runtime/client'
 import { claimCanvasApply, releaseCanvasApply } from './apply-guard.ts'
 import { en, zh, type CanvasKey } from './locales.ts'
 import { CanvasRuntime } from './runtime.ts'
+import { registerCanvasSettingsColumn } from './settings.ts'
+import { getCanvasEnabled, subscribeCanvasEnabled } from './enabled-store.ts'
 
 // 对外公开的注册契约类型（消费方插件经 '@hundun/dsh-workspace-canvas/client' 引用）。
 export type {
@@ -46,7 +49,7 @@ declare module '@deepseek-ai/dsh-client-ui-slots' {
 /** 需要的客户端服务：locale（文案）/ workspaces（工作区数据）/ slots（设置栏目注册）。 */
 export const inject = ['locale', 'workspaces', 'slots']
 
-/** 客户端半区配置（与宿主 Config 同值；enabled 总开关双半区生效）。 */
+/** 客户端半区配置（与宿主 Config 同值；enabled 总开关，组合配置兜底）。 */
 export interface CanvasClientConfig {
   enabled?: boolean
 }
@@ -54,7 +57,7 @@ export interface CanvasClientConfig {
 /**
  * 浏览器半区入口。GUI 加载本 bundle 后调用 apply(ctx)。
  * @param ctx - 客户端根上下文（已注入 locale / workspaces / slots）。
- * @param config - 组合文件配置（enabled=false 时跳过全部挂载；设置面值优先）。
+ * @param config - 组合文件配置（enabled=false 时跳过画布本体挂载；用户设置优先）。
  */
 export function apply(ctx: ClientContext, config?: CanvasClientConfig): void {
   // 防重复挂载：同页面重复 factory 执行只让首次生效（T006）。
@@ -68,30 +71,20 @@ export function apply(ctx: ClientContext, config?: CanvasClientConfig): void {
   const runtime = new CanvasRuntime(ctx)
   ctx.effect(() => () => runtime.dispose(), 'workspace-canvas: runtime')
 
+  // enabled 联动（T033 修正）：用户设置（localStorage）优先，组合配置兜底。
+  // 官方 settings 命名空间白名单为硬编码，第三方 namespace 无法走 settingsScope，
+  // 故用 enabled-store（localStorage + 事件广播）。
   const applyEnabled = (enabled: boolean): void => {
     if (enabled) runtime.mount()
     else runtime.unmount()
   }
-
-  // 设置面联动（T033）：hundun-canvas 命名空间值优先，组合配置兜底。
-  const binder = ctx.get('settingsScope') as
-    | {
-      bind<T>(spec: { namespace: string }): {
-        getSnapshot(): { value?: T }
-        subscribe(fn: () => void): () => void
-      }
-    }
-    | undefined
-  if (binder !== undefined) {
-    const scope = binder.bind<{ enabled?: boolean }>({ namespace: 'hundun-canvas' })
-    const sync = (): void => {
-      applyEnabled(scope.getSnapshot().value?.enabled ?? config?.enabled ?? true)
-    }
-    const unsub = scope.subscribe(sync)
-    ctx.effect(() => unsub, 'workspace-canvas: enabled subscription')
-    sync()
-  } else {
-    // 无设置面：组合配置兜底（缺省 enabled=true）。
-    applyEnabled(config?.enabled ?? true)
+  const sync = (): void => {
+    applyEnabled(getCanvasEnabled() ?? config?.enabled ?? true)
   }
+  const unsub = subscribeCanvasEnabled(sync)
+  ctx.effect(() => unsub, 'workspace-canvas: enabled subscription')
+  sync()
+
+  // 设置栏目常驻注册（不随 enabled 卸载）：关闭画布后用户仍可从设置页重新开启。
+  ctx.effect(() => registerCanvasSettingsColumn(ctx), 'workspace-canvas: settings column')
 }

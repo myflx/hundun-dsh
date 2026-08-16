@@ -7,6 +7,7 @@ import { ENTRY_SELECTOR, mountSearchButton } from '../src/client/search-button.t
 function makeCtx(): any {
   return {
     workspaces: { list: { subscribe: () => () => {}, getSnapshot: () => ({ items: [], baselinesReady: true }) } },
+    emit: () => {},
   }
 }
 

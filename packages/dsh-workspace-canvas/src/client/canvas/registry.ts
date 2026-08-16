@@ -245,16 +245,43 @@ export function validateDocument(doc: CanvasDocument, edgeRules: ReadonlyMap<str
   }
 }
 
-/** 把注册表安装到客户端上下文（画布缺席时消费方 ctx.get('canvas') === undefined）。 */
-export function installCanvasRegistry(ctx: ClientContext, store: CanvasDocumentStore): CanvasRegistryImpl {
+/** 安装结果：registry 实例 + 服务注销 disposer（enabled 关闭/重开时回收再提供）。 */
+export interface InstalledCanvasRegistry {
+  registry: CanvasRegistryImpl
+  dispose(): void
+}
+
+/** canvas 服务就绪事件（消费方插件据此注册节点类型/动作，避免 apply 时序竞态）。 */
+export const CANVAS_READY_EVENT = 'canvas/ready'
+/** canvas 服务卸载事件（消费方清理其注册）。 */
+export const CANVAS_UNREADY_EVENT = 'canvas/unready'
+
+/** 把注册表安装到客户端上下文（画布缺席时消费方 ctx.get('canvas') === undefined）。
+ *  ctx.provide 返回 fiber-effect disposer：enabled 重挂载前必须调用，
+ *  否则 Cordis 报 `service "canvas" has been registered`（同名重复提供）。
+ *  提供/卸载时分别 emit canvas/ready 与 canvas/unready（消费方按服务可用性注册）。 */
+export function installCanvasRegistry(ctx: ClientContext, store: CanvasDocumentStore): InstalledCanvasRegistry {
   const registry = new CanvasRegistryImpl(store)
-  ctx.provide('canvas', registry)
-  return registry
+  const dispose = ctx.provide('canvas', registry)
+  ctx.emit(CANVAS_READY_EVENT, registry)
+  return {
+    registry,
+    dispose: () => {
+      dispose()
+      ctx.emit(CANVAS_UNREADY_EVENT)
+    },
+  }
 }
 
 declare module '@deepseek-ai/cordis' {
   interface Context {
     /** 编排画布注册表（dsh-workspace-canvas 提供；缺席 = undefined）。 */
     canvas?: CanvasRegistry
+  }
+  interface Events {
+    /** canvas 服务已提供（消费方注册节点类型/动作；避免 apply 时序竞态）。 */
+    'canvas/ready': (registry: CanvasRegistryImpl) => void
+    /** canvas 服务已卸载（消费方清理注册）。 */
+    'canvas/unready': () => void
   }
 }

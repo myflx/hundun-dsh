@@ -22,6 +22,7 @@ import { ACTIVE_ATTR, PANELS, activate, isActive, onOtherActivate } from '@hundu
 import type { MountSupervisor } from './mount-supervisor.ts'
 import type { CanvasDocumentStore } from './document.ts'
 import type { CanvasRegistryImpl } from './registry.ts'
+import { CANVAS_READY_EVENT } from './registry.ts'
 import { CanvasErrorBoundary } from './error-boundary.tsx'
 import { CanvasView } from './CanvasView.tsx'
 
@@ -106,6 +107,9 @@ export class CanvasController {
     this.applyActive()
     this.ensure()
     this.notify()
+    // 补发 canvas/ready（携带 registry）：跨插件 isolate 下消费方可能晚于
+    // 服务提供时注册监听——画布每次打开时再广播一次，消费方据此补注册。
+    this.ctx.emit(CANVAS_READY_EVENT, this.registry)
   }
 
   close(): void {

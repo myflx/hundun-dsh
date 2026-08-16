@@ -8,7 +8,7 @@ import { createRequire } from 'node:module'
 const require = createRequire(import.meta.url)
 const { chromium } = require('playwright')
 
-const url = 'http://127.0.0.1:3080'
+const url = process.env.E2E_URL ?? 'http://127.0.0.1:3080'
 const results = []
 const record = (id, pass, detail, notes = '') => results.push({ id, pass: pass ? 'PASS' : 'FAIL', detail, notes })
 
@@ -45,8 +45,11 @@ const canvasVisible = () => page.evaluate(() => {
   if (await page.locator(HELLO_BTN).count() === 0) {
     record('E2E-16', false, {}, 'SKIP：dsh-hello 未加载')
   } else {
-    if ((await canvasEntry()) === 0) await page.locator('[data-dsh-canvas-entry]').first().click().catch(() => {})
-    await sleep(1000)
+    // 确保画布已打开（入口存在 ≠ 画布激活；未激活才点击）
+    if ((await activeAttr()) !== 'workspace-canvas') {
+      await page.locator('[data-dsh-canvas-entry]').first().click()
+      await sleep(1000)
+    }
     const before = await activeAttr()
     const canvasShown = await canvasVisible()
     await page.locator(HELLO_BTN).click()
@@ -89,14 +92,18 @@ const canvasVisible = () => page.evaluate(() => {
 // ── E2E-18 关闭画布开关 → 入口消失 + 画布立即关闭 ──
 {
   const settingsBtn = page.locator('[data-slot="sidebar.settings"] button')
+  // 设置页导航「hundun-dsh」项（navCell，精确文本匹配）
+  const hundunNav = page.locator('[data-slot="sidebar.settings"] button', { hasText: /^hundun-dsh$/ })
   const sw = () => page.locator('[data-dsh-canvas-enabled-switch]')
-  if ((await settingsBtn.count()) === 0 || (await sw.count()) === 0) {
-    record('E2E-18', false, { settingsBtn: await settingsBtn.count(), switch: await sw.count() }, 'SKIP：设置入口或画布开关不可见（dsh-all/设置页未加载）')
+  if ((await settingsBtn.count()) === 0) {
+    record('E2E-18', false, { settingsBtn: 0 }, 'SKIP：设置入口不可见（dsh-all 未加载）')
   } else {
     // 确保画布开着
     if ((await canvasEntry()) === 0) { await page.locator('[data-dsh-canvas-entry]').first().click(); await sleep(800) }
     await settingsBtn.first().click()
     await sleep(1000)
+    // 切到「hundun-dsh」设置页（默认选中「通用设置」）
+    if ((await hundunNav.count()) > 0) { await hundunNav.first().click(); await sleep(800) }
     const swVisible = await sw().count()
     if (swVisible > 0 && (await sw().isChecked())) {
       await sw().uncheck()
@@ -113,10 +120,17 @@ const canvasVisible = () => page.evaluate(() => {
 // ── E2E-19 重新开启 → 恢复且布局保留 ──
 {
   const settingsBtn = page.locator('[data-slot="sidebar.settings"] button')
+  const hundunNav = page.locator('[data-slot="sidebar.settings"] button', { hasText: /^hundun-dsh$/ })
   const sw = () => page.locator('[data-dsh-canvas-enabled-switch]')
-  if ((await settingsBtn.count()) === 0 || (await sw().count()) === 0) {
+  if ((await settingsBtn.count()) === 0) {
     record('E2E-19', false, {}, 'SKIP：设置入口不可见')
   } else {
+    // 确保设置面板已开且切到 hundun-dsh 页
+    if ((await sw().count()) === 0) {
+      await settingsBtn.first().click()
+      await sleep(1000)
+      if ((await hundunNav.count()) > 0) { await hundunNav.first().click(); await sleep(800) }
+    }
     const beforePos = await page.evaluate(() => {
       const card = document.querySelector('[data-dsh-canvas-card]')
       return card ? { left: card.style.left, top: card.style.top } : null
@@ -124,6 +138,11 @@ const canvasVisible = () => page.evaluate(() => {
     if ((await sw().count()) > 0 && !(await sw().isChecked())) { await sw().check(); await sleep(800) }
     await sleep(500)
     const entryAfter = await canvasEntry()
+    // 关闭设置面板（模态遮罩会拦截画布入口点击）
+    const closeBtn = page.locator('[data-slot="settings.close"] button, [data-slot="settings.close"] [role="button"]')
+    if ((await closeBtn.count()) > 0) await closeBtn.first().click()
+    else await page.keyboard.press('Escape')
+    await sleep(800)
     await page.locator('[data-dsh-canvas-entry]').first().click()
     await sleep(1000)
     const afterPos = await page.evaluate(() => {
@@ -137,4 +156,4 @@ const canvasVisible = () => page.evaluate(() => {
 
 record('console', errors.length === 0, { errorCount: errors.length, errors: errors.slice(0, 5) })
 console.log(JSON.stringify(results, null, 2))
-await browser.close()
+try { await browser.close() } catch { /* noop */ }

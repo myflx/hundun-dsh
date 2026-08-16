@@ -8,6 +8,7 @@ import { CanvasRegistryImpl } from '../src/client/canvas/registry.ts'
 function makeCtx(): any {
   return {
     workspaces: { list: { subscribe: () => () => {}, getSnapshot: () => ({ items: [], baselinesReady: true }) } },
+    emit: () => {},
   }
 }
 

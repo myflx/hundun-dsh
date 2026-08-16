@@ -1,9 +1,9 @@
 /**
- * 画布运行时（T033）：挂载/卸载的单一所有者。
+ * 画布运行时（T033 修正）：画布本体挂载/卸载的单一所有者。
  *
  * enabled 总开关实时联动：true → mount 全部（文档存储/注册服务/挂载监督器/
- * 控制器/按钮/设置栏目）；false → 立即 unmount（clarify Q1）。组合配置与
- * 设置面（hundun-canvas 命名空间）共同驱动 enabled。
+ * 控制器/入口按钮）；false → 立即 unmount（用户设置经 enabled-store，组合配置
+ * 兜底）。设置栏目常驻注册（index.ts apply），不随 enabled 卸载。
  */
 import type { ClientContext } from '@deepseek-ai/dsh-client-runtime/client'
 import { CanvasController } from './canvas/controller.ts'
@@ -11,7 +11,6 @@ import { CanvasDocumentStore } from './canvas/document.ts'
 import { MountSupervisor } from './canvas/mount-supervisor.ts'
 import { installCanvasRegistry } from './canvas/registry.ts'
 import { syncWorkspaceNodes } from './canvas/workspace-nodes.ts'
-import { registerCanvasSettingsColumn } from './settings.ts'
 import { mountSearchButton } from './search-button.tsx'
 
 /** 画布全部客户端效果的容器：mount 一次性装配，unmount 按逆序回收。 */
@@ -36,7 +35,9 @@ export class CanvasRuntime {
     // 文档存储 + ctx.canvas 注册服务（T008/T009）。
     const store = new CanvasDocumentStore()
     push(() => store.dispose())
-    const registry = installCanvasRegistry(ctx, store)
+    const installed = installCanvasRegistry(ctx, store)
+    const registry = installed.registry
+    push(installed.dispose)
 
     // T018：工作区节点投影同步。
     const syncWorkspaces = (): void => {
@@ -57,9 +58,6 @@ export class CanvasRuntime {
     canvas.start(supervisor)
     push(() => canvas.dispose())
     push(mountSearchButton(canvas, supervisor))
-
-    // 设置栏目（T032）：dsh-all 设置页声明子槽位后自动挂载；缺席静默。
-    push(registerCanvasSettingsColumn(ctx))
 
     this.disposers = disposers
   }

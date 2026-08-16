@@ -121,7 +121,7 @@
 - [X] T031 [US7] dsh-all 设置页骨架（注册 settings.section「hundun-dsh」+ 声明子槽位 hundun.settings.item） `file: packages/dsh-all/src/client/index.ts` `function: registerHundunSettingsPage` `calls: ctx.slots.register（settings.section）/ ctx.provide 子槽位声明` `verify: E2E-18 前置：设置面板出现「hundun-dsh」页且栏目区可注册`
 - [X] T032 [US7] 画布设置栏目（enabled 开关，绑定 hundun.canvas 命名空间） `file: packages/dsh-workspace-canvas/src/client/settings.ts` `function: CanvasSettingsCard` `calls: settingsScope.bind('hundun.canvas') / slots.register('hundun.settings.item')` `verify: 单测：栏目渲染含开关；切换值写入设置命名空间`
 - [X] T033 [US7] 开关双半区实时联动（enabled=false：入口/画布立即卸载 + 公告移除；true：恢复且布局保留） `file: packages/dsh-workspace-canvas/src/client/index.ts` `function: onEnabledChange` `calls: 无（订阅 settingsScope）` `verify: E2E-18/19：画布打开时关闭开关 → 画布立即关闭；重开 → 恢复且布局保留`
-- [ ] T034 [US7] US7 集成测试 + E2E 验证 `file: packages/dsh-workspace-canvas/tests/us7.spec.ts` `function: 无（测试）` `calls: vitest` `verify: us7 测试全绿；quickstart E2E-18/19 逐条通过并记录`（自动化测试已全绿；E2E-18/19 待 GUI 挂载后人工验证，归 T037 门禁）
+- [x] T034 [US7] US7 集成测试 + E2E 验证 `file: packages/dsh-workspace-canvas/tests/us7.spec.ts` `function: 无（测试）` `calls: vitest` `verify: us7 测试全绿；quickstart E2E-18/19 逐条通过并记录`（us7 测试全绿；E2E-18/19 已在 3199 验证实例自动化通过，见 scripts/gui-e2e-mutex.mjs；实现改为 localStorage 持久化——官方 settings 白名单硬编码，第三方 namespace 无法暴露给浏览器设置客户端）
 
 ---
 

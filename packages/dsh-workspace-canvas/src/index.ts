@@ -74,6 +74,10 @@ export function apply(ctx: Context, config?: Config): void {
 
   // 设置面联动：设置服务缺席时 installSettingsSection 不注册、钩子不触发，
   // 走组合配置兜底（与 dsh-web-ui 家族一致）。
+  // 平台限制（T033 修正）：官方 dsh-host-apiproxy 的配置客户端白名单为硬编码，
+  // 第三方 namespace 无法暴露给浏览器设置客户端（官方注释为 deferred work），
+  // 故浏览器开关改走 enabled-store（localStorage）；此处注册保留，官方开放
+  // 白名单后自动生效。公告开关由组合配置控制。
   installSettingsSection(ctx, CANVAS_SETTINGS_NAMESPACE, Config, config ?? {}, {
     setSource: (source) => { current = source },
     onChange: sync,

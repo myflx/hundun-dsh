@@ -36,6 +36,8 @@ export function apply(ctx: ClientContext): void {
     inject: () => ({ togglePanel: () => helloPanel.toggle() }),
   }, DemoButton))
 
-  // 画布演示节点（T021）：画布缺席时 registerDemoNodeType 安全跳过。
-  ctx.effect(() => registerDemoNodeType(ctx), 'dsh-hello: demo canvas node')
+  // 画布演示节点（T021）：立即注册（画布缺席/晚到时经 canvas/ready 事件补注册），
+  // 卸载时回收。注意 ctx.effect 回调是卸载钩子，不能包注册本身。
+  const disposeDemo = registerDemoNodeType(ctx)
+  ctx.effect(() => () => disposeDemo(), 'dsh-hello: demo canvas node')
 }
