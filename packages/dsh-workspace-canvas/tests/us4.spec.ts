@@ -31,16 +31,9 @@ afterEach(() => {
 })
 
 describe('工作区内置动作（T024）', () => {
-  it('返回 5 个内置动作：进入/详情/重命名/归档/删除', () => {
+  it('返回 4 个内置动作：详情/重命名/归档/删除（无「进入」）', () => {
     const actions = workspaceActions({ ctx: makeCtx(), store: new CanvasDocumentStore(localStorage), doc: emptyDoc() })
-    expect(actions.map((a) => a.id)).toEqual(['enter', 'detail', 'rename', 'archive', 'delete'])
-  })
-
-  it('进入 → startSession(workspaceId)', () => {
-    const ctx = makeCtx()
-    const actions = workspaceActions({ ctx, store: new CanvasDocumentStore(localStorage), doc: emptyDoc() })
-    actions.find((a) => a.id === 'enter')!.run(wsNode(), emptyDoc())
-    expect(ctx.workspaces.startSession).toHaveBeenCalledWith('ws-1')
+    expect(actions.map((a) => a.id)).toEqual(['detail', 'rename', 'archive', 'delete'])
   })
 
   it('删除：确认（列出成员数）→ 级联清理 → 官方 delete', async () => {

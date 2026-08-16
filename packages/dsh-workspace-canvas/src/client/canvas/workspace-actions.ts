@@ -9,7 +9,6 @@
 import type { ClientContext } from '@deepseek-ai/dsh-client-runtime/client'
 import type { CanvasDocument, CanvasDocumentStore, CanvasNode } from './document.ts'
 import type { NodeAction } from './registry.ts'
-import { openWorkspaceSession } from './workspace-open.ts'
 import { removeWorkspaceCascade } from './workspace-nodes.ts'
 
 export interface WorkspaceActionContext {
@@ -38,13 +37,6 @@ export function workspaceActions(ac: WorkspaceActionContext): NodeAction[] {
   const prompt = ac.prompt ?? nativePrompt
 
   return [
-    {
-      id: 'enter',
-      label: { zh: '进入', en: 'Open' },
-      run: (node: CanvasNode) => {
-        openWorkspaceSession(ac.ctx.workspaces, node.ref as never, (m) => ac.onNotify?.(m))
-      },
-    },
     {
       id: 'detail',
       label: { zh: '详情', en: 'Details' },
