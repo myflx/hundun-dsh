@@ -1,17 +1,30 @@
-import { memo, useRef, useState, useSyncExternalStore } from 'react'
+import { Fragment, memo, useRef, useState, useSyncExternalStore } from 'react'
 import type { CSSProperties, PointerEvent as ReactPointerEvent } from 'react'
+import type { ClientContext } from '@deepseek-ai/dsh-client-runtime/client'
 import type { IWorkspaces, WorkspaceListState } from '@deepseek-ai/dsh-client-runtime/client'
 import type { WorkspaceId, WorkspaceView } from '@deepseek-ai/dsh-client-connection/client'
 import type { CanvasDocumentStore } from './document.ts'
+import type { CanvasRegistryImpl } from './registry.ts'
 import { openWorkspaceSession } from './workspace-open.ts'
 import { commitWorkspacePosition, readWorkspacePositions } from './workspace-position.ts'
 import { canvasText } from './text.ts'
 
-/** 画布 props：官方 workspaces feed + 文档存储（布局持久化）+ 关闭回调。 */
+/** 画布 props：官方 workspaces feed + 文档存储（布局持久化）+ 关闭回调。
+ *  ctx/registry 可选（分区渲染编排节点需要；缺省时只渲染工作区卡片，便于隔离测试）。 */
 export interface CanvasViewProps {
   workspaces: IWorkspaces
   store: CanvasDocumentStore
   onClose: () => void
+  ctx?: ClientContext
+  registry?: CanvasRegistryImpl
+}
+
+/** 编排节点渲染位置：绝对 = 工作区位置 + 区域内局部坐标（T019 分区渲染）。 */
+export function partitionPosition(
+  workspacePosition: { x: number; y: number },
+  local: { x: number; y: number },
+): { x: number; y: number } {
+  return { x: workspacePosition.x + local.x, y: workspacePosition.y + local.y }
 }
 
 /** 网格步长（px）。 */
@@ -214,8 +227,8 @@ function WorkspaceCard({ workspace, recent, position, onCommit, onOpen }: {
   )
 }
 
-/** 中间区域画布：网格背景 + 全部工作区可拖拽卡片。 */
-export const CanvasView = memo(function CanvasView({ workspaces, store, onClose }: CanvasViewProps) {
+/** 中间区域画布：网格背景 + 全部工作区可拖拽卡片 + 工作区内的编排节点（分区渲染）。 */
+export const CanvasView = memo(function CanvasView({ workspaces, store, onClose, ctx, registry }: CanvasViewProps) {
   // 官方 workspaces 标准 feed：ObservableSnapshot —— subscribe + getSnapshot
   // 直接喂给 useSyncExternalStore，工作区增删实时反映到画布。
   const list = workspaces.list
@@ -223,12 +236,18 @@ export const CanvasView = memo(function CanvasView({ workspaces, store, onClose 
     (fn) => list.subscribe(fn),
     () => list.getSnapshot(),
   )
+  // 画布文档（编排节点数据源；布局持久化见 T015/T016）。
+  const doc = useSyncExternalStore(
+    (cb) => store.subscribe(() => cb()),
+    () => store.read(),
+  )
   // 初始布局来自文档（T016 恢复）；拖动时本地即时 + 落盘（T015）。
   const [positions, setPositions] = useState<Positions>(() => readWorkspacePositions(store))
   const [openError, setOpenError] = useState<string | undefined>()
 
   const items = state.items ?? []
   const ready = state.baselinesReady || items.length > 0
+  const orchestrationNodes = doc.nodes.filter((n) => n.kind !== 'workspace')
 
   const commitPosition = (id: WorkspaceId, position: { x: number; y: number }): void => {
     setPositions((prev) => ({ ...prev, [String(id)]: position }))
@@ -241,6 +260,29 @@ export const CanvasView = memo(function CanvasView({ workspaces, store, onClose 
       console.error(`[workspace-canvas] 进入会话失败：${message}`)
       setOpenError(message)
     })
+  }
+
+  const renderMember = (member: (typeof doc.nodes)[number], workspacePosition: { x: number; y: number }) => {
+    const type = registry?.getNodeType(member.kind)
+    const instance = type !== undefined && ctx !== undefined
+      ? type.data.list(ctx).getSnapshot().find((i) => i.id === member.ref)
+      : undefined
+    const abs = partitionPosition(workspacePosition, member.position)
+    return (
+      <div
+        key={member.id}
+        data-dsh-canvas-member={member.id}
+        style={{ position: 'absolute', left: abs.x, top: abs.y, zIndex: 2 }}
+      >
+        {type !== undefined
+          ? <type.render node={member} instance={instance} selected={false} dragging={false} onSelect={() => {}} onOpen={() => {}} />
+          : (
+            <span style={{ background: 'var(--dsw-alias-surface-raised, #fff)', border: '1px dashed var(--dsw-alias-border-l2, #ccc)', borderRadius: 8, padding: '4px 8px', fontSize: 12 }}>
+              {member.kind}（未知类型）
+            </span>
+          )}
+      </div>
+    )
   }
 
   return (
@@ -265,16 +307,22 @@ export const CanvasView = memo(function CanvasView({ workspaces, store, onClose 
           ? <div style={EMPTY_STYLE}>{canvasText('canvas.empty')}</div>
           : (
             <div style={CANVAS_STYLE}>
-              {items.map((workspace, index) => (
-                <WorkspaceCard
-                  key={workspace.workspaceId}
-                  workspace={workspace}
-                  recent={workspace.workspaceId === state.recentWorkspaceId}
-                  position={positions[workspace.workspaceId] ?? autoPosition(index)}
-                  onCommit={commitPosition}
-                  onOpen={handleOpen}
-                />
-              ))}
+              {items.map((workspace, index) => {
+                const workspacePosition = positions[workspace.workspaceId] ?? autoPosition(index)
+                const members = orchestrationNodes.filter((n) => n.workspaceId === workspace.workspaceId)
+                return (
+                  <Fragment key={workspace.workspaceId}>
+                    <WorkspaceCard
+                      workspace={workspace}
+                      recent={workspace.workspaceId === state.recentWorkspaceId}
+                      position={workspacePosition}
+                      onCommit={commitPosition}
+                      onOpen={handleOpen}
+                    />
+                    {members.map((member) => renderMember(member, workspacePosition))}
+                  </Fragment>
+                )
+              })}
             </div>
           )}
     </div>

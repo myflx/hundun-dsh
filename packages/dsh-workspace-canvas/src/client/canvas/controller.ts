@@ -21,6 +21,7 @@ import type { ClientContext } from '@deepseek-ai/dsh-client-runtime/client'
 import { ACTIVE_ATTR, PANELS, activate, isActive, onOtherActivate } from '@hundun/dsh-panel-protocol'
 import type { MountSupervisor } from './mount-supervisor.ts'
 import type { CanvasDocumentStore } from './document.ts'
+import type { CanvasRegistryImpl } from './registry.ts'
 import { CanvasView } from './CanvasView.tsx'
 
 /** 画布视图容器（保持挂载，隐藏时不可见）。 */
@@ -74,6 +75,7 @@ export class CanvasController {
   constructor(
     private readonly ctx: ClientContext,
     private readonly store: CanvasDocumentStore,
+    private readonly registry: CanvasRegistryImpl,
   ) {}
 
   getSnapshot(): CanvasControllerSnapshot {
@@ -162,6 +164,8 @@ export class CanvasController {
     this.root.render(createElement(CanvasView, {
       workspaces: this.ctx.workspaces,
       store: this.store,
+      registry: this.registry,
+      ctx: this.ctx,
       onClose: () => this.close(),
     }))
   }

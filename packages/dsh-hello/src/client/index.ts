@@ -11,6 +11,7 @@ import type { ClientContext } from '@deepseek-ai/dsh-client-runtime/client'
 import type {} from '@deepseek-ai/dsh-client-ui-slots'
 // 类型导入：ui-sidebar 声明的 SlotMap 合并（sidebar.footer.action 槽位）。
 import type {} from '@deepseek-ai/dsh-client-ui-sidebar/client'
+import { registerDemoNodeType } from './canvas-demo-node.tsx'
 import { DemoButton } from './DemoButton.tsx'
 
 /** 所需客户端服务（fiber inject 等待）。 */
@@ -27,4 +28,7 @@ export function apply(ctx: ClientContext): void {
     id: 'hundun-hello-demo',
     order: 100,
   }, DemoButton))
+
+  // 画布演示节点（T021）：画布缺席时 registerDemoNodeType 安全跳过。
+  ctx.effect(() => registerDemoNodeType(ctx), 'dsh-hello: demo canvas node')
 }

@@ -73,11 +73,11 @@
 **Goal**: 第三方可注册节点类型/动作/明细区块/连线规则；节点强制归属；同区连线数据合法（拖线手势 P1.4 待租户，本阶段只落协议与校验）。
 **Independent Test**: 测试插件注册节点类型 → 渲染 → 拖入工作区建归属 → 同区 link 数据合法（E2E-06/07；E2E-08/09 待手势）。
 
-- [ ] T018 [US3] 工作区节点投影同步（feed 订阅：新增自动补建、消失提示并级联清理成员） `file: packages/dsh-workspace-canvas/src/client/canvas/view/workspace-nodes.ts` `function: syncWorkspaceNodes` `calls: ctx.workspaces.list subscribe / document.mutate` `verify: 单测：mock feed 增删 → 文档节点自动补建/清理；成员级联删除；无业务数据写入文档`
-- [ ] T019 [US3] 分区渲染（场景像素坐标 + 区域局部坐标换算；拖工作区成员整体跟随） `file: packages/dsh-workspace-canvas/src/client/canvas/CanvasView.tsx` `function: 渲染位置计算 / 拖拽提交` `calls: 无` `verify: 单测：编排节点绝对位置 = 工作区位置 + 局部坐标；拖工作区后成员相对位置不变（整体跟随）`
-- [ ] T020 [US3] link 边数据模型与校验接入（写入/查重/crossScope 校验；删节点连带删边；不实现拖线手势） `file: packages/dsh-workspace-canvas/src/client/canvas/document.ts` `function: validateEdges / removeNodeCascade` `calls: 无` `verify: Contract test：同区 link 合法写入；跨区默认拒绝；同 kind/source/target 查重拒绝；删节点连带删其边`
-- [ ] T021 [US3] 注册表类型接入测试插件（最小节点类型 demo：注册→渲染→归属） `file: packages/dsh-hello/src/client/canvas-demo-node.tsx` `function: registerDemoNodeType` `calls: ctx.get('canvas').registerNodeType` `verify: E2E-06：demo 节点出现在画布并按注册外观渲染；E2E-07：无归属节点被要求先落入工作区`
-- [ ] T022 [US3] US3 Contract/集成测试 + E2E 验证 `file: packages/dsh-workspace-canvas/tests/us3.spec.ts` `function: 无（测试）` `calls: vitest` `verify: us3 测试全绿；E2E-06/07 通过；E2E-08/09（拖线）标注待 P1.4 手势`
+- [X] T018 [US3] 工作区节点投影同步（feed 订阅：新增自动补建、消失提示并级联清理成员） `file: packages/dsh-workspace-canvas/src/client/canvas/view/workspace-nodes.ts` `function: syncWorkspaceNodes` `calls: ctx.workspaces.list subscribe / document.mutate` `verify: 单测：mock feed 增删 → 文档节点自动补建/清理；成员级联删除；无业务数据写入文档`
+- [X] T019 [US3] 分区渲染（场景像素坐标 + 区域局部坐标换算；拖工作区成员整体跟随） `file: packages/dsh-workspace-canvas/src/client/canvas/CanvasView.tsx` `function: 渲染位置计算 / 拖拽提交` `calls: 无` `verify: 单测：编排节点绝对位置 = 工作区位置 + 局部坐标；拖工作区后成员相对位置不变（整体跟随）`
+- [X] T020 [US3] link 边数据模型与校验接入（写入/查重/crossScope 校验；删节点连带删边；不实现拖线手势） `file: packages/dsh-workspace-canvas/src/client/canvas/document.ts` `function: validateEdges / removeNodeCascade` `calls: 无` `verify: Contract test：同区 link 合法写入；跨区默认拒绝；同 kind/source/target 查重拒绝；删节点连带删其边`
+- [X] T021 [US3] 注册表类型接入测试插件（最小节点类型 demo：注册→渲染→归属） `file: packages/dsh-hello/src/client/canvas-demo-node.tsx` `function: registerDemoNodeType` `calls: ctx.get('canvas').registerNodeType` `verify: E2E-06：demo 节点出现在画布并按注册外观渲染；E2E-07：无归属节点被要求先落入工作区`
+- [ ] T022 [US3] US3 Contract/集成测试 + E2E 验证 `file: packages/dsh-workspace-canvas/tests/us3.spec.ts` `function: 无（测试）` `calls: vitest` `verify: us3 测试全绿；E2E-06/07 通过；E2E-08/09（拖线）标注待 P1.4 手势`（自动化测试已全绿；E2E-06/07 待 GUI 挂载后人工验证，归 T037 门禁）
 
 ---
 

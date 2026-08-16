@@ -53,6 +53,14 @@ export function createEmptyDocument(): CanvasDocument {
   return { version: 1, nodes: [], edges: [] }
 }
 
+/** 删除节点并连带删除其全部边（T020；一次 mutate，保证一致性）。 */
+export function removeNodeCascade(store: CanvasDocumentStore, nodeId: string): void {
+  store.mutate((doc) => {
+    doc.nodes = doc.nodes.filter((n) => n.id !== nodeId)
+    doc.edges = doc.edges.filter((e) => e.source !== nodeId && e.target !== nodeId)
+  })
+}
+
 /** 文档迁移链：版本 < 1 或未来版本在此处理；v1 透传（预留）。 */
 export function migrate(doc: CanvasDocument): CanvasDocument {
   return doc

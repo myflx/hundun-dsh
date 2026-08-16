@@ -23,8 +23,20 @@ import { CanvasController } from './canvas/controller.ts'
 import { CanvasDocumentStore } from './canvas/document.ts'
 import { MountSupervisor } from './canvas/mount-supervisor.ts'
 import { installCanvasRegistry } from './canvas/registry.ts'
+import { syncWorkspaceNodes } from './canvas/workspace-nodes.ts'
 import { en, zh, type CanvasKey } from './locales.ts'
 import { mountSearchButton } from './search-button.tsx'
+
+// 对外公开的注册契约类型（消费方插件经 '@hundun/dsh-workspace-canvas/client' 引用）。
+export type {
+  CanvasRegistry,
+  NodeAction,
+  NodeDetailProps,
+  NodeDetailSection,
+  NodeInstance,
+  NodeTypeDefinition,
+  NodeViewProps,
+} from './canvas/registry.ts'
 
 /** 文案字典命名空间。 */
 const NS = 'workspace-canvas'
@@ -63,7 +75,19 @@ export function apply(ctx: ClientContext, config?: CanvasClientConfig): void {
   // 画布文档存储 + ctx.canvas 注册服务（T008/T009）：消费方经 ctx.get('canvas') 接入。
   const store = new CanvasDocumentStore()
   ctx.effect(() => () => store.dispose(), 'workspace-canvas: document store')
-  installCanvasRegistry(ctx, store)
+  const registry = installCanvasRegistry(ctx, store)
+
+  // T018：工作区节点投影同步（feed → 文档：新增补建、消失级联清理并提示）。
+  const syncWorkspaces = (): void => {
+    const items = ctx.workspaces.list.getSnapshot().items ?? []
+    const removed = syncWorkspaceNodes(store, items)
+    for (const id of removed) {
+      console.warn(`[workspace-canvas] 工作区已消失，其画布节点与成员已清理：${id}`)
+    }
+  }
+  const unsubscribeFeed = ctx.workspaces.list.subscribe(syncWorkspaces)
+  ctx.effect(() => unsubscribeFeed, 'workspace-canvas: workspace feed sync')
+  syncWorkspaces()
 
   // 注册中英文案字典。
   ctx.effect(() => ctx.locale.register(NS, { zh, en }), 'workspace-canvas: dictionaries')
@@ -74,7 +98,7 @@ export function apply(ctx: ClientContext, config?: CanvasClientConfig): void {
   ctx.effect(() => () => supervisor.dispose(), 'workspace-canvas: mount supervisor')
 
   // 画布控制器：状态 + 中间区域挂载 + 单标记互斥（T005）。
-  const canvas = new CanvasController(ctx, store)
+  const canvas = new CanvasController(ctx, store, registry)
   canvas.start(supervisor)
   ctx.effect(() => () => canvas.dispose(), 'workspace-canvas: canvas')
 
