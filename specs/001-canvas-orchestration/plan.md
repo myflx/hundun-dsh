@@ -100,7 +100,7 @@ packages/dsh-workspace-canvas/
         ├── mount-supervisor.ts       # 单一挂载监督器（收窄观察范围）
         ├── document.ts               # CanvasDocument v1：存储/校验/迁移（P1.1）
         ├── registry.ts               # ctx.canvas 注册服务（P1.2）
-        ├── view/                     # CanvasView 视图：像素坐标 + 分区渲染（P1.3）
+        ├── view/                     # 视图助手：workspace-nodes 投影 + 坐标工具（P1.3；CanvasView 组件保持 canvas/ 根）
         ├── menu.ts                   # 右键菜单 + 动作合并（P1.3）
         └── detail/                   # 右侧明细面板 + 区块合并（P1.3）
 

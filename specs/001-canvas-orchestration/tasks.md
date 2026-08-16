@@ -34,10 +34,10 @@
 
 **Purpose**: 定稿设计的基础件——互斥协议接入、防重挂载、挂载监督器、文档模型、注册服务、配置语义。全部完成后 US 才可开工。
 
-- [ ] T005 画布控制器接入单标记互斥（写 data-dsh-panel-active + 广播 + 他方激活让位；删除旧多属性枚举） `file: packages/dsh-workspace-canvas/src/client/canvas/controller.ts` `function: CanvasController.applyActive / onOtherActivate / open / close` `calls: @hundun/dsh-panel-protocol activate / isActive / onOtherActivate` `verify: 单测：open() 后 documentElement 的 data-dsh-panel-active==='workspace-canvas'；收到 he 他面板激活事件后 close()；代码不再引用 data-dsh-taskboard-active / data-dsh-ssh-active`
+- [ ] T005 画布控制器接入单标记互斥（写 data-dsh-panel-active + 广播 + 他方激活让位；删除旧多属性枚举） `file: packages/dsh-workspace-canvas/src/client/canvas/controller.ts` `function: CanvasController.applyActive / onOtherActivate / open / close` `calls: @hundun/dsh-panel-protocol activate / isActive / onOtherActivate` `verify: 单测：open() 后 documentElement 的 data-dsh-panel-active==='workspace-canvas'；收到其他面板激活事件后 close()；代码不再引用 data-dsh-taskboard-active / data-dsh-ssh-active`
 - [ ] T006 客户端 apply-guard（首应用生效、卸载释放，防 HMR/重复加载双挂载） `file: packages/dsh-workspace-canvas/src/client/index.ts` `function: claimCanvasApply / releaseCanvasApply` `calls: 无` `verify: 单测：同页面第二次 apply 调用被忽略（claim 返回 false）；effect 释放后恢复可 claim`
 - [ ] T007 单一挂载监督器（合并按钮自愈与画布挂载两套 MutationObserver，观察范围收窄到侧边栏/对话列锚点子树） `file: packages/dsh-workspace-canvas/src/client/canvas/mount-supervisor.ts` `function: MountSupervisor.ensure / dispose` `calls: MutationObserver` `verify: 单测：模拟侧边栏/对话列重建后画布与按钮自动重挂；卸载后观察器全部断开`
-- [ ] T008 CanvasDocument v1 文档模型与存储（类型 + localStorage 读写 + 500ms 防抖 + .bak 损坏恢复 + migrate 链） `file: packages/dsh-workspace-canvas/src/client/canvas/document.ts` `function: loadDocument / saveDocument / migrate` `calls: localStorage` `verify: 单测：写入→重读一致；连续写入合并为一次落盘；坏 JSON → 生成 .bak + 空文档启动`
+- [ ] T008 CanvasDocument v1 文档模型与存储（类型 + localStorage 读写 + 500ms 防抖 + .bak 损坏恢复 + migrate 链） `file: packages/dsh-workspace-canvas/src/client/canvas/document.ts` `function: loadDocument / saveDocument / migrate` `calls: localStorage` `verify: 单测：写入→重读一致；连续写入合并为一次落盘；坏 JSON → 生成 .bak + 空文档启动；配额满（setItem 抛 QuotaExceededError）→ 只读降级 + 一次性提示且内存文档不丢`
 - [ ] T009 ctx.canvas 注册服务（registerNodeType / registerNodeActions / registerNodeDetailSection / registerEdgeRule / readDocument / subscribe / mutate + 校验） `file: packages/dsh-workspace-canvas/src/client/canvas/registry.ts` `function: CanvasRegistry.*` `calls: ctx.provide('canvas') / document.mutate` `verify: Contract test：注册→注销→重复 kind 注册抛错；mutate 非法写入（无归属节点 / 查重边 / 跨 scope link）抛错拒绝；画布缺席时 ctx.get('canvas')===undefined 消费方不报错`
 - [ ] T010 配置语义双半区（enabled 总开关 + announceToAgent；宿主公告随配置联动） `file: packages/dsh-workspace-canvas/src/index.ts` `function: apply / syncAnnouncement` `calls: installSettingsSection / ctx.systemPrompt.section` `verify: 单测：enabled=false 时公告段落不注册；enabled=true 时注册；设置源变化后即时增删`
 
@@ -62,7 +62,7 @@
 **Goal**: 拖拽位置刷新不丢；损坏数据不崩溃。
 **Independent Test**: 拖乱卡片 → 刷新 → 位置一致；坏数据 → 提示 + 空布局（E2E-04/05）。
 
-- [ ] T015 [US2] 拖拽位置提交画布文档（防抖写入 document，接入 T008） `file: packages/dsh-workspace-canvas/src/client/canvas/CanvasView.tsx` `function: commitPosition` `calls: document.mutate` `verify: 单测：拖动提交后 localStorage 中 nodes 位置更新；连续拖动合并为一次写`
+- [ ] T015 [US2] 拖拽位置提交画布文档（防抖写入 document，接入 T008） `file: packages/dsh-workspace-canvas/src/client/canvas/CanvasView.tsx` `function: commitPosition` `calls: document.mutate` `verify: 单测：拖动提交后 localStorage 中 nodes 位置更新；连续拖动合并为一次写；拖动过程帧间隔 <100ms（性能断言，SC-002）`
 - [ ] T016 [US2] 加载恢复与损坏提示流程（启动时读文档 → 恢复位置 / 提示 + 空文档） `file: packages/dsh-workspace-canvas/src/client/canvas/document.ts` `function: loadDocument 启动分支` `calls: 无` `verify: 单测：预置文档加载后画布位置与文档一致；坏 JSON 走 .bak 恢复路径`
 - [ ] T017 [US2] US2 集成测试 + E2E 验证 `file: packages/dsh-workspace-canvas/tests/us2.spec.ts` `function: 无（测试）` `calls: vitest` `verify: us2 测试全绿；quickstart E2E-04/05 逐条通过并记录`
 
@@ -74,7 +74,7 @@
 **Independent Test**: 测试插件注册节点类型 → 渲染 → 拖入工作区建归属 → 同区 link 数据合法（E2E-06/07；E2E-08/09 待手势）。
 
 - [ ] T018 [US3] 工作区节点投影同步（feed 订阅：新增自动补建、消失提示并级联清理成员） `file: packages/dsh-workspace-canvas/src/client/canvas/view/workspace-nodes.ts` `function: syncWorkspaceNodes` `calls: ctx.workspaces.list subscribe / document.mutate` `verify: 单测：mock feed 增删 → 文档节点自动补建/清理；成员级联删除；无业务数据写入文档`
-- [ ] T019 [US3] 分区渲染（场景像素坐标 + 区域局部坐标换算；拖工作区成员整体跟随） `file: packages/dsh-workspace-canvas/src/client/canvas/view/CanvasView.tsx` `function: 渲染位置计算 / 拖拽提交` `calls: 无` `verify: 单测：编排节点绝对位置 = 工作区位置 + 局部坐标；拖工作区后成员相对位置不变（整体跟随）`
+- [ ] T019 [US3] 分区渲染（场景像素坐标 + 区域局部坐标换算；拖工作区成员整体跟随） `file: packages/dsh-workspace-canvas/src/client/canvas/CanvasView.tsx` `function: 渲染位置计算 / 拖拽提交` `calls: 无` `verify: 单测：编排节点绝对位置 = 工作区位置 + 局部坐标；拖工作区后成员相对位置不变（整体跟随）`
 - [ ] T020 [US3] link 边数据模型与校验接入（写入/查重/crossScope 校验；删节点连带删边；不实现拖线手势） `file: packages/dsh-workspace-canvas/src/client/canvas/document.ts` `function: validateEdges / removeNodeCascade` `calls: 无` `verify: Contract test：同区 link 合法写入；跨区默认拒绝；同 kind/source/target 查重拒绝；删节点连带删其边`
 - [ ] T021 [US3] 注册表类型接入测试插件（最小节点类型 demo：注册→渲染→归属） `file: packages/dsh-hello/src/client/canvas-demo-node.tsx` `function: registerDemoNodeType` `calls: ctx.get('canvas').registerNodeType` `verify: E2E-06：demo 节点出现在画布并按注册外观渲染；E2E-07：无归属节点被要求先落入工作区`
 - [ ] T022 [US3] US3 Contract/集成测试 + E2E 验证 `file: packages/dsh-workspace-canvas/tests/us3.spec.ts` `function: 无（测试）` `calls: vitest` `verify: us3 测试全绿；E2E-06/07 通过；E2E-08/09（拖线）标注待 P1.4 手势`
