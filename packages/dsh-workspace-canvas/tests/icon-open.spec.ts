@@ -43,6 +43,9 @@ describe('入口按钮点击 → 画布打开（bugfix 复现）', () => {
     document.body.appendChild(sidebar)
     const conversation = document.createElement('div')
     conversation.setAttribute('data-slot', 'conversation')
+    const column = document.createElement('div')
+    column.setAttribute('data-phase', 'active')
+    conversation.appendChild(column)
     document.body.appendChild(conversation)
 
     // 挂载按钮（act 包裹让 React 提交初始渲染）。
@@ -59,7 +62,10 @@ describe('入口按钮点击 → 画布打开（bugfix 复现）', () => {
     await act(async () => { button!.click() })
 
     expect(document.documentElement.getAttribute(ACTIVE_ATTR)).toBe(PANELS.workspaceCanvas)
-    expect(document.querySelector('[data-dsh-canvas-view]')).not.toBeNull()
+    const view = document.querySelector('[data-dsh-canvas-view]')
+    expect(view).not.toBeNull()
+    // 画布视图应挂进真实列盒子（contents 槽位的子元素），而非 contents 壳本身。
+    expect(view!.parentElement).toBe(column)
     expect(controller.getSnapshot().open).toBe(true)
 
     disposeButton()
