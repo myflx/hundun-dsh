@@ -6,6 +6,9 @@
 
 **Status**: Draft
 
+**TDD**: true
+<!-- 项目章程 I 条：TDD 必为 true，$speckit-tasks 须生成 Contract test 与 Integration test 任务。 -->
+
 **Input**: User description: "基于当前的设计和文档生成需求"
 
 > 依据：`packages/dsh-workspace-canvas/docs/` 下四份设计文档（protocol-spec / orchestration-design / capability-boundaries / implementation-plan）定稿内容。

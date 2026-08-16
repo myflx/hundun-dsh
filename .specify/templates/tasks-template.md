@@ -9,15 +9,31 @@ description: "Task list template for feature implementation"
 
 **Prerequisites**: plan.md (required), spec.md (required for user stories), research.md, data-model.md, contracts/
 
-**Tests**: The examples below include test tasks. Tests are OPTIONAL - only include them if explicitly requested in the feature specification.
+**Tests**: 由 spec.md 的 `TDD: true` 决定——TDD 声明为 true 时，Contract test 与 Integration test
+任务 MUST 随实现任务一起生成（项目章程 I 条）；测试任务缺失 = 实现任务不完整。
 
 **Organization**: Tasks are grouped by user story to enable independent implementation and testing of each story.
 
-## Format: `[ID] [P?] [Story] Description`
+## Format（四字段，全必填）
 
-- **[P]**: Can run in parallel (different files, no dependencies)
-- **[Story]**: Which user story this task belongs to (e.g., US1, US2, US3)
-- Include exact file paths in descriptions
+```text
+- [ ] T### [P?] [USx?] 描述 `file: 文件路径` `function: 函数/组件名` `calls: API/函数调用` `verify: 运行时可验证行为`
+```
+
+| 字段 | 必填 | 说明 | 示例 |
+|------|------|------|------|
+| `file` | 是 | 修改的文件路径 | `src/App.tsx` |
+| `function` | 是 | 修改的函数/组件名 | `WorkspaceGraph onDrop handler` |
+| `calls` | 是 | 调用的 API 或函数（无则填「无」） | `POST /api/channels/instances` |
+| `verify` | 是 | 运行时可验证的行为（**禁止编译/构建类声明**） | `拖拽入口到 Agent 节点释放后生成渠道实例节点` |
+
+**禁止**：
+- `verify: tsc 通过` — 类型检查不验证运行时行为
+- `verify: build 成功` — 构建不验证功能可用
+- `verify: 代码已实现` — 代码存在不等于功能可用
+- 缺任意字段 — 不完整的任务无法独立验证
+
+> 标记 `[X]` 的唯一依据是 `verify` 行为真实通过（项目章程 II 条）。
 
 ## Path Conventions
 

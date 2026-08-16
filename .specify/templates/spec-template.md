@@ -6,6 +6,9 @@
 
 **Status**: Draft
 
+**TDD**: true
+<!-- MUST 为 true（项目章程 I 条）：声明后 $speckit-tasks 强制生成 Contract test 与 Integration test 任务。 -->
+
 **Input**: User description: "$ARGUMENTS"
 
 ## User Scenarios & Testing *(mandatory)*
