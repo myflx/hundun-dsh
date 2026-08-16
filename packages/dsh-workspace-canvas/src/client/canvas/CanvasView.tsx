@@ -305,7 +305,7 @@ export const CanvasView = memo(function CanvasView({ workspaces, store, onClose,
     openWorkspaceSession(workspaces, id, (message) => {
       console.error(`[workspace-canvas] 进入会话失败：${message}`)
       setOpenError(message)
-    })
+    }, () => onClose())
   }
 
   // 右键菜单与选中明细状态（T023-T027）。

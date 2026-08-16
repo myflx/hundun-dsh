@@ -18,12 +18,12 @@ function workspaceItem(id: string, title: string): any {
   return { workspaceId: id, title, path: `/repo/${id}`, sessionIds: [] }
 }
 
-async function renderView(feed: any, workspaces: any, store: CanvasDocumentStore): Promise<{ container: HTMLElement; root: Root }> {
+async function renderView(feed: any, workspaces: any, store: CanvasDocumentStore, onClose: () => void = () => {}): Promise<{ container: HTMLElement; root: Root }> {
   const container = document.createElement('div')
   document.body.appendChild(container)
   const root = createRoot(container)
   await act(async () => {
-    root.render(createElement(CanvasView, { workspaces, store, onClose: () => {} }))
+    root.render(createElement(CanvasView, { workspaces, store, onClose }))
   })
   return { container, root }
 }
@@ -87,6 +87,23 @@ describe('点击进入新会话（T012/T014）', () => {
     await act(async () => { card!.click() })
     await act(async () => { await Promise.resolve() })
     expect(container.textContent).toContain('进入会话失败')
+    await act(async () => root.unmount())
+  })
+
+  it('点击卡片成功 → onClose 被调用（E2E-02：进入会话后退出画布）', async () => {
+    const startSession = vi.fn(() => Promise.resolve())
+    const onClose = vi.fn()
+    const item = workspaceItem('ws-1', 'hundun-dsh')
+    const { container, root } = await renderView(
+      fakeFeed([item], true),
+      { list: fakeFeed([item], true), startSession },
+      new CanvasDocumentStore(localStorage),
+      onClose,
+    )
+    const card = container.querySelector<HTMLButtonElement>('[data-dsh-canvas-card]')
+    await act(async () => { card!.click() })
+    await act(async () => { await Promise.resolve() })
+    expect(onClose).toHaveBeenCalledTimes(1)
     await act(async () => root.unmount())
   })
 })

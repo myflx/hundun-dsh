@@ -53,7 +53,7 @@
 - [X] T011 [US1] 画布入口按钮接入挂载监督器（原自愈逻辑迁移，观察器并入 T007） `file: packages/dsh-workspace-canvas/src/client/search-button.tsx` `function: mountSearchButton / tryPlace` `calls: MountSupervisor` `verify: 单测：搜索行渲染后按钮出现；行重建后同帧重插；卸载后按钮与样式移除`
 - [X] T012 [US1] 点击进入新会话 + startSession 失败兜底 `file: packages/dsh-workspace-canvas/src/client/canvas/CanvasView.tsx` `function: WorkspaceCard.onOpen` `calls: workspaces.startSession` `verify: 单测：点击卡片调用 startSession(workspaceId)；mock 失败时提示且无 unhandled rejection`
 - [X] T013 [US1] 空状态与加载状态（无工作区 / feed 未就绪） `file: packages/dsh-workspace-canvas/src/client/canvas/CanvasView.tsx` `function: CanvasView 渲染分支` `calls: 无` `verify: 单测：无工作区渲染空状态引导；baselinesReady 前渲染加载态`
-- [ ] T014 [US1] US1 集成测试 + E2E 验证 `file: packages/dsh-workspace-canvas/tests/us1.spec.ts` `function: 无（测试）` `calls: vitest` `verify: us1 测试全绿；quickstart E2E-01/02/03 逐条通过并记录`（自动化测试已全绿；E2E-01/02/03 待 GUI 挂载后人工验证，归 T037 门禁）
+- [x] T014 [US1] US1 集成测试 + E2E 验证 `file: packages/dsh-workspace-canvas/tests/us1.spec.ts` `function: 无（测试）` `calls: vitest` `verify: us1 测试全绿；quickstart E2E-01/02/03 逐条通过并记录`（us1 测试全绿；E2E-01/02/03 已由 playwright 自动化验证通过，见 scripts/gui-e2e.mjs）
 
 ---
 
@@ -64,7 +64,7 @@
 
 - [X] T015 [US2] 拖拽位置提交画布文档（防抖写入 document，接入 T008） `file: packages/dsh-workspace-canvas/src/client/canvas/CanvasView.tsx` `function: commitPosition` `calls: document.mutate` `verify: 单测：拖动提交后 localStorage 中 nodes 位置更新；连续拖动合并为一次写；拖动过程帧间隔 <100ms（性能断言，SC-002）`
 - [X] T016 [US2] 加载恢复与损坏提示流程（启动时读文档 → 恢复位置 / 提示 + 空文档） `file: packages/dsh-workspace-canvas/src/client/canvas/document.ts` `function: loadDocument 启动分支` `calls: 无` `verify: 单测：预置文档加载后画布位置与文档一致；坏 JSON 走 .bak 恢复路径`
-- [ ] T017 [US2] US2 集成测试 + E2E 验证 `file: packages/dsh-workspace-canvas/tests/us2.spec.ts` `function: 无（测试）` `calls: vitest` `verify: us2 测试全绿；quickstart E2E-04/05 逐条通过并记录`（自动化测试已全绿；E2E-04/05 待 GUI 挂载后人工验证，归 T037 门禁）
+- [x] T017 [US2] US2 集成测试 + E2E 验证 `file: packages/dsh-workspace-canvas/tests/us2.spec.ts` `function: 无（测试）` `calls: vitest` `verify: us2 测试全绿；quickstart E2E-04/05 逐条通过并记录`（us2 测试全绿；E2E-04/05 已由 playwright 自动化验证通过，见 scripts/gui-e2e.mjs）
 
 ---
 
@@ -88,7 +88,7 @@
 
 - [X] T023 [US4] 右键菜单框架与动作合并（类型所有者 actions + registerNodeActions 扩展，按 order 排序） `file: packages/dsh-workspace-canvas/src/client/canvas/menu.ts` `function: ContextMenu / mergeActions` `calls: registry 动作注册表` `verify: 单测：内置+扩展动作合并且排序正确；右键弹出菜单、点空白关闭`
 - [X] T024 [US4] 工作区内置动作（进入 / 重命名 / 删除（级联确认，列出成员数）/ 归档会话） `file: packages/dsh-workspace-canvas/src/client/canvas/menu.ts` `function: workspaceActions` `calls: workspaces.startSession / rename / delete / archiveSession` `verify: 单测：删除含成员工作区 → 确认框列出成员数 → 确认后级联清理 + 调用官方 delete；E2E-11 通过`
-- [ ] T025 [US4] US4 集成测试 + E2E 验证 `file: packages/dsh-workspace-canvas/tests/us4.spec.ts` `function: 无（测试）` `calls: vitest` `verify: us4 测试全绿；quickstart E2E-10/11/12 逐条通过并记录`（自动化测试已全绿；E2E-10/11/12 待 GUI 挂载后人工验证，归 T037 门禁）
+- [ ] T025 [US4] US4 集成测试 + E2E 验证 `file: packages/dsh-workspace-canvas/tests/us4.spec.ts` `function: 无（测试）` `calls: vitest` `verify: us4 测试全绿；quickstart E2E-10/11/12 逐条通过并记录`（us4 测试全绿；E2E-10/11 已由 playwright 自动化验证通过；E2E-12 扩展动作 GUI 验证待 dsh-hello 加载（需重启 dsh），注册/合并逻辑单测已覆盖）
 
 ---
 
@@ -99,7 +99,7 @@
 
 - [X] T026 [US5] 明细面板框架与区块合并（类型所有者 detail + registerNodeDetailSection 扩展，按 order 渲染） `file: packages/dsh-workspace-canvas/src/client/canvas/detail/panel.tsx` `function: DetailPanel / mergeSections` `calls: registry 明细注册表` `verify: 单测：点击节点弹出面板；内置+扩展区块按序渲染；点空白/关闭收起`
 - [X] T027 [US5] 工作区明细内容（标题/路径/会话数/最近活跃 + 跳转侧边栏入口；不含条目列表） `file: packages/dsh-workspace-canvas/src/client/canvas/detail/workspace-detail.tsx` `function: WorkspaceDetail` `calls: workspaces feed（会话数）` `verify: 单测：明细字段齐全且无会话条目列表；跳转入口触发侧边栏会话列表定位`
-- [ ] T028 [US5] US5 集成测试 + E2E 验证 `file: packages/dsh-workspace-canvas/tests/us5.spec.ts` `function: 无（测试）` `calls: vitest` `verify: us5 测试全绿；quickstart E2E-13/14/15 逐条通过并记录`（自动化测试已全绿；E2E-13/14/15 待 GUI 挂载后人工验证，归 T037 门禁）
+- [ ] T028 [US5] US5 集成测试 + E2E 验证 `file: packages/dsh-workspace-canvas/tests/us5.spec.ts` `function: 无（测试）` `calls: vitest` `verify: us5 测试全绿；quickstart E2E-13/14/15 逐条通过并记录`（us5 测试全绿；E2E-13/15 已由 playwright 自动化验证通过；E2E-14 注册节点明细 GUI 验证待 dsh-hello 加载（需重启 dsh），单测已覆盖）
 
 ---
 

@@ -35,4 +35,32 @@ describe('openWorkspaceSession（T012）', () => {
     await Promise.resolve()
     expect(onError).not.toHaveBeenCalled()
   })
+
+  it('同步成功 → onSuccess 被调用（画布退出让位）', () => {
+    const onSuccess = vi.fn()
+    openWorkspaceSession({ startSession: () => undefined }, 'ws-1', () => {}, onSuccess)
+    expect(onSuccess).toHaveBeenCalledTimes(1)
+  })
+
+  it('resolved Promise → onSuccess 被调用', async () => {
+    const onSuccess = vi.fn()
+    openWorkspaceSession({ startSession: () => Promise.resolve() }, 'ws-1', () => {}, onSuccess)
+    await Promise.resolve()
+    expect(onSuccess).toHaveBeenCalledTimes(1)
+  })
+
+  it('失败（同步抛错）→ onSuccess 不被调用', () => {
+    const onSuccess = vi.fn()
+    openWorkspaceSession({ startSession: () => { throw new Error('boom') } }, 'ws-1', () => {}, onSuccess)
+    expect(onSuccess).not.toHaveBeenCalled()
+  })
+
+  it('失败（rejected Promise）→ onSuccess 不被调用', async () => {
+    const onSuccess = vi.fn()
+    const rejection = Promise.reject(new Error('async boom'))
+    rejection.catch(() => {})
+    openWorkspaceSession({ startSession: () => rejection }, 'ws-1', () => {}, onSuccess)
+    await Promise.resolve()
+    expect(onSuccess).not.toHaveBeenCalled()
+  })
 })
