@@ -63,7 +63,7 @@ describe('CanvasView 状态渲染（T013）', () => {
   })
 })
 
-describe('点击进入新会话（T012/T014，双击进入）', () => {
+describe('双击进入新会话（T012/T014，双击进入）', () => {
   it('双击卡片 → startSession(workspaceId)', async () => {
     const startSession = vi.fn(() => Promise.resolve())
     const item = workspaceItem('ws-1', 'hundun-dsh')

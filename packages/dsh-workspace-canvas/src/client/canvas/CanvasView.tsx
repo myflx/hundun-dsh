@@ -613,7 +613,7 @@ export const CanvasView = memo(function CanvasView({ workspaces, store, onClose,
       <div style={HEADER_STYLE}>
         <div>
           <div style={TITLE_STYLE}>{canvasText('canvas.title')}</div>
-          <div style={SUBTITLE_STYLE}>{canvasText('canvas.subtitle')}</div>
+          <div style={SUBTITLE_STYLE}>{canvasText('canvas.subtitle')} <span data-dsh-canvas-version="" style={{ opacity: 0.55 }}>v3.2</span></div>
         </div>
         <button type="button" style={CLOSE_STYLE} onClick={onClose}>
           {canvasText('canvas.close')}
