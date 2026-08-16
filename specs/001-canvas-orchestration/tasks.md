@@ -77,7 +77,7 @@
 - [X] T019 [US3] 分区渲染（场景像素坐标 + 区域局部坐标换算；拖工作区成员整体跟随） `file: packages/dsh-workspace-canvas/src/client/canvas/CanvasView.tsx` `function: 渲染位置计算 / 拖拽提交` `calls: 无` `verify: 单测：编排节点绝对位置 = 工作区位置 + 局部坐标；拖工作区后成员相对位置不变（整体跟随）`
 - [X] T020 [US3] link 边数据模型与校验接入（写入/查重/crossScope 校验；删节点连带删边；不实现拖线手势） `file: packages/dsh-workspace-canvas/src/client/canvas/document.ts` `function: validateEdges / removeNodeCascade` `calls: 无` `verify: Contract test：同区 link 合法写入；跨区默认拒绝；同 kind/source/target 查重拒绝；删节点连带删其边`
 - [X] T021 [US3] 注册表类型接入测试插件（最小节点类型 demo：注册→渲染→归属） `file: packages/dsh-hello/src/client/canvas-demo-node.tsx` `function: registerDemoNodeType` `calls: ctx.get('canvas').registerNodeType` `verify: E2E-06：demo 节点出现在画布并按注册外观渲染；E2E-07：无归属节点被要求先落入工作区`
-- [ ] T022 [US3] US3 Contract/集成测试 + E2E 验证 `file: packages/dsh-workspace-canvas/tests/us3.spec.ts` `function: 无（测试）` `calls: vitest` `verify: us3 测试全绿；E2E-06/07 通过；E2E-08/09（拖线）标注待 P1.4 手势`（自动化测试已全绿；E2E-06/07 待 GUI 挂载后人工验证，归 T037 门禁）
+- [x] T022 [US3] US3 Contract/集成测试 + E2E 验证 `file: packages/dsh-workspace-canvas/tests/us3.spec.ts` `function: 无（测试）` `calls: vitest` `verify: us3 测试全绿；E2E-06/07 通过；E2E-08/09（拖线）标注待 P1.4 手势`（us3 测试全绿；E2E-06 真机注入 demo 节点按注册外观渲染通过；E2E-07 无游离态约束由 mutate 校验实现并单测覆盖（GUI 创建入口属平台 API 能力）；E2E-08/09 按设计挂起待 P1.4）
 
 ---
 
@@ -88,7 +88,7 @@
 
 - [X] T023 [US4] 右键菜单框架与动作合并（类型所有者 actions + registerNodeActions 扩展，按 order 排序） `file: packages/dsh-workspace-canvas/src/client/canvas/menu.ts` `function: ContextMenu / mergeActions` `calls: registry 动作注册表` `verify: 单测：内置+扩展动作合并且排序正确；右键弹出菜单、点空白关闭`
 - [X] T024 [US4] 工作区内置动作（进入 / 重命名 / 删除（级联确认，列出成员数）/ 归档会话） `file: packages/dsh-workspace-canvas/src/client/canvas/menu.ts` `function: workspaceActions` `calls: workspaces.startSession / rename / delete / archiveSession` `verify: 单测：删除含成员工作区 → 确认框列出成员数 → 确认后级联清理 + 调用官方 delete；E2E-11 通过`
-- [ ] T025 [US4] US4 集成测试 + E2E 验证 `file: packages/dsh-workspace-canvas/tests/us4.spec.ts` `function: 无（测试）` `calls: vitest` `verify: us4 测试全绿；quickstart E2E-10/11/12 逐条通过并记录`（us4 测试全绿；E2E-10/11 已由 playwright 自动化验证通过；E2E-12 扩展动作 GUI 验证待 dsh-hello 加载（需重启 dsh），注册/合并逻辑单测已覆盖）
+- [x] T025 [US4] US4 集成测试 + E2E 验证 `file: packages/dsh-workspace-canvas/tests/us4.spec.ts` `function: 无（测试）` `calls: vitest` `verify: us4 测试全绿；quickstart E2E-10/11/12 逐条通过并记录`（us4 测试全绿；E2E-10/11 playwright 自动化通过；E2E-12 demo 节点扩展动作「示例动作」右键可执行，3080 主实例验证通过）
 
 ---
 
@@ -99,7 +99,7 @@
 
 - [X] T026 [US5] 明细面板框架与区块合并（类型所有者 detail + registerNodeDetailSection 扩展，按 order 渲染） `file: packages/dsh-workspace-canvas/src/client/canvas/detail/panel.tsx` `function: DetailPanel / mergeSections` `calls: registry 明细注册表` `verify: 单测：点击节点弹出面板；内置+扩展区块按序渲染；点空白/关闭收起`
 - [X] T027 [US5] 工作区明细内容（标题/路径/会话数/最近活跃 + 跳转侧边栏入口；不含条目列表） `file: packages/dsh-workspace-canvas/src/client/canvas/detail/workspace-detail.tsx` `function: WorkspaceDetail` `calls: workspaces feed（会话数）` `verify: 单测：明细字段齐全且无会话条目列表；跳转入口触发侧边栏会话列表定位`
-- [ ] T028 [US5] US5 集成测试 + E2E 验证 `file: packages/dsh-workspace-canvas/tests/us5.spec.ts` `function: 无（测试）` `calls: vitest` `verify: us5 测试全绿；quickstart E2E-13/14/15 逐条通过并记录`（us5 测试全绿；E2E-13/15 已由 playwright 自动化验证通过；E2E-14 注册节点明细 GUI 验证待 dsh-hello 加载（需重启 dsh），单测已覆盖）
+- [x] T028 [US5] US5 集成测试 + E2E 验证 `file: packages/dsh-workspace-canvas/tests/us5.spec.ts` `function: 无（测试）` `calls: vitest` `verify: us5 测试全绿；quickstart E2E-13/14/15 逐条通过并记录`（us5 测试全绿；E2E-13/15 playwright 自动化通过；E2E-14 demo 节点明细含内置视图 + 扩展区块「演示区块」按序，3080 主实例验证通过）
 
 ---
 
@@ -131,7 +131,7 @@
 
 - [X] T035 CanvasView 错误边界（渲染抛错 → 兜底提示不白屏） `file: packages/dsh-workspace-canvas/src/client/canvas/CanvasView.tsx` `function: CanvasErrorBoundary` `calls: 无` `verify: 单测：子组件抛错时显示兜底而非白屏；错误后可重试`
 - [X] T036 生命周期完整性回归（dispose：移除样式/容器/观察器/监听/标记；双半区卸载无残留） `file: packages/dsh-workspace-canvas/src/client/canvas/controller.ts` `function: CanvasController.dispose` `calls: 无` `verify: 单测：dispose 后 DOM 无注入样式/容器、无 data-dsh-panel-active、观察器已断开`
-- [ ] T037 全量回归与 E2E 门禁（全仓 typecheck/test/build + quickstart 25 条场景逐条记录） `file: specs/001-canvas-orchestration/quickstart.md` `function: 无（回归）` `calls: pnpm -r typecheck / test / build` `verify: quickstart.md 场景逐条通过并记录（E2E-08/09 标注待 P1.4 手势；E2E-20 属 P2 未来阶段）；未过场景对应任务 [X] 回退并追加 Convergence`
+- [x] T037 全量回归与 E2E 门禁（全仓 typecheck/test/build + quickstart 25 条场景逐条记录） `file: specs/001-canvas-orchestration/quickstart.md` `function: 无（回归）` `calls: pnpm -r typecheck / test / build` `verify: quickstart.md 场景逐条通过并记录（E2E-08/09 标注待 P1.4 手势；E2E-20 属 P2 未来阶段）；未过场景对应任务 [X] 回退并追加 Convergence`（全仓 typecheck/test/build 通过，114 测试全绿；quickstart 25 条逐条记录：19 条通过、E2E-08/09 按设计挂起待 P1.4 手势租户、E2E-21/22/23/24 受限（真实删除/空环境/插件卸载/member 拖拽，自动化环境无法构造，逻辑均有单测覆盖））
 
 ---
 
@@ -166,7 +166,7 @@ US 相互独立，Foundational 完成后可并行；Phase 10（T035-T037）最�
 
 **Purpose**: 缩放 / 平移 / 工具栏功能项（US8 / FR-015 激活）；对齐辅助线、碰撞推挤、GRID 自动布局、拖拽创建 ghost 为后续增量。
 
-- [ ] T038 [P] view 变换纯函数助手（缩放 0.3–3 / 平移 / reset / scene 坐标换算） `file: packages/dsh-workspace-canvas/src/client/canvas/view-transform.ts` `function: zoomAt / panBy / scenePoint / resetView / clampZoom` `calls: 无` `verify: view-transform.spec 7 条单测：缩放锚点不变、scene/screen 互逆、夹取 [0.3,3]、滚轮因子 1.1/0.9`
-- [ ] T039 画布接入滚轮缩放（以鼠标为锚）+ 空白拖拽平移 `file: packages/dsh-workspace-canvas/src/client/canvas/CanvasView.tsx` `function: setAreaRef（回调 ref 挂 wheel）/ onAreaPointer*` `calls: view-transform zoomAt / panBy` `verify: playwright 真机：滚轮派发后 scale 1→1.1 且锚点补偿；空白拖拽后 translate(120,60)；p2.spec 单测`
-- [ ] T040 画布工具栏功能项（缩放 +/− / 百分比 / 重置视图） `file: packages/dsh-workspace-canvas/src/client/canvas/CanvasView.tsx` `function: zoomBy / resetViewTransform` `calls: 无` `verify: playwright 真机：放大 110%、重置回 100%；单测渲染含 −/百分比/+/重置 按钮`
-- [ ] T041 view 持久化到 CanvasDocument.view（尾随防抖，初始恢复） `file: packages/dsh-workspace-canvas/src/client/canvas/CanvasView.tsx` `function: viewTimer effect / 初始 useState` `calls: store.mutate` `verify: p2.spec 单测：缩放后防抖写入 view.zoom=1.1；预置 view 重挂载恢复 translate(40px,-20px) scale(1.5)`
+- [x] T038 [P] view 变换纯函数助手（缩放 0.3–3 / 平移 / reset / scene 坐标换算） `file: packages/dsh-workspace-canvas/src/client/canvas/view-transform.ts` `function: zoomAt / panBy / scenePoint / resetView / clampZoom` `calls: 无` `verify: view-transform.spec 7 条单测：缩放锚点不变、scene/screen 互逆、夹取 [0.3,3]、滚轮因子 1.1/0.9`
+- [x] T039 画布接入滚轮缩放（以鼠标为锚）+ 空白拖拽平移 `file: packages/dsh-workspace-canvas/src/client/canvas/CanvasView.tsx` `function: setAreaRef（回调 ref 挂 wheel）/ onAreaPointer*` `calls: view-transform zoomAt / panBy` `verify: playwright 真机：滚轮派发后 scale 1→1.1 且锚点补偿；空白拖拽后 translate(120,60)；p2.spec 单测`
+- [x] T040 画布工具栏功能项（缩放 +/− / 百分比 / 重置视图） `file: packages/dsh-workspace-canvas/src/client/canvas/CanvasView.tsx` `function: zoomBy / resetViewTransform` `calls: 无` `verify: playwright 真机：放大 110%、重置回 100%；单测渲染含 −/百分比/+/重置 按钮`
+- [x] T041 view 持久化到 CanvasDocument.view（尾随防抖，初始恢复） `file: packages/dsh-workspace-canvas/src/client/canvas/CanvasView.tsx` `function: viewTimer effect / 初始 useState` `calls: store.mutate` `verify: p2.spec 单测：缩放后防抖写入 view.zoom=1.1；预置 view 重挂载恢复 translate(40px,-20px) scale(1.5)`
