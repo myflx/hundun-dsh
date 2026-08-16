@@ -19,6 +19,7 @@ import { createRoot, type Root } from 'react-dom/client'
 import { Tooltip } from '@deepseek-ai/dsh-client-ui-primitives'
 import type { CSSProperties } from 'react'
 import type { CanvasController } from './canvas/controller.ts'
+import type { MountSupervisor } from './canvas/mount-supervisor.ts'
 import { canvasText } from './canvas/text.ts'
 
 /** 稳定 data 属性标识注入的按钮。 */
@@ -102,9 +103,10 @@ function searchHeader(root: HTMLElement): HTMLElement | undefined {
 /**
  * 挂载画布入口按钮（React 根），等待侧边栏渲染并自愈。
  * @param controller - 画布控制器（按钮 toggle 它）。
- * @returns disposer 卸载 React 根、移除容器与观察器。
+ * @param supervisor - 单一挂载监督器：按钮定位自愈注册到其上（T007）。
+ * @returns disposer 注销监督回调、卸载 React 根、移除容器。
  */
-export function mountSearchButton(controller: CanvasController): () => void {
+export function mountSearchButton(controller: CanvasController, supervisor: MountSupervisor): () => void {
   ensureEntryStyle()
 
   const container = document.createElement('div')
@@ -121,8 +123,6 @@ export function mountSearchButton(controller: CanvasController): () => void {
     // 先挂载、WorkspaceBrowser 内容后渲染，因此每次都要重新查）。
     if (header === undefined || !header.isConnected || !column.contains(header)) {
       header = searchHeader(column)
-      headerObserver.disconnect()
-      if (header !== undefined) headerObserver.observe(header, { childList: true, subtree: true })
     }
     if (header === undefined) return
     if (container.parentElement === header) return
@@ -132,17 +132,13 @@ export function mountSearchButton(controller: CanvasController): () => void {
     else header.appendChild(container)
   }
 
-  // body 级观察：侧边栏整体重建时重新定位。
-  const waitObserver = new MutationObserver(() => { tryPlace() })
-  waitObserver.observe(document.body, { childList: true, subtree: true })
-  // 标题行级观察：React 重渲染挤掉容器时同帧重插。
-  const headerObserver = new MutationObserver(() => { tryPlace() })
+  // 自愈统一走挂载监督器（DOM 变更批量 flush 时幂等重定位）。
+  const unregister = supervisor.register(tryPlace)
 
   tryPlace()
 
   return () => {
-    waitObserver.disconnect()
-    headerObserver.disconnect()
+    unregister()
     root.unmount()
     container.remove()
   }

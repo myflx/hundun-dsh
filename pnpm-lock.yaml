@@ -113,6 +113,10 @@ importers:
         version: 3.2.7(@types/debug@4.1.13)(@types/node@22.20.1)(jsdom@25.0.1)(lightningcss@1.33.0)
 
   packages/dsh-workspace-canvas:
+    dependencies:
+      '@hundun/dsh-panel-protocol':
+        specifier: workspace:*
+        version: link:../dsh-panel-protocol
     devDependencies:
       '@deepseek-ai/cordis':
         specifier: ^4.0.1

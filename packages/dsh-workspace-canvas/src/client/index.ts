@@ -18,7 +18,9 @@ import type { ClientContext } from '@deepseek-ai/dsh-client-runtime/client'
 import type {} from '@deepseek-ai/dsh-client-locale/client'
 // 类型合并：拉进 ctx.workspaces 服务（type-only）。
 import type {} from '@deepseek-ai/dsh-client-runtime/client'
+import { claimCanvasApply, releaseCanvasApply } from './apply-guard.ts'
 import { CanvasController } from './canvas/controller.ts'
+import { MountSupervisor } from './canvas/mount-supervisor.ts'
 import { en, zh, type CanvasKey } from './locales.ts'
 import { mountSearchButton } from './search-button.tsx'
 
@@ -43,14 +45,23 @@ export const inject = ['locale', 'workspaces']
  * @param ctx - 客户端根上下文（已注入 locale / workspaces）。
  */
 export function apply(ctx: ClientContext): void {
+  // 防重复挂载：同页面重复 factory 执行只让首次生效（T006）。
+  if (!claimCanvasApply()) return
+  ctx.effect(() => releaseCanvasApply, 'workspace-canvas: apply claim')
+
   // 注册中英文案字典。
   ctx.effect(() => ctx.locale.register(NS, { zh, en }), 'workspace-canvas: dictionaries')
 
-  // 画布控制器：状态 + 中间区域挂载 + 面板互斥。
+  // 单一挂载监督器：画布挂载与按钮自愈共用（T007）。
+  const supervisor = new MountSupervisor()
+  supervisor.start()
+  ctx.effect(() => () => supervisor.dispose(), 'workspace-canvas: mount supervisor')
+
+  // 画布控制器：状态 + 中间区域挂载 + 单标记互斥（T005）。
   const canvas = new CanvasController(ctx)
-  canvas.start()
+  canvas.start(supervisor)
   ctx.effect(() => () => canvas.dispose(), 'workspace-canvas: canvas')
 
-  // 搜索框「画布视图」按钮：toggle 画布。
-  ctx.effect(() => mountSearchButton(canvas), 'workspace-canvas: search button')
+  // 搜索框「画布视图」按钮：toggle 画布（自愈注册到挂载监督器）。
+  ctx.effect(() => mountSearchButton(canvas, supervisor), 'workspace-canvas: search button')
 }

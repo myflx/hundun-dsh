@@ -2,36 +2,36 @@
  * 画布控制器：画布开/关状态的唯一所有者 + 中间区域挂载管理。
  *
  * 结构参照 dsh-ssh 的 panel/controller.ts（框架无关的订阅面）与
- * client/mount.tsx（中间区域 DOM 接管）。要点：
+ * client/mount.tsx（中间区域 DOM 接管）。要点（对齐定稿设计 T005/T007）：
  *
  * - `conversation` 槽位是单占用的，外部插件不能声明槽位，所以画布在
  *   DOM 层接管中间区域：往 `[data-pane="conversation"]` 列追加一个容器，
- *   用 `<html data-dsh-canvas-active>` 属性 + 注入的样式规则隐藏对话内容
- *   （对话子树保持挂载、状态不丢），并显示画布容器；
- * - 与任务看板 / SSH 面板互斥：复用 dsh-ssh 的 `dsh-panel-activate` 事件
- *   协议 —— 本画布激活时清掉对方的 html 属性并广播自己的名字；收到对方
- *   激活事件时关闭自己；
+ *   注入样式规则隐藏对话内容（对话子树保持挂载、状态不丢）并显示画布；
+ * - 面板互斥：单一激活标记协议（@hundun/dsh-panel-protocol）——
+ *   打开时写 `data-dsh-panel-active="workspace-canvas"` 并广播
+ *   `dsh-panel-activate`（后写者胜）；收到其他面板激活事件即让位关闭；
+ *   不再枚举/擦除任何其他面板的属性；
+ * - 挂载自愈交给单一挂载监督器（MountSupervisor）：start 时注册 ensure，
+ *   对话列重建后自动重挂，观察器不再由本控制器自持；
  * - 点侧边栏的会话/工作区行时自动退出画布，把中间区域还给对话。
  */
 import { createElement } from 'react'
 import { createRoot, type Root } from 'react-dom/client'
 import type { ClientContext } from '@deepseek-ai/dsh-client-runtime/client'
+import { ACTIVE_ATTR, PANELS, activate, isActive, onOtherActivate } from '@hundun/dsh-panel-protocol'
+import type { MountSupervisor } from './mount-supervisor.ts'
 import { CanvasView } from './CanvasView.tsx'
 
 /** 画布视图容器（保持挂载，隐藏时不可见）。 */
 export const CANVAS_VIEW_SELECTOR = '[data-dsh-canvas-view]'
 
 const CONVERSATION_COLUMN_SELECTOR = '[data-pane="conversation"]'
-const ACTIVE_ATTR = 'data-dsh-canvas-active'
-/** 对方面板的激活属性（任务看板 / SSH），打开画布时清掉。 */
-const OTHER_ACTIVE_ATTRS = ['data-dsh-taskboard-active', 'data-dsh-ssh-active']
-/** 跨插件激活事件（dsh-ssh 协议）。 */
-const ACTIVATE_EVENT = 'dsh-panel-activate'
-const PANEL_NAME = 'workspace-canvas'
+/** 本面板名（单标记协议：`data-dsh-panel-active` 的值）。 */
+const OWN_NAME = PANELS.workspaceCanvas
 
 /** 隐藏对话内容、显示画布容器的样式（注入 <style data-plugin>，卸载时移除）。
  *  容器用 absolute + inset:0 铺满整个中间区域（dsh-ssh 面板同款），
- *  z-index 60 盖过对话/输入卡，背景不透底。 */
+ *  z-index 60 盖过对话/输入卡，背景不透底。显示条件 = 单标记为本面板名。 */
 const CANVAS_STYLE = `
 [data-pane="conversation"] { position: relative; }
 [data-dsh-canvas-view] {
@@ -41,9 +41,9 @@ const CANVAS_STYLE = `
   z-index: 60;
   background: var(--dsw-alias-bg-base);
 }
-html[data-dsh-canvas-active]:not([data-dsh-taskboard-active]):not([data-dsh-ssh-active]) [data-dsh-canvas-view] { display: flex; }
-html[data-dsh-canvas-active] [data-pane="conversation"] > :not([data-dsh-canvas-view]),
-html[data-dsh-canvas-active] [class*="centerCol"] > :not([data-dsh-canvas-view]) { display: none !important; }
+html[data-dsh-panel-active="workspace-canvas"] [data-dsh-canvas-view] { display: flex; }
+html[data-dsh-panel-active="workspace-canvas"] [data-pane="conversation"] > :not([data-dsh-canvas-view]),
+html[data-dsh-panel-active="workspace-canvas"] [class*="centerCol"] > :not([data-dsh-canvas-view]) { display: none !important; }
 `
 
 /** 控制器快照（供订阅方读取）。 */
@@ -58,12 +58,8 @@ export class CanvasController {
   private root: Root | undefined
   private container: HTMLDivElement | undefined
   private styleTag: HTMLStyleElement | undefined
-  private waitObserver: MutationObserver | undefined
-  private onOtherActivate = (event: Event): void => {
-    const name = (event as CustomEvent).detail
-    // 任务看板 / SSH 激活时，把中间区域让给对方。
-    if (name === 'taskboard' || name === 'ssh') this.close()
-  }
+  private unregisterEnsure: (() => void) | undefined
+  private disposeOtherListener: (() => void) | undefined
   private onClickSidebarRow = (event: MouseEvent): void => {
     if (!this.opened) return
     const target = event.target as HTMLElement | null
@@ -85,12 +81,14 @@ export class CanvasController {
     return () => { this.listeners.delete(fn) }
   }
 
-  /** 启动：挂载互斥监听 + 中间区域观察器。插件 apply 时调用一次。 */
-  start(): void {
-    document.addEventListener(ACTIVATE_EVENT, this.onOtherActivate)
+  /**
+   * 启动：注册挂载自愈 + 互斥监听 + 侧边栏点击让位。插件 apply 时调用一次。
+   * @param supervisor - 单一挂载监督器（画布挂载自愈注册到其上）。
+   */
+  start(supervisor: MountSupervisor): void {
+    this.unregisterEnsure = supervisor.register(() => { this.ensure() })
+    this.disposeOtherListener = onOtherActivate(OWN_NAME, () => { this.close() })
     document.addEventListener('click', this.onClickSidebarRow, true)
-    this.waitObserver = new MutationObserver(() => { this.ensure() })
-    this.waitObserver.observe(document.body, { childList: true, subtree: true })
   }
 
   open(): void {
@@ -113,13 +111,15 @@ export class CanvasController {
     else this.open()
   }
 
-  /** 卸载：拆 React 树、移除容器/样式、断开观察器、恢复 html 属性。 */
+  /** 卸载：注销挂载/互斥监听、移除标记、拆 React 树、移除容器与样式。 */
   dispose(): void {
-    this.waitObserver?.disconnect()
-    this.waitObserver = undefined
-    document.removeEventListener(ACTIVATE_EVENT, this.onOtherActivate)
+    this.unregisterEnsure?.()
+    this.unregisterEnsure = undefined
+    this.disposeOtherListener?.()
+    this.disposeOtherListener = undefined
     document.removeEventListener('click', this.onClickSidebarRow, true)
-    document.documentElement.removeAttribute(ACTIVE_ATTR)
+    // 仅当标记仍是自己时移除（互斥让位后标记属于对方，不碰）。
+    if (isActive(OWN_NAME)) document.documentElement.removeAttribute(ACTIVE_ATTR)
     this.root?.unmount()
     this.root = undefined
     this.container?.remove()
@@ -129,18 +129,16 @@ export class CanvasController {
     this.listeners.clear()
   }
 
-  /** 把激活状态反映到 DOM（html 属性 + 广播）。 */
+  /** 把激活状态反映到单一激活标记（写标记 + 广播 / 移除自己的标记）。 */
   private applyActive(): void {
     if (this.opened) {
-      for (const attr of OTHER_ACTIVE_ATTRS) document.documentElement.removeAttribute(attr)
-      document.documentElement.setAttribute(ACTIVE_ATTR, '')
-      document.dispatchEvent(new CustomEvent(ACTIVATE_EVENT, { detail: PANEL_NAME }))
-    } else {
+      activate(OWN_NAME)
+    } else if (isActive(OWN_NAME)) {
       document.documentElement.removeAttribute(ACTIVE_ATTR)
     }
   }
 
-  /** 挂载画布 React 树（等待中间区域出现，React 重建后自愈重挂）。 */
+  /** 挂载画布 React 树（等待中间区域出现，对话列重建后自愈重挂）。 */
   private ensure(): void {
     if (this.container !== undefined) {
       if (this.container.isConnected) return
