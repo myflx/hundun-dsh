@@ -10,9 +10,13 @@ import { createRoot, type Root } from 'react-dom/client'
 import { ACTIVE_ATTR, PANELS, activate, isActive, onOtherActivate } from '@hundun/dsh-panel-protocol'
 
 const OWN = PANELS.helloPanel
-const CONVERSATION_COLUMN_SELECTOR = '[data-pane="conversation"]'
+// 现行 shell：data-slot="conversation" 是 display:contents 透传壳，真实列盒子是其子元素；
+// 旧 shell（data-pane="conversation" 自带盒子）同样兼容（对齐画布 controller 的挂载策略）。
+const CONVERSATION_COLUMN_SELECTOR = '[data-slot="conversation"] > *, [data-pane="conversation"]'
 
 const PANEL_STYLE = `
+[data-slot="conversation"] > * { position: relative; }
+[data-pane="conversation"] { position: relative; }
 [data-dsh-hello-panel] {
   position: absolute;
   inset: 0;

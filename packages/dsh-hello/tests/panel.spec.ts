@@ -37,4 +37,21 @@ describe('hello 互斥测试面板（T029）', () => {
     activate(PANELS.workspaceCanvas)
     expect(document.documentElement.getAttribute(ACTIVE_ATTR)).toBe(PANELS.workspaceCanvas)
   })
+
+  it('现行 shell（data-slot=conversation 为 contents 壳）→ 挂载进其子盒子', () => {
+    // 复刻现行 shell：display:contents 透传壳 + 真实列盒子子元素（grid 格）。
+    const shell = document.createElement('div')
+    shell.dataset.slot = 'conversation'
+    shell.style.display = 'contents'
+    const column = document.createElement('div')
+    shell.appendChild(column)
+    document.body.appendChild(shell)
+    const panel = new HelloPanelController()
+    panel.start()
+    panel.toggle()
+    const container = column.querySelector('[data-dsh-hello-panel]')
+    expect(container).not.toBeNull()
+    expect(container!.isConnected).toBe(true)
+    panel.dispose()
+  })
 })
