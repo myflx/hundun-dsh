@@ -33,6 +33,9 @@
   "peerDependencies": {
     "react": "^18.2.0"
   },
+  "dependencies": {
+    "@hundun/dsh-panel-protocol": "workspace:*"
+  },
   "devDependencies": {
     "@deepseek-ai/cordis": "^4.0.1",
     "@deepseek-ai/dsh-client-runtime": "^0.1.0-rc.6",
@@ -43,6 +46,7 @@
     "@hundun/dsh-workspace-canvas": "workspace:*",
     "@types/react": "~18.3.1",
     "@types/react-dom": "~18.3.0",
+    "jsdom": "^25.0.0",
     "react": "^18.3.1",
     "react-dom": "^18.3.1",
     "tsdown": "^0.22.2",

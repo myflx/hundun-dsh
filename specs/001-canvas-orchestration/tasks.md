@@ -108,8 +108,8 @@
 **Goal**: 画布与 dsh-hello 测试面板互斥（后写者胜），协议已在 T005 接入，本阶段完成对方面板与端到端验证。
 **Independent Test**: 画布↔测试面板互斥让位（E2E-16/17）。
 
-- [ ] T029 [US6] dsh-hello 测试面板（参与互斥协议的简单中间区域面板，面板名 hello-panel） `file: packages/dsh-hello/src/client/panel.tsx` `function: HelloPanel / mountHelloPanel` `calls: @hundun/dsh-panel-protocol activate / onOtherActivate` `verify: E2E-16/17：画布打开时打开 hello 面板 → 画布让位；反之亦然；标记值始终唯一`
-- [ ] T030 [US6] 互斥完整性测试（dispose 清理标记/监听；并发激活后写者胜；刷新后状态收敛） `file: packages/dsh-workspace-canvas/tests/us6.spec.ts` `function: 无（测试）` `calls: vitest` `verify: us6 测试全绿；卸载后 documentElement 无残留 data-dsh-panel-active`
+- [X] T029 [US6] dsh-hello 测试面板（参与互斥协议的简单中间区域面板，面板名 hello-panel） `file: packages/dsh-hello/src/client/panel.tsx` `function: HelloPanel / mountHelloPanel` `calls: @hundun/dsh-panel-protocol activate / onOtherActivate` `verify: E2E-16/17：画布打开时打开 hello 面板 → 画布让位；反之亦然；标记值始终唯一`
+- [X] T030 [US6] 互斥完整性测试（dispose 清理标记/监听；并发激活后写者胜；刷新后状态收敛） `file: packages/dsh-workspace-canvas/tests/us6.spec.ts` `function: 无（测试）` `calls: vitest` `verify: us6 测试全绿；卸载后 documentElement 无残留 data-dsh-panel-active`
 
 ---
 
@@ -118,10 +118,10 @@
 **Goal**: 「hundun-dsh」设置页（多栏目骨架）+ 画布栏目开关；关闭立即生效（clarify Q1）。
 **Independent Test**: 设置页出现画布栏目；开关关闭 → 立即消失；重开恢复（E2E-18/19）。
 
-- [ ] T031 [US7] dsh-all 设置页骨架（注册 settings.section「hundun-dsh」+ 声明子槽位 hundun.settings.item） `file: packages/dsh-all/src/client/index.ts` `function: registerHundunSettingsPage` `calls: ctx.slots.register（settings.section）/ ctx.provide 子槽位声明` `verify: E2E-18 前置：设置面板出现「hundun-dsh」页且栏目区可注册`
-- [ ] T032 [US7] 画布设置栏目（enabled 开关，绑定 hundun.canvas 命名空间） `file: packages/dsh-workspace-canvas/src/client/settings.ts` `function: CanvasSettingsCard` `calls: settingsScope.bind('hundun.canvas') / slots.register('hundun.settings.item')` `verify: 单测：栏目渲染含开关；切换值写入设置命名空间`
-- [ ] T033 [US7] 开关双半区实时联动（enabled=false：入口/画布立即卸载 + 公告移除；true：恢复且布局保留） `file: packages/dsh-workspace-canvas/src/client/index.ts` `function: onEnabledChange` `calls: 无（订阅 settingsScope）` `verify: E2E-18/19：画布打开时关闭开关 → 画布立即关闭；重开 → 恢复且布局保留`
-- [ ] T034 [US7] US7 集成测试 + E2E 验证 `file: packages/dsh-workspace-canvas/tests/us7.spec.ts` `function: 无（测试）` `calls: vitest` `verify: us7 测试全绿；quickstart E2E-18/19 逐条通过并记录`
+- [X] T031 [US7] dsh-all 设置页骨架（注册 settings.section「hundun-dsh」+ 声明子槽位 hundun.settings.item） `file: packages/dsh-all/src/client/index.ts` `function: registerHundunSettingsPage` `calls: ctx.slots.register（settings.section）/ ctx.provide 子槽位声明` `verify: E2E-18 前置：设置面板出现「hundun-dsh」页且栏目区可注册`
+- [X] T032 [US7] 画布设置栏目（enabled 开关，绑定 hundun.canvas 命名空间） `file: packages/dsh-workspace-canvas/src/client/settings.ts` `function: CanvasSettingsCard` `calls: settingsScope.bind('hundun.canvas') / slots.register('hundun.settings.item')` `verify: 单测：栏目渲染含开关；切换值写入设置命名空间`
+- [X] T033 [US7] 开关双半区实时联动（enabled=false：入口/画布立即卸载 + 公告移除；true：恢复且布局保留） `file: packages/dsh-workspace-canvas/src/client/index.ts` `function: onEnabledChange` `calls: 无（订阅 settingsScope）` `verify: E2E-18/19：画布打开时关闭开关 → 画布立即关闭；重开 → 恢复且布局保留`
+- [ ] T034 [US7] US7 集成测试 + E2E 验证 `file: packages/dsh-workspace-canvas/tests/us7.spec.ts` `function: 无（测试）` `calls: vitest` `verify: us7 测试全绿；quickstart E2E-18/19 逐条通过并记录`（自动化测试已全绿；E2E-18/19 待 GUI 挂载后人工验证，归 T037 门禁）
 
 ---
 
@@ -129,8 +129,8 @@
 
 **Purpose**: 健壮性兜底与全量回归（章程 IV 门禁）。
 
-- [ ] T035 CanvasView 错误边界（渲染抛错 → 兜底提示不白屏） `file: packages/dsh-workspace-canvas/src/client/canvas/CanvasView.tsx` `function: CanvasErrorBoundary` `calls: 无` `verify: 单测：子组件抛错时显示兜底而非白屏；错误后可重试`
-- [ ] T036 生命周期完整性回归（dispose：移除样式/容器/观察器/监听/标记；双半区卸载无残留） `file: packages/dsh-workspace-canvas/src/client/canvas/controller.ts` `function: CanvasController.dispose` `calls: 无` `verify: 单测：dispose 后 DOM 无注入样式/容器、无 data-dsh-panel-active、观察器已断开`
+- [X] T035 CanvasView 错误边界（渲染抛错 → 兜底提示不白屏） `file: packages/dsh-workspace-canvas/src/client/canvas/CanvasView.tsx` `function: CanvasErrorBoundary` `calls: 无` `verify: 单测：子组件抛错时显示兜底而非白屏；错误后可重试`
+- [X] T036 生命周期完整性回归（dispose：移除样式/容器/观察器/监听/标记；双半区卸载无残留） `file: packages/dsh-workspace-canvas/src/client/canvas/controller.ts` `function: CanvasController.dispose` `calls: 无` `verify: 单测：dispose 后 DOM 无注入样式/容器、无 data-dsh-panel-active、观察器已断开`
 - [ ] T037 全量回归与 E2E 门禁（全仓 typecheck/test/build + quickstart 25 条场景逐条记录） `file: specs/001-canvas-orchestration/quickstart.md` `function: 无（回归）` `calls: pnpm -r typecheck / test / build` `verify: quickstart.md 场景逐条通过并记录（E2E-08/09 标注待 P1.4 手势；E2E-20 属 P2 未来阶段）；未过场景对应任务 [X] 回退并追加 Convergence`
 
 ---

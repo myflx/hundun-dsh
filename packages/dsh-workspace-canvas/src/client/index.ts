@@ -2,30 +2,22 @@
  * dsh-workspace-canvas —— browser 半区（在 dsh web GUI 运行）。
  *
  * GUI 通过 window.__ModuleLoader__ 从 /plugins/dsh-workspace-canvas/client.js
- * 加载本半区。本插件不做槽位注册（中间区域没有外部槽位），而是：
- *
- *   1) 画布控制器（CanvasController）：DOM 层接管中间区域
- *      [data-pane="conversation"]，注入样式隐藏对话、显示画布；
- *   2) 搜索框按钮（mountSearchButton）：往侧边栏工作区搜索行注入
- *      「画布视图」按钮，点击 toggle 画布；
- *   3) 画布数据（CanvasView）：官方 workspaces feed（ctx.workspaces.list）
- *      自动渲染全部工作区。
- *
- * 需要注入的服务：workspaces（读工作区列表 + startSession）。
+ * 加载本半区。职责：
+ * - apply-guard 防重复挂载（T006）；
+ * - enabled 总开关双半区实时联动（T033，clarify Q1）：设置面（hundun-canvas
+ *   命名空间）优先、组合配置兜底；false 时立即卸载全部画布效果；
+ * - 其余装配（文档存储 / ctx.canvas 注册服务 / 挂载监督器 / 控制器 / 按钮 /
+ *   设置栏目）集中在 CanvasRuntime.mount()。
  */
+// 客户端根上下文：带 slots / sessions / workspaces 等客户端服务合并的类型。
 import type { ClientContext } from '@deepseek-ai/dsh-client-runtime/client'
 // 类型合并：拉进 ctx.locale 服务（type-only）。
 import type {} from '@deepseek-ai/dsh-client-locale/client'
 // 类型合并：拉进 ctx.workspaces 服务（type-only）。
 import type {} from '@deepseek-ai/dsh-client-runtime/client'
 import { claimCanvasApply, releaseCanvasApply } from './apply-guard.ts'
-import { CanvasController } from './canvas/controller.ts'
-import { CanvasDocumentStore } from './canvas/document.ts'
-import { MountSupervisor } from './canvas/mount-supervisor.ts'
-import { installCanvasRegistry } from './canvas/registry.ts'
-import { syncWorkspaceNodes } from './canvas/workspace-nodes.ts'
 import { en, zh, type CanvasKey } from './locales.ts'
-import { mountSearchButton } from './search-button.tsx'
+import { CanvasRuntime } from './runtime.ts'
 
 // 对外公开的注册契约类型（消费方插件经 '@hundun/dsh-workspace-canvas/client' 引用）。
 export type {
@@ -51,8 +43,8 @@ declare module '@deepseek-ai/dsh-client-ui-slots' {
   }
 }
 
-/** 需要的客户端服务：locale（文案）与 workspaces（工作区数据）。 */
-export const inject = ['locale', 'workspaces']
+/** 需要的客户端服务：locale（文案）/ workspaces（工作区数据）/ slots（设置栏目注册）。 */
+export const inject = ['locale', 'workspaces', 'slots']
 
 /** 客户端半区配置（与宿主 Config 同值；enabled 总开关双半区生效）。 */
 export interface CanvasClientConfig {
@@ -61,47 +53,45 @@ export interface CanvasClientConfig {
 
 /**
  * 浏览器半区入口。GUI 加载本 bundle 后调用 apply(ctx)。
- * @param ctx - 客户端根上下文（已注入 locale / workspaces）。
- * @param config - 组合文件配置（enabled=false 时跳过全部挂载；设置面联动见 T032/T033）。
+ * @param ctx - 客户端根上下文（已注入 locale / workspaces / slots）。
+ * @param config - 组合文件配置（enabled=false 时跳过全部挂载；设置面值优先）。
  */
 export function apply(ctx: ClientContext, config?: CanvasClientConfig): void {
   // 防重复挂载：同页面重复 factory 执行只让首次生效（T006）。
   if (!claimCanvasApply()) return
   ctx.effect(() => releaseCanvasApply, 'workspace-canvas: apply claim')
 
-  // 组合配置总开关（T010）：关闭时入口/画布/服务一律不挂载。
-  if (config?.enabled === false) return
-
-  // 画布文档存储 + ctx.canvas 注册服务（T008/T009）：消费方经 ctx.get('canvas') 接入。
-  const store = new CanvasDocumentStore()
-  ctx.effect(() => () => store.dispose(), 'workspace-canvas: document store')
-  const registry = installCanvasRegistry(ctx, store)
-
-  // T018：工作区节点投影同步（feed → 文档：新增补建、消失级联清理并提示）。
-  const syncWorkspaces = (): void => {
-    const items = ctx.workspaces.list.getSnapshot().items ?? []
-    const removed = syncWorkspaceNodes(store, items)
-    for (const id of removed) {
-      console.warn(`[workspace-canvas] 工作区已消失，其画布节点与成员已清理：${id}`)
-    }
-  }
-  const unsubscribeFeed = ctx.workspaces.list.subscribe(syncWorkspaces)
-  ctx.effect(() => unsubscribeFeed, 'workspace-canvas: workspace feed sync')
-  syncWorkspaces()
-
-  // 注册中英文案字典。
+  // 文案字典（enabled 关闭时仍注册，无副作用）。
   ctx.effect(() => ctx.locale.register(NS, { zh, en }), 'workspace-canvas: dictionaries')
 
-  // 单一挂载监督器：画布挂载与按钮自愈共用（T007）。
-  const supervisor = new MountSupervisor()
-  supervisor.start()
-  ctx.effect(() => () => supervisor.dispose(), 'workspace-canvas: mount supervisor')
+  // 运行时容器：enabled 决定挂载/卸载。
+  const runtime = new CanvasRuntime(ctx)
+  ctx.effect(() => () => runtime.dispose(), 'workspace-canvas: runtime')
 
-  // 画布控制器：状态 + 中间区域挂载 + 单标记互斥（T005）。
-  const canvas = new CanvasController(ctx, store, registry)
-  canvas.start(supervisor)
-  ctx.effect(() => () => canvas.dispose(), 'workspace-canvas: canvas')
+  const applyEnabled = (enabled: boolean): void => {
+    if (enabled) runtime.mount()
+    else runtime.unmount()
+  }
 
-  // 搜索框「画布视图」按钮：toggle 画布（自愈注册到挂载监督器）。
-  ctx.effect(() => mountSearchButton(canvas, supervisor), 'workspace-canvas: search button')
+  // 设置面联动（T033）：hundun-canvas 命名空间值优先，组合配置兜底。
+  const binder = ctx.get('settingsScope') as
+    | {
+      bind<T>(spec: { namespace: string }): {
+        getSnapshot(): { value?: T }
+        subscribe(fn: () => void): () => void
+      }
+    }
+    | undefined
+  if (binder !== undefined) {
+    const scope = binder.bind<{ enabled?: boolean }>({ namespace: 'hundun-canvas' })
+    const sync = (): void => {
+      applyEnabled(scope.getSnapshot().value?.enabled ?? config?.enabled ?? true)
+    }
+    const unsub = scope.subscribe(sync)
+    ctx.effect(() => unsub, 'workspace-canvas: enabled subscription')
+    sync()
+  } else {
+    // 无设置面：组合配置兜底（缺省 enabled=true）。
+    applyEnabled(config?.enabled ?? true)
+  }
 }

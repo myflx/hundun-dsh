@@ -42,6 +42,9 @@ importers:
       '@types/react-dom':
         specifier: ~18.3.0
         version: 18.3.7(@types/react@18.3.31)
+      jsdom:
+        specifier: ^25.0.0
+        version: 25.0.1
       react:
         specifier: ^18.3.1
         version: 18.3.1
@@ -54,8 +57,15 @@ importers:
       typescript:
         specifier: ~5.7.2
         version: 5.7.3
+      vitest:
+        specifier: ^3.0.0
+        version: 3.2.7(@types/debug@4.1.13)(@types/node@22.20.1)(jsdom@25.0.1)(lightningcss@1.33.0)
 
   packages/dsh-hello:
+    dependencies:
+      '@hundun/dsh-panel-protocol':
+        specifier: workspace:*
+        version: link:../dsh-panel-protocol
     devDependencies:
       '@deepseek-ai/cordis':
         specifier: ^4.0.1
@@ -84,6 +94,9 @@ importers:
       '@types/react-dom':
         specifier: ~18.3.0
         version: 18.3.7(@types/react@18.3.31)
+      jsdom:
+        specifier: ^25.0.0
+        version: 25.0.1
       react:
         specifier: ^18.3.1
         version: 18.3.1

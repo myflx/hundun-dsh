@@ -13,6 +13,7 @@ import type {} from '@deepseek-ai/dsh-client-ui-slots'
 import type {} from '@deepseek-ai/dsh-client-ui-sidebar/client'
 import { registerDemoNodeType } from './canvas-demo-node.tsx'
 import { DemoButton } from './DemoButton.tsx'
+import { HelloPanelController } from './panel.tsx'
 
 /** 所需客户端服务（fiber inject 等待）。 */
 export const inject = ['slots']
@@ -22,11 +23,17 @@ export const inject = ['slots']
  * @param ctx - 客户端根上下文（slots 已注入）。
  */
 export function apply(ctx: ClientContext): void {
+  // 互斥测试面板（T029）：对方面板，经问候按钮切换。
+  const helloPanel = new HelloPanelController()
+  helloPanel.start()
+  ctx.effect(() => () => helloPanel.dispose(), 'dsh-hello: mutex test panel')
+
   // 声明感知注册：槽位声明出现时挂载，折叠/重声明时自动回收（slots.inject 处理）。
   ctx.slots.inject('sidebar.footer.action', () => ctx.slots.register({
     name: 'sidebar.footer.action',
     id: 'hundun-hello-demo',
     order: 100,
+    inject: () => ({ togglePanel: () => helloPanel.toggle() }),
   }, DemoButton))
 
   // 画布演示节点（T021）：画布缺席时 registerDemoNodeType 安全跳过。

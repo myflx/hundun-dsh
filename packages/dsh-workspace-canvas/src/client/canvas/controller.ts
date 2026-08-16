@@ -22,6 +22,7 @@ import { ACTIVE_ATTR, PANELS, activate, isActive, onOtherActivate } from '@hundu
 import type { MountSupervisor } from './mount-supervisor.ts'
 import type { CanvasDocumentStore } from './document.ts'
 import type { CanvasRegistryImpl } from './registry.ts'
+import { CanvasErrorBoundary } from './error-boundary.tsx'
 import { CanvasView } from './CanvasView.tsx'
 
 /** 画布视图容器（保持挂载，隐藏时不可见）。 */
@@ -161,13 +162,15 @@ export class CanvasController {
     this.container.dataset.dshCanvasView = ''
     column.appendChild(this.container)
     this.root = createRoot(this.container)
-    this.root.render(createElement(CanvasView, {
-      workspaces: this.ctx.workspaces,
-      store: this.store,
-      registry: this.registry,
-      ctx: this.ctx,
-      onClose: () => this.close(),
-    }))
+    this.root.render(createElement(CanvasErrorBoundary, null,
+      createElement(CanvasView, {
+        workspaces: this.ctx.workspaces,
+        store: this.store,
+        registry: this.registry,
+        ctx: this.ctx,
+        onClose: () => this.close(),
+      }),
+    ))
   }
 
   /** 注入画布样式（幂等：已存在则复用）。 */
