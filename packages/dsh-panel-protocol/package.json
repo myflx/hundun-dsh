@@ -1,0 +1,32 @@
+{
+  "name": "@hundun/dsh-panel-protocol",
+  "description": "hundun-dsh 面板互斥协议共享包：单一激活标记常量与工具（纯 client，内联进各消费者 bundle，无运行时身份）。",
+  "version": "0.1.0",
+  "type": "module",
+  "main": "lib/index.js",
+  "types": "lib/types/index.d.ts",
+  "exports": {
+    ".": {
+      "types": "./lib/types/index.d.ts",
+      "default": "./lib/index.js"
+    },
+    "./src/*": "./src/*",
+    "./package.json": "./package.json"
+  },
+  "scripts": {
+    "build": "tsc -p tsconfig.build.json && tsdown",
+    "typecheck": "tsc --noEmit",
+    "test": "vitest run"
+  },
+  "devDependencies": {
+    "jsdom": "^25.0.0",
+    "tsdown": "^0.22.2",
+    "typescript": "~5.7.2",
+    "vitest": "^3.0.0"
+  },
+  "files": [
+    "lib",
+    "src"
+  ],
+  "license": "Apache-2.0"
+}

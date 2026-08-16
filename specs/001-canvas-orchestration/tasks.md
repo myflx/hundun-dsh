@@ -1,4 +1,4 @@
-# Tasks: 编排画布（Canvas Orchestration）
+﻿# Tasks: 编排画布（Canvas Orchestration）
 
 **Input**: Design documents from `/specs/001-canvas-orchestration/`
 
@@ -23,10 +23,10 @@
 
 **Purpose**: 新包与测试/构建基建就绪（互不依赖，可并行）
 
-- [ ] T001 [P] 新建 `@hundun/dsh-panel-protocol` 包骨架（package.json / tsconfig / tsdown.config / exports，接入 monorepo） `file: packages/dsh-panel-protocol/package.json` `function: 无（新包）` `calls: 无` `verify: pnpm -r list 显示 @hundun/dsh-panel-protocol；workspace 可 resolve 其入口`
-- [ ] T002 [P] 实现互斥协议常量与工具（PANELS / ACTIVE_ATTR / ACTIVATE_EVENT / isActive / activate / onOtherActivate） `file: packages/dsh-panel-protocol/src/index.ts` `function: activate / isActive / onOtherActivate` `calls: 无` `verify: Contract test：activate('a') 后 isActive('a')===true 且 isActive('b')===false；先后激活后写者胜；onOtherActivate 仅在他人激活时触发`
-- [ ] T003 [P] dsh-workspace-canvas 接入 vitest + jsdom（devDeps、vitest.config.ts、首条冒烟测试） `file: packages/dsh-workspace-canvas/package.json` `function: 无（基建）` `calls: pnpm install` `verify: pnpm -r --filter @hundun/dsh-workspace-canvas test 能收集并跑通 tests/ 下冒烟用例`
-- [ ] T004 [P] dsh-all 客户端半区脚手架（dsh.client 字段、tsconfig/tsdown、aggregate.yml 增 self 行并重跑 aggregate） `file: packages/dsh-all/package.json` `function: 无（新半区）` `calls: node scripts/aggregate.mjs` `verify: 重跑 aggregate 后 packages/dsh-all/cordis.patch.yml 含 self 行；dsh-all 构建产出 lib/client.js`
+- [X] T001 [P] 新建 `@hundun/dsh-panel-protocol` 包骨架（package.json / tsconfig / tsdown.config / exports，接入 monorepo） `file: packages/dsh-panel-protocol/package.json` `function: 无（新包）` `calls: 无` `verify: pnpm -r list 显示 @hundun/dsh-panel-protocol；workspace 可 resolve 其入口`
+- [X] T002 [P] 实现互斥协议常量与工具（PANELS / ACTIVE_ATTR / ACTIVATE_EVENT / isActive / activate / onOtherActivate） `file: packages/dsh-panel-protocol/src/index.ts` `function: activate / isActive / onOtherActivate` `calls: 无` `verify: Contract test：activate('a') 后 isActive('a')===true 且 isActive('b')===false；先后激活后写者胜；onOtherActivate 仅在他人激活时触发`
+- [X] T003 [P] dsh-workspace-canvas 接入 vitest + jsdom（devDeps、vitest.config.ts、首条冒烟测试） `file: packages/dsh-workspace-canvas/package.json` `function: 无（基建）` `calls: pnpm install` `verify: pnpm -r --filter @hundun/dsh-workspace-canvas test 能收集并跑通 tests/ 下冒烟用例`
+- [X] T004 [P] dsh-all 客户端半区脚手架（dsh.client 字段、tsconfig/tsdown、aggregate.yml 增 self 行并重跑 aggregate） `file: packages/dsh-all/package.json` `function: 无（新半区）` `calls: node scripts/aggregate.mjs` `verify: 重跑 aggregate 后 packages/dsh-all/cordis.patch.yml 含 self 行；dsh-all 构建产出 lib/client.js`
 
 ---
 

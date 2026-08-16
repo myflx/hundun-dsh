@@ -1,18 +1,53 @@
 {
   "name": "@hundun/dsh-all",
-  "description": "hundun-dsh 聚合插件：一键安装仓库内全部功能插件（依赖以 workspace:* 引用，cordis.patch.yml 拼接各子插件 insert 行）。",
+  "description": "hundun-dsh 聚合插件：一键安装仓库内全部功能插件（依赖以 workspace:* 引用，cordis.patch.yml 拼接各子插件 insert 行）。客户端半区提供「hundun-dsh」设置页骨架（settings.section + 子槽位，T031 起填充）。",
   "version": "0.1.0",
   "type": "module",
+  "main": "lib/index.js",
+  "types": "lib/types/index.d.ts",
+  "exports": {
+    ".": {
+      "types": "./lib/types/index.d.ts",
+      "default": "./lib/index.js"
+    },
+    "./client": {
+      "types": "./lib/types/client/index.d.ts",
+      "default": "./lib/client.js"
+    },
+    "./package.json": "./package.json"
+  },
   "dsh": {
     "bundle": {
       "patch": "./cordis.patch.yml"
     },
     "client": {
-      "inject": [],
+      "inject": [
+        "@deepseek-ai/dsh-client-runtime",
+        "@deepseek-ai/dsh-client-ui-slots",
+        "@deepseek-ai/dsh-client-ui-settings"
+      ],
       "platform": "web"
     }
   },
+  "scripts": {
+    "build": "tsc -p tsconfig.build.json && tsdown",
+    "typecheck": "tsc --noEmit"
+  },
+  "devDependencies": {
+    "@deepseek-ai/cordis": "^4.0.1",
+    "@deepseek-ai/dsh-client-runtime": "^0.1.0-rc.6",
+    "@deepseek-ai/dsh-client-ui-settings": "^0.1.0-rc.6",
+    "@deepseek-ai/dsh-client-ui-slots": "^0.1.0-rc.6",
+    "@types/react": "~18.3.1",
+    "@types/react-dom": "~18.3.0",
+    "react": "^18.3.1",
+    "react-dom": "^18.3.1",
+    "tsdown": "^0.22.2",
+    "typescript": "~5.7.2"
+  },
   "files": [
+    "lib",
+    "src",
     "cordis.patch.yml"
   ],
   "license": "Apache-2.0",

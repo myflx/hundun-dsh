@@ -32,6 +32,7 @@
   "scripts": {
     "build": "tsc -p tsconfig.build.json && tsdown",
     "typecheck": "tsc --noEmit",
+    "test": "vitest run",
     "watch": "tsdown --watch"
   },
   "peerDependencies": {
@@ -47,11 +48,13 @@
     "@deepseek-ai/dsh-system-prompt": "^0.1.0-rc.6",
     "@types/react": "~18.3.1",
     "@types/react-dom": "^18.3.5",
+    "jsdom": "^25.0.0",
     "react": "^18.3.1",
     "react-dom": "^18.3.1",
     "schemastery": "^3.18.0",
     "tsdown": "0.22.2",
-    "typescript": "~5.7.2"
+    "typescript": "~5.7.2",
+    "vitest": "^3.0.0"
   },
   "files": [
     "lib",
