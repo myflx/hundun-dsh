@@ -7,7 +7,7 @@
  */
 import type { ClientContext } from '@deepseek-ai/dsh-client-runtime/client'
 import type { AutoArchiveConfig } from './archive-store.ts'
-import { resolveArchiveConfig, getGlobalArchiveConfig, getWorkspaceArchiveSetting, markArchivedOptimistic } from './archive-store.ts'
+import { resolveArchiveConfig, getGlobalArchiveConfig, getWorkspaceArchiveSetting, markArchivedOptimistic, idleMsOf } from './archive-store.ts'
 
 /** 会话运行状态与时间查询面（sessions 服务可能缺省——安全降级为无运行中/无时间）。 */
 interface SessionLookup {
@@ -40,7 +40,7 @@ export function selectSessionsToArchive(
   now: number = Date.now(),
 ): string[] {
   if (!config.enabled) return []
-  const idleMs = config.idleDays * 24 * 60 * 60 * 1000
+  const idleMs = idleMsOf(config)
   const targets = new Set<string>()
 
   // 可参与判断的会话：未归档、非运行中、有 updatedAt

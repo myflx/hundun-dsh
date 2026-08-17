@@ -52,23 +52,40 @@ export function clearOptimisticArchived(): void {
   }
 }
 
-/** 归档配置：启用 + 双条件阈值（闲置天数 / 未归档会话数上限）。 */
+/** 闲置时长单位：'day' 天 / 'hour' 小时 / 'minute' 分钟。 */
+export type IdleUnit = 'day' | 'hour' | 'minute'
+
+/** 归档配置：启用 + 双条件阈值（闲置时长 / 未归档会话数上限）。 */
 export interface AutoArchiveConfig {
   enabled: boolean
-  /** 闲置天数（updatedAt 距今超过即归档）。 */
+  /** 闲置时长数值（单位见 idleUnit；旧配置无 idleUnit 按「天」）。 */
   idleDays: number
+  /** 闲置时长单位：天 / 小时 / 分钟；缺省/非法 → 'day'。 */
+  idleUnit?: IdleUnit
   /** 未归档会话数上限；0 = 不限制。 */
   maxSessions: number
 }
 
 /** 内置默认（全局未设置时）。默认关闭（安全，不静默改动用户会话）。 */
-export const ARCHIVE_DEFAULT: AutoArchiveConfig = { enabled: false, idleDays: 30, maxSessions: 0 }
+export const ARCHIVE_DEFAULT: AutoArchiveConfig = { enabled: false, idleDays: 30, idleUnit: 'day', maxSessions: 0 }
+
+/** 把闲置时长换算为毫秒（按单位：天 / 小时 / 分钟）。 */
+export function idleMsOf(config: Pick<AutoArchiveConfig, 'idleDays' | 'idleUnit'>): number {
+  const unit = config.idleUnit === 'hour' || config.idleUnit === 'minute' ? config.idleUnit : 'day'
+  const factor = unit === 'minute' ? 60 * 1000 : unit === 'hour' ? 60 * 60 * 1000 : 24 * 60 * 60 * 1000
+  return config.idleDays * factor
+}
+
+function isIdleUnit(value: unknown): value is IdleUnit {
+  return value === 'day' || value === 'hour' || value === 'minute'
+}
 
 /** 工作区归档设置：跟随默认 或 自定义（覆盖字段缺省时继承全局默认）。 */
 export interface WorkspaceArchiveSetting {
   mode: 'default' | 'custom'
   enabled?: boolean
   idleDays?: number
+  idleUnit?: IdleUnit
   maxSessions?: number
 }
 
@@ -78,6 +95,7 @@ function sanitize(config: Partial<AutoArchiveConfig> | null | undefined): AutoAr
   return {
     enabled: typeof config.enabled === 'boolean' ? config.enabled : base.enabled,
     idleDays: typeof config.idleDays === 'number' && config.idleDays > 0 ? config.idleDays : base.idleDays,
+    idleUnit: isIdleUnit(config.idleUnit) ? config.idleUnit : base.idleUnit,
     maxSessions: typeof config.maxSessions === 'number' && config.maxSessions >= 0 ? config.maxSessions : base.maxSessions,
   }
 }
@@ -134,6 +152,7 @@ export function setWorkspaceArchiveSetting(workspaceId: string, setting: Workspa
       mode: 'custom',
       enabled: typeof setting.enabled === 'boolean' ? setting.enabled : undefined,
       idleDays: typeof setting.idleDays === 'number' && setting.idleDays > 0 ? setting.idleDays : undefined,
+      idleUnit: isIdleUnit(setting.idleUnit) ? setting.idleUnit : undefined,
       maxSessions: typeof setting.maxSessions === 'number' && setting.maxSessions >= 0 ? setting.maxSessions : undefined,
     }
   }
@@ -157,6 +176,7 @@ export function resolveArchiveConfig(
   return sanitize({
     enabled: workspaceSetting.enabled ?? global.enabled,
     idleDays: workspaceSetting.idleDays ?? global.idleDays,
+    idleUnit: workspaceSetting.idleUnit ?? global.idleUnit,
     maxSessions: workspaceSetting.maxSessions ?? global.maxSessions,
   })
 }

@@ -8,6 +8,7 @@ import {
   getGlobalArchiveConfig,
   getOptimisticArchived,
   getWorkspaceArchiveSetting,
+  idleMsOf,
   markArchivedOptimistic,
   resolveArchiveConfig,
   setGlobalArchiveConfig,
@@ -27,7 +28,7 @@ describe('归档配置持久化（005）', () => {
 
   it('设置全局默认 → 持久化 + 可读回', () => {
     setGlobalArchiveConfig({ enabled: true, idleDays: 7, maxSessions: 50 })
-    expect(getGlobalArchiveConfig()).toEqual({ enabled: true, idleDays: 7, maxSessions: 50 })
+    expect(getGlobalArchiveConfig()).toEqual({ enabled: true, idleDays: 7, idleUnit: 'day', maxSessions: 50 })
   })
 
   it('非法阈值（0 天 / 负数上限）被消毒回默认', () => {
@@ -36,6 +37,22 @@ describe('归档配置持久化（005）', () => {
     expect(config.idleDays).toBe(30)
     expect(config.maxSessions).toBe(0)
     expect(config.enabled).toBe(true)
+  })
+
+  it('闲置时长单位：天/小时/分钟换算；非法单位回退天（三粒度）', () => {
+    expect(idleMsOf({ idleDays: 1, idleUnit: 'day' })).toBe(24 * 60 * 60 * 1000)
+    expect(idleMsOf({ idleDays: 1, idleUnit: 'hour' })).toBe(60 * 60 * 1000)
+    expect(idleMsOf({ idleDays: 1, idleUnit: 'minute' })).toBe(60 * 1000)
+    expect(idleMsOf({ idleDays: 5, idleUnit: 'minute' })).toBe(5 * 60 * 1000)
+    // 非法/缺省 → 天
+    expect(idleMsOf({ idleDays: 2, idleUnit: 'bogus' as never })).toBe(2 * 24 * 60 * 60 * 1000)
+    expect(idleMsOf({ idleDays: 2 })).toBe(2 * 24 * 60 * 60 * 1000)
+    // 持久化 round-trip：保存小时单位 → 读回保持
+    setGlobalArchiveConfig({ enabled: true, idleDays: 6, idleUnit: 'hour', maxSessions: 0 })
+    expect(getGlobalArchiveConfig().idleUnit).toBe('hour')
+    // 工作区自定义带单位
+    setWorkspaceArchiveSetting('ws_u', { mode: 'custom', idleDays: 30, idleUnit: 'minute' })
+    expect(getWorkspaceArchiveSetting('ws_u')?.idleUnit).toBe('minute')
   })
 
   it('损坏 JSON → 回退内置默认', () => {
@@ -54,12 +71,12 @@ describe('归档配置持久化（005）', () => {
   })
 
   it('解析优先级：自定义 > 全局 > 内置默认', () => {
-    const global = { enabled: true, idleDays: 30, maxSessions: 0 }
+    const global = { enabled: true, idleDays: 30, idleUnit: 'day' as const, maxSessions: 0 }
     // 无自定义 → 全局
     expect(resolveArchiveConfig(global, undefined)).toEqual(global)
     // 自定义覆盖部分字段 → 未覆盖继承全局
     expect(resolveArchiveConfig(global, { mode: 'custom', enabled: false }))
-      .toEqual({ enabled: false, idleDays: 30, maxSessions: 0 })
+      .toEqual({ enabled: false, idleDays: 30, idleUnit: 'day', maxSessions: 0 })
     // 自定义损坏（非 custom）→ 全局
     expect(resolveArchiveConfig(global, { mode: 'bogus' } as never)).toEqual(global)
   })

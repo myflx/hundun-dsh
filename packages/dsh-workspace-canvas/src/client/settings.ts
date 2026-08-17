@@ -144,16 +144,27 @@ export function CanvasSettingsCard() {
           'label',
           { key: 'idle', style: { display: 'flex', alignItems: 'center', gap: 8, marginTop: 6, fontSize: 13 } },
           [
-            createElement('span', { key: 'text' }, '闲置天数'),
+            createElement('span', { key: 'text' }, '闲置时长'),
             createElement('input', {
               key: 'input',
               type: 'number',
               min: 1,
               'data-dsh-archive-idle-days': '',
               value: archive.idleDays,
-              onChange: (event) => patchArchive({ idleDays: Number(event.currentTarget.value) || 30 }),
+              onChange: (event) => patchArchive({ idleDays: Number(event.currentTarget.value) || 1 }),
               style: { width: 70, padding: '2px 6px', fontSize: 13 },
             }),
+            createElement('select', {
+              key: 'unit',
+              'data-dsh-archive-idle-unit': '',
+              value: archive.idleUnit ?? 'day',
+              onChange: (event: { currentTarget: { value: string } }) => patchArchive({ idleUnit: event.currentTarget.value as 'day' | 'hour' | 'minute' }),
+              style: { padding: '2px 4px', fontSize: 13 },
+            }, [
+              createElement('option', { key: 'day', value: 'day' }, '天'),
+              createElement('option', { key: 'hour', value: 'hour' }, '小时'),
+              createElement('option', { key: 'minute', value: 'minute' }, '分钟'),
+            ]),
           ],
         ),
         createElement(

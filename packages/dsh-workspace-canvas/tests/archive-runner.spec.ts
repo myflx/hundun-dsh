@@ -80,6 +80,30 @@ describe('selectSessionsToArchive（双条件 OR）', () => {
     expect(result).toEqual(['a'])
   })
 
+  it('闲置时长支持小时/分钟粒度（三粒度）', () => {
+    // 12 小时 = 0.5 天等价；直接用 hour 单位：闲置 1 小时的会话
+    const result = selectSessionsToArchive(
+      input(['s_hour_old'], { s_hour_old: { updatedAt: NOW - 2 * 60 * 60 * 1000 } }),
+      { enabled: true, idleDays: 1, idleUnit: 'hour', maxSessions: 0 },
+      NOW,
+    )
+    expect(result).toEqual(['s_hour_old'])
+    // 分钟粒度：闲置 30 分钟
+    const minuteResult = selectSessionsToArchive(
+      input(['s_min_old'], { s_min_old: { updatedAt: NOW - 45 * 60 * 1000 } }),
+      { enabled: true, idleDays: 30, idleUnit: 'minute', maxSessions: 0 },
+      NOW,
+    )
+    expect(minuteResult).toEqual(['s_min_old'])
+    // 未超期不归档
+    const fresh = selectSessionsToArchive(
+      input(['s_fresh'], { s_fresh: { updatedAt: NOW - 10 * 60 * 1000 } }),
+      { enabled: true, idleDays: 30, idleUnit: 'minute', maxSessions: 0 },
+      NOW,
+    )
+    expect(fresh).toEqual([])
+  })
+
   it('双条件合并去重（同一会话不重复）', () => {
     const result = selectSessionsToArchive(
       input(['s_old', 'b', 'c'], {
