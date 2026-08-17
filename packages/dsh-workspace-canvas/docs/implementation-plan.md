@@ -26,10 +26,10 @@
 - [ ] **互斥协议改造**：多属性互斥 → 单一激活标记 `data-dsh-panel-active="<name>"` + `dsh-panel-activate`
       事件（后写者胜）；移除对 taskboard/ssh 属性名的硬编码枚举
 - [ ] **共享协议包**：聚合仓库新增 `packages/dsh-panel-protocol`（事件名/属性名常量 + 激活/监听工具函数），
-      画布从该包引用；文档记录对 dsh-web-ui 旧协议的兼容桥（可选，整合那些面板时再加）
+      画布从该包引用；文档记录对 官方共享预设 旧协议的兼容桥（可选，整合那些面板时再加）
 - [ ] **配置语义统一**：`enabled` 总开关双半区生效（`enabled=false` 时客户端跳过按钮与画布挂载）；
       `announceToAgent` 仅控制宿主公告
-- [ ] **防重复挂载**：client apply 增加 apply-guard（首应用生效，卸载释放，参考 task-board 同款模式）
+- [ ] **防重复挂载**：client apply 增加 apply-guard（首应用生效，卸载释放，参考 任务看板 同款模式）
 - [ ] **挂载监督器合并**：把按钮自愈与画布挂载的两套 MutationObserver 合并为单一挂载监督器，
       观察范围收窄到侧边栏/对话列两个锚点子树
 - [ ] **健壮性补丁**：`startSession` 失败 catch；`CanvasView` 增加 ErrorBoundary 兜底（渲染崩不白屏）
@@ -83,13 +83,13 @@
 - [ ] 可连目标过滤：节点 `edgeKinds` ∩ 规则 `accepts` ∩ **scope 过滤**（非 crossScope 边仅同工作区内，
       按两端 `workspaceId` 相等判定）；悬停高亮 + 不可连 `reason` 提示
 - [ ] 建边管线（查重/arity/`await onConnect`/mutate）+ 删边（右键/拖回端口/`onDisconnect`）
-- [ ] 默认贝塞尔渲染 + 端点方向滞回（hundun-web `edgePoint`/`EDGE_HYSTERESIS` 移植）+ 可拖弯曲
+- [ ] 默认贝塞尔渲染 + 端点方向滞回（参考实现 `edgePoint`/`EDGE_HYSTERESIS` 移植）+ 可拖弯曲
 - [ ] 文档加载校验：逐边 `validate` / 逐节点 kind 检查 / **workspaceId 不变量检查** → `meta.invalid` 标记
 - [ ] 验收：同工作区两节点可拖线建边（link）；刷新后边与归属恢复
 
 **P1 出口标准**：任何第三方插件可在不碰画布代码的前提下注册节点类型与连线规则并完整工作。
 
-> **P1.4 启动门槛**：需**至少一个外部节点类型租户**（如 task-board 任务节点 / dsh-ssh 主机节点）承诺接入
+> **P1.4 启动门槛**：需**至少一个外部节点类型租户**（如 任务看板 任务节点 / 既有插件 主机节点）承诺接入
 > `ctx.canvas` 后才启动（决策 D-租户，见 orchestration-design §9）。P1.1–P1.3 不依赖此门槛。
 
 ## P2 —— 视图与布局

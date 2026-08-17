@@ -1,6 +1,6 @@
 # dsh-workspace-canvas 能力边界设计
 
-> 依据：hundun-web `WorkspaceGraph` 画布（见 [design-hundun-canvas.md](design-hundun-canvas.md)）+ DSH 插件架构约束。
+> 依据：参考实现 `WorkspaceGraph` 画布（见 [design-hundun-canvas.md](design-hundun-canvas.md)）+ DSH 插件架构约束。
 > 本文定义画布**做什么、不做什么、边界划在哪**，作为所有后续演进（P1~P3）的裁剪依据。
 > 设计决策见 [orchestration-design.md §9](orchestration-design.md#9-设计决策记录)；权威协议见 [protocol-spec.md](protocol-spec.md)。
 
@@ -71,7 +71,7 @@
 | host 半区 | 只做系统提示词公告（`systemPrompt.section`）+ 配置解析；**不注册工具、不注册路由、不碰设置命名空间**（画布无宿主业务）。配置：`enabled`（总开关，双半区生效）与 `announceToAgent`（仅控制公告）由双半区共同读取 |
 | 设置页 | 「hundun-dsh」设置页（`settings.section`，多栏目结构）由聚合包 **dsh-all** 提供骨架并声明子槽位；各插件注册自己的栏目（画布栏目：启用画布开关，当前唯一配置项）。画布 `enabled` 开关经设置面联动双半区；无设置服务时读组合配置兜底 |
 | 节点插件（扩展方） | 经 `ctx.canvas.registerNodeType()` / `registerEdgeRule()` 贡献节点类型与连线规则；**画布提供服务、不反向依赖任何节点插件**（`ctx.get('canvas')` 可选依赖，画布缺席时节点插件正常降级） |
-| 其它插件 | 不读取/不修改 task-board、ssh 等插件的数据；连线/节点仅基于官方 workspaces/sessions 域 + 节点插件数据域 |
+| 其它插件 | 不读取/不修改 任务看板、ssh 等插件的数据；连线/节点仅基于官方 workspaces/sessions 域 + 节点插件数据域 |
 | 卸载 | 插件卸载时：移除按钮、卸载 React 树、移除注入样式、恢复 `data-*` 属性、**保留画布文档**（`localStorage` 不清，重装即恢复）；节点插件卸载时其节点显示「未知类型」占位，画布不删其数据 |
 
 ## 5. 性能与规模边界
@@ -110,9 +110,9 @@
 │       ├── 画布：编排节点（workspaceId 归属）+ 边（link/扩展）+ 平移缩放连线 + 文档存储（localStorage）
 │       ├── 展示：节点外观由插件 render；画布只提供框架/选中/拖拽/连线/布局
 │       └── 中间区域：DOM 覆盖 + 单一激活标记互斥（@hundun/dsh-panel-protocol）
-├── 节点插件（dsh-agent-presets / dsh-task-board / dsh-ssh…）
+├── 节点插件（agent 预设插件 / dsh-任务看板 / 既有插件…）
 │   └── 经 ctx.canvas 注册节点类型：数据（data.list）+ 外观（render）+ 动作（actions）
-├── 兄弟面板：task-board / ssh（互斥协议经 @hundun/dsh-panel-protocol，画布不读写其数据）
+├── 兄弟面板：任务看板 / ssh（互斥协议经 @hundun/dsh-panel-protocol，画布不读写其数据）
 └── 其它领域：conversation（聊天）、aionui-panel（文件预览）—— 画布不越界
 ```
 
