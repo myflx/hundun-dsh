@@ -75,4 +75,18 @@ describe('hundun-dsh 设置页骨架（T031）', () => {
     document.body.appendChild(btn2)
     expect(btn2.hasAttribute('data-dsh-hundun-nav')).toBe(false)
   })
+
+  it('无 SVG 的按钮即使文本含 hundun-dsh 也不打标（画布卡片误伤 bugfix）', () => {
+    // 模拟画布工作区卡片：纯文本 button（无 navIcon svg），路径含 hundun-dsh
+    const card = document.createElement('button')
+    card.type = 'button'
+    const path = document.createElement('span')
+    path.textContent = 'D:\\document\\IdeaProjects\\hundun-dsh'
+    card.append(path)
+    document.body.appendChild(card)
+
+    const dispose = installNavIconOverride()
+    expect(card.hasAttribute('data-dsh-hundun-nav')).toBe(false)
+    dispose()
+  })
 })

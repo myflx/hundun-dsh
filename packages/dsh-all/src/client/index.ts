@@ -80,6 +80,10 @@ export function installNavIconOverride(): () => void {
   const mark = (): void => {
     for (const button of document.querySelectorAll<HTMLElement>('button')) {
       if (button.hasAttribute('data-dsh-hundun-nav')) continue
+      // 仅设置导航行：必须含图标 SVG 子元素（官方 navIcon），且文本含 hundun-dsh。
+      // 不能只看文本——画布工作区卡片也是 button，路径/标题含 hundun-dsh 会被误打标，
+      // 导致卡片上渲染出设置导航的 Package 图标（bugfix）。
+      if (button.querySelector('svg') === null) continue
       if (button.textContent?.includes('hundun-dsh') === true) {
         button.setAttribute('data-dsh-hundun-nav', '')
       }
