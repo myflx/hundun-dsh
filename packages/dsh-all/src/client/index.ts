@@ -12,6 +12,8 @@ import type { ClientContext } from '@deepseek-ai/dsh-client-runtime/client'
 import type {} from '@deepseek-ai/dsh-client-ui-slots'
 import type { PropsRenderSlots } from '@deepseek-ai/dsh-client-ui-slots'
 import type {} from '@deepseek-ai/dsh-client-ui-settings/client'
+// 设置页标题图标（用户选定：星星 IconSparkle16）。
+import { IconSparkle16 } from '@deepseek-ai/dsh-client-ui-primitives'
 
 /** 设置页子槽位声明（画布等插件注册设置栏目的位置；list/root）。 */
 declare module '@deepseek-ai/dsh-client-ui-slots' {
@@ -33,7 +35,14 @@ export function HundunSettingsPage(props: HundunSettingsPageProps): ReactNode {
     'div',
     { 'data-dsh-hundun-settings-page': '', style: { padding: '16px 20px' } },
     [
-      createElement('h3', { key: 'title', style: { margin: '0 0 4px' } }, 'hundun-dsh'),
+      createElement(
+        'h3',
+        { key: 'title', style: { display: 'flex', alignItems: 'center', gap: 8, margin: '0 0 4px' } },
+        [
+          createElement(IconSparkle16, { key: 'icon', size: 16 }),
+          createElement('span', { key: 'text' }, 'hundun-dsh'),
+        ],
+      ),
       createElement('p', { key: 'desc', style: { margin: '0 0 12px', fontSize: 12, color: 'var(--dsw-alias-label-tertiary, #888)' } }, 'hundun-dsh 聚合插件配置'),
       createElement('div', { key: 'columns', style: { marginTop: 8 } }, renderSlot('hundun.settings.item', {})),
     ],
