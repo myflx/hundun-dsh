@@ -450,6 +450,19 @@ export const CanvasView = memo(function CanvasView({ workspaces, store, onClose,
 
   const items = state.items ?? []
   const ready = state.baselinesReady || items.length > 0
+  // feed 去重（防御）：同一 workspaceId 只渲染一张卡片（官方 feed 正常情况下唯一，
+  // 但刷新/基线重放等路径可能出现重复项——重复会导致画布中一个工作区显示多张卡片）。
+  const uniqueItems = useMemo(() => {
+    const seen = new Set<string>()
+    const out: WorkspaceView[] = []
+    for (const item of items) {
+      const key = String(item.workspaceId)
+      if (seen.has(key)) continue
+      seen.add(key)
+      out.push(item)
+    }
+    return out
+  }, [items])
   // 全局已归档会话集合（dsh 语义：归档保留在 sessionIds 账目，分组界面隐藏）
   const archivedSessionIds = useMemo(() => new Set((state.archivedSessionIds ?? []).map(String)), [state.archivedSessionIds])
   const orchestrationNodes = doc.nodes.filter((n) => n.kind !== 'workspace')
@@ -671,7 +684,7 @@ export const CanvasView = memo(function CanvasView({ workspaces, store, onClose,
       )}
       {!ready
         ? <div style={EMPTY_STYLE}>{canvasText('canvas.loading')}</div>
-        : items.length === 0
+        : uniqueItems.length === 0
           ? <div style={EMPTY_STYLE}>{canvasText('canvas.empty')}</div>
           : (
             <div
@@ -708,7 +721,7 @@ export const CanvasView = memo(function CanvasView({ workspaces, store, onClose,
                 }}
                 data-dsh-canvas-viewport=""
               >
-                {items.map((workspace, index) => {
+                {uniqueItems.map((workspace, index) => {
                   const workspacePosition = positions[workspace.workspaceId] ?? autoPosition(index)
                   const members = orchestrationNodes.filter((n) => n.workspaceId === workspace.workspaceId)
                   const workspaceNode: CanvasNode = {

@@ -222,4 +222,16 @@ describe('画布背景风格（004）', () => {
     expect(bg!.getAttribute('data-dsh-canvas-bg')).toBe('grid')
     await act(async () => root.unmount())
   })
+
+  it('feed 含重复 workspaceId → 只渲染一张卡片（多图标 bugfix）', async () => {
+    const { container, root } = await renderView(
+      feedWith([ws('w1', 'A'), ws('w1', 'A 重复'), ws('w2', 'B')]),
+      new CanvasDocumentStore(localStorage),
+    )
+    const cards = container.querySelectorAll('[data-dsh-canvas-card]')
+    expect(cards.length).toBe(2) // w1 去重后仅一张，加 w2 共两张
+    const w1Count = [...cards].filter((c) => c.getAttribute('data-dsh-canvas-card') === 'w1').length
+    expect(w1Count).toBe(1)
+    await act(async () => root.unmount())
+  })
 })
