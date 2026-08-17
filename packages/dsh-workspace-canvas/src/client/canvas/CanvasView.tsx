@@ -16,7 +16,6 @@ import { openWorkspaceSession } from './workspace-open.ts'
 import { commitWorkspacePosition, readWorkspacePositions } from './workspace-position.ts'
 import { defaultView, panBy, resetView, scenePoint, wheelZoomFactor, zoomAt, type ViewTransform } from './view-transform.ts'
 import { canvasText } from './text.ts'
-import { CANVAS_DISPLAY_VERSION } from './version.ts'
 
 /** 画布 props：官方 workspaces feed + 文档存储（布局持久化）+ 关闭回调。
  *  ctx/registry 可选（分区渲染编排节点需要；缺省时只渲染工作区卡片，便于隔离测试）。 */
@@ -636,7 +635,7 @@ export const CanvasView = memo(function CanvasView({ workspaces, store, onClose,
       <div style={HEADER_STYLE}>
         <div>
           <div style={TITLE_STYLE}>{canvasText('canvas.title')}</div>
-          <div style={SUBTITLE_STYLE}>{canvasText('canvas.subtitle')} <span data-dsh-canvas-version="" style={{ opacity: 0.55 }}>{CANVAS_DISPLAY_VERSION}</span></div>
+          <div style={SUBTITLE_STYLE}>{canvasText('canvas.subtitle')}</div>
         </div>
         <button type="button" style={CLOSE_STYLE} onClick={onClose}>
           {canvasText('canvas.close')}
