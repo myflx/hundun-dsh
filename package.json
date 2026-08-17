@@ -2,7 +2,7 @@
   "name": "hundun-dsh",
   "version": "0.1.0",
   "private": true,
-  "description": "hundun-dsh：聚合的 DeepSeek Harness (DSH) 插件全家桶 monorepo。每个插件是一个符合官方标准（turtle-ui 式 setup / dsh bundle patch）的独立可安装包，聚合包 dsh-all 一键装配全部插件。",
+  "description": "hundun-dsh：DeepSeek Harness (DSH) Web GUI 的开源插件集合。每个插件是一个符合官方标准（dsh bundle patch）的独立可安装包，聚合包 dsh-all 一键装配全部插件。主打工作区画布视图。",
   "packageManager": "pnpm@11.21.0",
   "engines": {
     "node": ">=22.0.0"
