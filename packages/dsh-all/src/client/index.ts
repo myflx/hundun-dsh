@@ -43,8 +43,48 @@ export function HundunSettingsPage(props: HundunSettingsPageProps): ReactNode {
 /** 所需客户端服务（fiber inject 等待）。 */
 export const inject = ['slots']
 
-/** 「hundun-dsh」设置页导航 tab 标签：★ 星星符号（文本色，随整体色调；官方槽位 label 仅支持字符串）。 */
-export const HUNDUN_SETTINGS_LABEL = '★ hundun-dsh'
+/** 「hundun-dsh」设置页导航 tab 标签（纯文字；图标由 nav override 提供，见 installNavIconOverride）。 */
+export const HUNDUN_SETTINGS_LABEL = 'hundun-dsh'
+
+/**
+ * 替换设置页导航 tab 图标（官方 shell 的 navIcon(id) 仅映射 models/agent-presets/plugins，
+ * 其余 id 一律渲染通用齿轮 IconSettingsOutline16——与「设置」主 tab 相同，无注册扩展点）。
+ * 方案：MutationObserver 给 label 含「hundun-dsh」的导航行打 data 标记 + 注入 CSS——
+ * 隐藏该行默认 SVG，用 ::before 渲染文本色星星（currentColor，随主题色调一致）。
+ * @returns disposer（移除样式与观察器）。
+ */
+export function installNavIconOverride(): () => void {
+  const style = document.createElement('style')
+  style.dataset.plugin = 'dsh-all'
+  style.textContent = `
+[data-dsh-hundun-nav] > svg { display: none; }
+[data-dsh-hundun-nav]::before {
+  content: '★';
+  font-size: 14px;
+  line-height: 1;
+  color: currentColor;
+  margin-right: 8px;
+}
+`
+  document.head.appendChild(style)
+
+  const mark = (): void => {
+    for (const button of document.querySelectorAll<HTMLElement>('button')) {
+      if (button.hasAttribute('data-dsh-hundun-nav')) continue
+      if (button.textContent?.includes('hundun-dsh') === true) {
+        button.setAttribute('data-dsh-hundun-nav', '')
+      }
+    }
+  }
+  const observer = new MutationObserver(mark)
+  observer.observe(document.body, { childList: true, subtree: true })
+  mark()
+
+  return () => {
+    observer.disconnect()
+    style.remove()
+  }
+}
 
 /** 聚合包客户端半区入口。 */
 export function apply(ctx: ClientContext): void {
@@ -57,4 +97,6 @@ export function apply(ctx: ClientContext): void {
     children: { 'hundun.settings.item': { kind: 'list', scope: 'root' } },
     inject: () => ({}),
   }, HundunSettingsPage))
+  // 导航 tab 图标替换（齿轮 → 文本色星星），随 fiber 回收。
+  ctx.effect(() => installNavIconOverride(), 'dsh-all: settings nav icon override')
 }
