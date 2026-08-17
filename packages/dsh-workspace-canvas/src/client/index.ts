@@ -46,8 +46,10 @@ declare module '@deepseek-ai/dsh-client-ui-slots' {
   }
 }
 
-/** 需要的客户端服务：locale（文案）/ workspaces（工作区数据）/ slots（设置栏目注册）。 */
-export const inject = ['locale', 'workspaces', 'slots']
+/** 需要的客户端服务：locale（文案）/ workspaces（工作区数据）/ sessions（会话运行状态）/
+ *  slots（设置栏目注册）。sessions 在 inject 中声明：Cordis ctx 为 Proxy，未声明时访问
+ *  ctx.sessions 会抛 "cannot get property without inject"（真机 bugfix）。 */
+export const inject = ['locale', 'workspaces', 'sessions', 'slots']
 
 /** 客户端半区配置（与宿主 Config 同值；enabled 总开关，组合配置兜底）。 */
 export interface CanvasClientConfig {

@@ -67,31 +67,21 @@ describe('DetailPanel（T026）', () => {
 })
 
 describe('WorkspaceDetail（T027，clarify Q2）', () => {
-  it('显示标题/路径/会话数/最近活跃；不含会话条目列表', async () => {
+  it('显示标题/路径/会话统计表格/最近活跃/ID；不含会话条目列表与跳转动作', async () => {
     const { container, root } = await render(createElement(WorkspaceDetail, {
-      view: { title: 'hundun-dsh', path: '/repo/hundun-dsh', sessionIds: ['s1', 's2'] },
+      view: { title: 'hundun-dsh', path: '/repo/hundun-dsh', sessionIds: ['s1', 's2'], workspaceId: 'ws_x' },
       recent: true,
-      onJumpSidebar: () => {},
+      sessionStats: { total: 2, active: 1, archived: 1, running: 1 },
     }))
     const text = container.textContent ?? ''
     expect(text).toContain('hundun-dsh')
     expect(text).toContain('/repo/hundun-dsh')
-    expect(text).toContain('2 个')
     expect(text).toContain('最近活跃')
+    // 会话统计表格：总数/活跃/归档/运行中
+    const cells = [...(container.querySelectorAll('[data-dsh-ws-sessions] td') ?? [])].map((c) => c.textContent)
+    expect(cells).toEqual(['2', '1', '1', '1'])
     expect(text).not.toContain('s1') // 不列条目
-    await act(async () => root.unmount())
-  })
-
-  it('跳转按钮触发 onJumpSidebar', async () => {
-    const onJumpSidebar = vi.fn()
-    const { container, root } = await render(createElement(WorkspaceDetail, {
-      view: { title: 'hundun-dsh', path: '/repo/hundun-dsh', sessionIds: [] },
-      recent: false,
-      onJumpSidebar,
-    }))
-    const btn = container.querySelector<HTMLButtonElement>('[data-dsh-jump-sidebar]')
-    await act(async () => { btn!.click() })
-    expect(onJumpSidebar).toHaveBeenCalled()
+    expect(container.querySelector('[data-dsh-jump-sidebar]')).toBeNull() // 无跳转动作
     await act(async () => root.unmount())
   })
 })

@@ -11,6 +11,7 @@ import { ContextMenu, MENU_ITEM_ICONS, type MenuItem } from './menu.ts'
 import { workspaceActions } from './workspace-actions.ts'
 import { DetailPanel } from './detail/panel.tsx'
 import { WorkspaceDetail } from './detail/workspace-detail.tsx'
+import { workspaceDisplayTitle } from './detail/workspace-title.ts'
 import { openWorkspaceSession } from './workspace-open.ts'
 import { commitWorkspacePosition, readWorkspacePositions } from './workspace-position.ts'
 import { defaultView, panBy, resetView, scenePoint, wheelZoomFactor, zoomAt, type ViewTransform } from './view-transform.ts'
@@ -257,6 +258,39 @@ function autoPosition(index: number): { x: number; y: number } {
   }
 }
 
+/** 会话运行状态查询面（ctx.sessions 可能缺省——测试/无服务时安全降级为无运行中）。 */
+interface SessionRunningLookup {
+  sessions?: { list?: { getSnapshot?: () => { byId?: Record<string, { running?: boolean }> } } }
+}
+
+/**
+ * 计算一个工作区的会话统计：总数 / 活跃（未归档）/ 归档 / 运行中。
+ * 归档来自 workspaces feed 的 archivedSessionIds；运行中来自 sessions 服务的 running 位。
+ * 双保险：inject 已声明 sessions（真机）；此处 try/catch 兜底——Cordis ctx 是 Proxy，
+ * 未注入时属性 getter 直接抛错（可选链无法捕获），捕获后按服务不可得降级为 0。
+ */
+export function workspaceSessionStats(
+  sessionIds: ReadonlyArray<string>,
+  archived: ReadonlySet<string>,
+  ctx: unknown,
+): { total: number; active: number; archived: number; running: number } {
+  let byId: Record<string, { running?: boolean }> | undefined
+  try {
+    byId = (ctx as SessionRunningLookup | undefined)?.sessions?.list?.getSnapshot?.().byId
+  } catch {
+    byId = undefined
+  }
+  const total = sessionIds.length
+  let archivedCount = 0
+  let runningCount = 0
+  for (const id of sessionIds) {
+    const key = String(id)
+    if (archived.has(key)) archivedCount += 1
+    if (byId?.[key]?.running === true) runningCount += 1
+  }
+  return { total, active: total - archivedCount, archived: archivedCount, running: runningCount }
+}
+
 /** 一张可拖拽的工作区卡片。 */
 function WorkspaceCard({ workspace, selected, position, onCommit, onOpen, onSelect, onContextMenu, zoom, toScene, archivedSessionIds }: {
   workspace: WorkspaceView
@@ -482,7 +516,8 @@ export const CanvasView = memo(function CanvasView({ workspaces, store, onClose,
   const [panning, setPanning] = useState(false)
   const onAreaPointerDown = (event: ReactPointerEvent<HTMLDivElement>): void => {
     const target = event.target as HTMLElement
-    if (target.closest('[data-dsh-canvas-card], [data-dsh-canvas-member]') !== null) return
+    // 卡片/成员/详情面板（含宽度调节手柄）上的按下不触发空白平移与取消选中
+    if (target.closest('[data-dsh-canvas-card], [data-dsh-canvas-member], [data-dsh-canvas-detail]') !== null) return
     if (event.button !== 0) return
     // 点画布空白 → 取消工作区/节点选中（明细收起）+ 进入平移拖拽（手型握紧）
     setSelectedId(undefined)
@@ -680,46 +715,48 @@ export const CanvasView = memo(function CanvasView({ workspaces, store, onClose,
                 <Button variant="toolbar" size="sm" data-dsh-action-zoom-in onClick={() => zoomBy(1.1)} aria-label="放大" title="放大"><IconZoomIn /></Button>
                 <Button variant="toolbar" size="sm" data-dsh-action-refresh onClick={handleRefresh} aria-label="刷新" title="刷新"><IconRefreshAction /></Button>
               </div>
+              {/* 右侧详情框：渲染在画布区域内（顶部在顶部栏之下，不覆盖 header） */}
+              {selectedId !== undefined && ctx !== undefined && (() => {
+                const selectedNode = doc.nodes.find((n) => n.id === selectedId)
+                if (selectedNode === undefined) return null
+                if (selectedNode.kind === 'workspace') {
+                  const wsView = items.find((w) => String(w.workspaceId) === selectedNode.ref)
+                  if (wsView === undefined) return null
+                  return (
+                    <DetailPanel
+                      node={selectedNode}
+                      doc={doc}
+                      sections={registry?.mergeSections('workspace') ?? []}
+                      title={workspaceDisplayTitle(wsView.title, wsView.path)}
+                      onClose={() => setSelectedId(undefined)}
+                      ownerDetail={() => (
+                        <WorkspaceDetail
+                          view={{ title: wsView.title, path: wsView.path, sessionIds: wsView.sessionIds, workspaceId: String(wsView.workspaceId) }}
+                          recent={wsView.workspaceId === state.recentWorkspaceId}
+                          sessionStats={workspaceSessionStats(wsView.sessionIds, archivedSessionIds, ctx)}
+                        />
+                      )}
+                    />
+                  )
+                }
+                const type = registry?.getNodeType(selectedNode.kind)
+                const instance = type?.data.list(ctx).getSnapshot().find((i) => i.id === selectedNode.ref)
+                return (
+                  <DetailPanel
+                    node={selectedNode}
+                    instance={instance}
+                    doc={doc}
+                    ownerDetail={type?.detail}
+                    sections={registry?.mergeSections(selectedNode.kind) ?? []}
+                    onClose={() => setSelectedId(undefined)}
+                  />
+                )
+              })()}
             </div>
           )}
       {menu !== undefined && ctx !== undefined && (
         <ContextMenu x={menu.x} y={menu.y} items={menuItems()} onClose={() => setMenu(undefined)} />
       )}
-      {selectedId !== undefined && ctx !== undefined && (() => {
-        const selectedNode = doc.nodes.find((n) => n.id === selectedId)
-        if (selectedNode === undefined) return null
-        if (selectedNode.kind === 'workspace') {
-          const wsView = items.find((w) => String(w.workspaceId) === selectedNode.ref)
-          if (wsView === undefined) return null
-          return (
-            <DetailPanel
-              node={selectedNode}
-              doc={doc}
-              sections={registry?.mergeSections('workspace') ?? []}
-              onClose={() => setSelectedId(undefined)}
-              ownerDetail={() => (
-                <WorkspaceDetail
-                  view={{ title: wsView.title, path: wsView.path, sessionIds: wsView.sessionIds }}
-                  recent={wsView.workspaceId === state.recentWorkspaceId}
-                  onJumpSidebar={() => { setSelectedId(undefined); onClose() }}
-                />
-              )}
-            />
-          )
-        }
-        const type = registry?.getNodeType(selectedNode.kind)
-        const instance = type?.data.list(ctx).getSnapshot().find((i) => i.id === selectedNode.ref)
-        return (
-          <DetailPanel
-            node={selectedNode}
-            instance={instance}
-            doc={doc}
-            ownerDetail={type?.detail}
-            sections={registry?.mergeSections(selectedNode.kind) ?? []}
-            onClose={() => setSelectedId(undefined)}
-          />
-        )
-      })()}
     </div>
   )
 })
