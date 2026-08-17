@@ -46,11 +46,16 @@ export const inject = ['slots']
 /** 「hundun-dsh」设置页导航 tab 标签（纯文字；图标由 nav override 提供，见 installNavIconOverride）。 */
 export const HUNDUN_SETTINGS_LABEL = 'hundun-dsh'
 
+/** Package（盒子）图标 SVG 源（feather，MIT）：16px 视口由 mask contain 缩放。 */
+const PACKAGE_ICON_SVG = '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="black" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z"/><polyline points="3.27 6.96 12 12.01 20.73 6.96"/><line x1="12" y1="22.08" x2="12" y2="12"/></svg>'
+const PACKAGE_ICON_MASK = `data:image/svg+xml,${encodeURIComponent(PACKAGE_ICON_SVG)}`
+
 /**
  * 替换设置页导航 tab 图标（官方 shell 的 navIcon(id) 仅映射 models/agent-presets/plugins，
  * 其余 id 一律渲染通用齿轮 IconSettingsOutline16——与「设置」主 tab 相同，无注册扩展点）。
  * 方案：MutationObserver 给 label 含「hundun-dsh」的导航行打 data 标记 + 注入 CSS——
- * 隐藏该行默认 SVG，用 ::before 渲染文本色星星（currentColor，随主题色调一致）。
+ * 隐藏该行默认 SVG，用 ::before + CSS mask 渲染 Package 图标（currentColor 单色，
+ * 线条风格与原生图标一致，色调随主题）。
  * @returns disposer（移除样式与观察器）。
  */
 export function installNavIconOverride(): () => void {
@@ -59,11 +64,15 @@ export function installNavIconOverride(): () => void {
   style.textContent = `
 [data-dsh-hundun-nav] > svg { display: none; }
 [data-dsh-hundun-nav]::before {
-  content: '★';
-  font-size: 14px;
-  line-height: 1;
-  color: currentColor;
+  content: '';
+  display: inline-block;
+  width: 16px;
+  height: 16px;
   margin-right: 8px;
+  vertical-align: -3px;
+  background-color: currentColor;
+  -webkit-mask: url("${PACKAGE_ICON_MASK}") center / contain no-repeat;
+  mask: url("${PACKAGE_ICON_MASK}") center / contain no-repeat;
 }
 `
   document.head.appendChild(style)
