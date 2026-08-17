@@ -1,6 +1,6 @@
 /**
  * Standalone build config for the dsh-workspace-canvas plugin（迁移到
- * monorepo 共享的 tsdown.client.ts 预设，源出 dsh-web-ui / DeepSeek Harness
+ * monorepo 共享的 tsdown.client.ts 预设，源出 共享预设 / DeepSeek Harness
  * 官方 client 构建）：node 半区产出 lib/，浏览器半区产出 lib/client.js
  * （供 GUI 的 __ModuleLoader__ 加载的闭包工厂产物）。
  *

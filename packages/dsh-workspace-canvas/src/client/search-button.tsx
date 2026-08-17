@@ -3,7 +3,7 @@
  *
  * 侧边栏的工作区浏览区域（含搜索框）是单占用槽位 sidebar.workspaces，
  * 由官方 WorkspaceBrowser 独占，没有搜索框内部的官方槽位 —— 所以按钮走
- * DOM 注入（全家桶 dsh-ssh sidebar-entry.ts 同款模式）：
+ * DOM 注入（全家桶 既有面板 sidebar-entry.ts 同款模式）：
  *
  * - 按钮是一个独立的 React 根（createRoot 挂到标题行），hover 提示用
  *   官方 primitives 的 Tooltip 组件（side="bottom" delayMs=500），

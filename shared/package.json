@@ -3,7 +3,7 @@
   "version": "0.0.0",
   "private": true,
   "type": "module",
-  "description": "hundun-dsh 插件全家桶共享构建预设（客户端 bundle tsdown preset 等；内联进各消费者 bundle，永不发布）。派生自 dsh-web-ui（Apache-2.0）。",
+  "description": "hundun-dsh 插件全家桶共享构建预设（客户端 bundle tsdown preset 等；内联进各消费者 bundle，永不发布）。派生声明见仓库 LICENSE（Apache-2.0）。",
   "scripts": {
     "typecheck": "tsc --noEmit"
   },

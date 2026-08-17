@@ -33,7 +33,7 @@ export const en = {
   'canvas.openError': 'Failed to open session: {message}',
 } satisfies Record<CanvasKey, string>
 
-/** 微型插值：{name} -> value（参照 dsh-ssh 的 t 实现）。 */
+/** 微型插值：{name} -> value（参照 既有面板 的 t 实现）。 */
 export function t(dictionary: Record<string, string>, key: string, values?: Record<string, string | number>): string {
   let text = dictionary[key] ?? key
   if (values !== undefined) {

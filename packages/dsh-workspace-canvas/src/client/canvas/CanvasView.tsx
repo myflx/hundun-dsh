@@ -109,7 +109,7 @@ const NODE_LAYER_STYLE: CSSProperties = {
   zIndex: 1,
 } as const
 
-/** 画布底部操作栏（对齐 hundun-web canvas-controls）：四图标按钮（缩小/重置/放大/刷新）。
+/** 画布底部操作栏（对齐 参考实现 canvas-controls）：四图标按钮（缩小/重置/放大/刷新）。
  *  复用系统设计令牌（--dsw-alias-*），与系统控件视觉一致；低干扰浮层。 */
 const ACTION_BAR_STYLE: CSSProperties = {
   position: 'absolute',
@@ -175,7 +175,7 @@ const ACTION_BAR_HOVER_CSS = `
 
 /** ── 操作栏图标（内联 SVG，lucide 同款 path，ISC 开源；颜色走 currentColor = 系统令牌） ── */
 
-/** 缩小（hundun-web ZoomOut）：放大镜 + 减号。 */
+/** 缩小（参考实现 ZoomOut）：放大镜 + 减号。 */
 function IconZoomOut() {
   return (
     <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
@@ -186,7 +186,7 @@ function IconZoomOut() {
   )
 }
 
-/** 重置（hundun-web LocateFixed）：十字准星 + 中心点。 */
+/** 重置（参考实现 LocateFixed）：十字准星 + 中心点。 */
 function IconLocateFixed() {
   return (
     <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
@@ -200,7 +200,7 @@ function IconLocateFixed() {
   )
 }
 
-/** 放大（hundun-web ZoomIn）：放大镜 + 加号。 */
+/** 放大（参考实现 ZoomIn）：放大镜 + 加号。 */
 function IconZoomIn() {
   return (
     <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
@@ -365,7 +365,7 @@ function WorkspaceCard({ workspace, selected, position, onCommit, onOpen, onSele
     dragRef.current = null
   }
 
-  // 单击延迟 250ms 判双击（hundun-web 同款）：单击 = 选中+详情；双击 = 进入新会话。
+  // 单击延迟 250ms 判双击（参考实现 同款）：单击 = 选中+详情；双击 = 进入新会话。
   const clickTimer = useRef<ReturnType<typeof setTimeout> | undefined>(undefined)
   const onClick = (): void => {
     if (justDraggedRef.current) {
@@ -588,7 +588,7 @@ export const CanvasView = memo(function CanvasView({ workspaces, store, onClose,
     setView({ x: rect.width / 2 - cx, y: rect.height / 2 - cy, zoom: 1 })
   }
 
-  // 刷新（hundun-web RefreshCw）：重新拉取工作区基线；feed 更新后画布自动重渲染。
+  // 刷新（参考实现 RefreshCw）：重新拉取工作区基线；feed 更新后画布自动重渲染。
   // IWorkspaces 接口未暴露 refresh（Wire-pump 入口在具体类），运行时可选链兜底，
   // 失败/缺失安全降级（不报错、保持原数据）。
   const handleRefresh = (): void => {

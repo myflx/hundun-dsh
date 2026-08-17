@@ -66,37 +66,20 @@ deps:
 
 ## 共享预设来源
 
-`shared/tsdown.client.ts` / `shared/web-platform.ts` 派生自 dsh-web-ui（Apache-2.0，其源出 DeepSeek Harness
-官方 client 构建）。改动前先理解：它产出 `window.__ModuleLoader__.load` 闭包工厂产物，CSS Modules 内联注入，
-并带客户端 bundle 纯度门。改坏它 = 全仓客户端全部构建失败。
+`shared/tsdown.client.ts` / `shared/web-platform.ts` 派生自 Apache-2.0 开源的 DSH 官方
+client 构建（派生声明见 LICENSE）。改动前先理解：它产出 `window.__ModuleLoader__.load`
+闭包工厂产物，CSS Modules 内联注入，并带客户端 bundle 纯度门。改坏它 = 全仓客户端全部构建失败。
 
-## speckit 工作流（已项目级安装）
+## 测试与验证约定
 
-本仓库已安装 spec-kit 技能与脚手架（参考 myflx-home/hundun-desktop 的 0.16.1 结构）：
-
-- **技能**：`speckit-*` 共 10 个，位于 `.dsh/skills/`（DSH 项目技能根，跟随仓库分发）；用户级副本在
-  `~/.dsh/skills/`。技能目录由 DSH 自动扫描，无需额外配置。
-- **脚手架**：`.specify/`（scripts / templates / memory / integrations / workflows），由技能按需调用：
-  - 工作产物约定：`spec.md` / `plan.md` / `tasks.md` / `quickstart.md` 按特征存于 `specs/<NNN>-<name>/`
-    （`speckit-specify` 默认目录；`.specify/feature.json` 持久化当前特征路径，属本机状态不入库）；
-  - `memory/constitution.md` = 项目章程（**已 ratify v1.0.0**，speckit 工作流的非协商权威）；
-  - 扩展钩子：`.specify/extensions.yml`（当前不存在，技能会静默跳过）。
-- **工作流顺序**：specify → clarify → plan → tasks → analyze → implement → converge；checklist / constitution /
-  taskstoissues 按需。PowerShell 脚本为本机（Windows）路径。
-- 注意：speckit CLI 未安装；脚手架是拷贝自参考项目的官方骨架，将来装了 CLI 可 `speckit init` 重新生成。
-
-## speckit 测试与验证约定（项目章程条款）
-
-> 完整条款见 `.specify/memory/constitution.md`（v1.0.0）。以下为执行要点，违反即红：
-
-1. **TDD 必声明**：每个功能 `spec.md` MUST 含 `**TDD**: true`（模板已内置）；`speckit-tasks` 据此 MUST
+1. **TDD 必声明**：每个功能 `spec.md` MUST 含 `**TDD**: true`（模板已内置）；据此 MUST
    生成 Contract test 与 Integration test 任务，测试任务缺失 = 实现任务不完整。
 2. **`[X]` 的唯一依据是运行时行为**：`verify` 字段声明的行为真实通过才可勾选。
    `verify: tsc 通过` / `verify: build 成功` / `verify: 代码已实现` 一律无效——「代码写了」≠「功能完成了」。
-3. **E2E 验证门禁**：implement 完成后 MUST 执行本功能 `quickstart.md` 的全部端到端场景，逐条记录通过/失败，
-   不得跳过。场景 checkbox 与任务 checkbox 同等约束力：场景未全通过 → 对应任务 `[X]` 改回 `[ ]` +
-   追加 Convergence 任务。
-4. **阶段收敛**：每个 Phase 完成后 SHOULD 运行 `$speckit-converge` 对比代码 vs spec 缺口，不等到全部完成。
+3. **E2E 验证门禁**：implement 完成后 MUST 执行本功能 `quickstart.md` 的全部端到端场景，
+   逐条记录通过/失败，不得跳过。场景 checkbox 与任务 checkbox 同等约束力：场景未全通过 →
+   对应任务 `[X]` 改回 `[ ]` + 追加 Convergence 任务。
+4. **阶段收敛**：每个 Phase 完成后 SHOULD 运行 `$speckit-converge` 对比代码 vs spec 缺口。
 5. **任务四字段格式**（`tasks.md` 全任务 MUST）：
 
    ```text
@@ -105,3 +88,8 @@ deps:
 
    `file` / `function` / `calls` / `verify` 全必填（`calls` 无则填「无」）；缺字段或 verify 为编译/构建类
    声明 → 任务无效。
+
+6. **Proxy 注入保护**：Cordis 的 `ctx` 是 Proxy——访问未在插件 `inject` 声明中的服务属性会直接抛
+   `cannot get property "X" without inject`（可选链无法捕获）。新增任何 `ctx.<service>` 访问 MUST
+   同步声明 inject；可选服务读取 MUST try/catch 兜底并附模拟 Proxy getter 抛错的回归测试；涉及
+   运行时服务的行为 MUST 在真实 DSH web profile 下验证（单测 mock 无 Proxy 保护，全过 ≠ 真机可用）。

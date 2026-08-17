@@ -2,11 +2,13 @@
 
 工作区编排画布插件：把全部工作区自动渲染成中间区域的画布（每个工作区 = 一个 scope 小画布）。
 
-- **搜索框按钮**：侧边栏工作区搜索行内注入「画布视图」按钮（DOM 注入 + MutationObserver 自愈，dsh-ssh 先例）；
-- **中间区域画布**：DOM 层接管 `[data-pane="conversation"]`，注入样式隐藏对话、显示画布（对话状态保留）；与任务看板 / SSH 面板互斥（复用 `dsh-panel-activate` 事件协议）；
+- **搜索框按钮**：侧边栏工作区搜索行内注入「画布视图」按钮（DOM 注入 + MutationObserver 自愈）；
+- **中间区域画布**：DOM 层接管 `[data-pane="conversation"]`，注入样式隐藏对话、显示画布（对话状态保留）；与其他面板互斥（复用 `dsh-panel-activate` 事件协议）；
 - **自动渲染全部工作区**：官方 workspaces feed（`ctx.workspaces.list`，`ObservableSnapshot`），订阅即实时刷新；每个工作区一张卡片（标题 / 路径 / 会话数），点击卡片 `startSession(workspaceId)` 直接进入该工作区的新会话。
+- **背景风格切换**：网格 / 点阵 / 纯色 / 渐变 / 暗色网格 5 种背景，设置页或画布操作栏随时切换；
+- **详情框**：三区卡片式详情——身份（大字号名称 + 活跃状态）、基本信息（目录 / 路径 / 工作区 ID，可复制）、会话数量（总数 / 活跃 / 归档 / 运行中）。
 
-host 半区只做系统提示词公告（沿用 dsh-demo-greeter 模式）。
+host 半区只做系统提示词公告。
 
 ## 画布设计参考
 
@@ -18,8 +20,7 @@ host 半区只做系统提示词公告（沿用 dsh-demo-greeter 模式）。
 - [docs/orchestration-design.md](docs/orchestration-design.md) —— 架构设计（概念层：角色分工/数据边界/关系模型/存储/扩展约定）；
 - [docs/protocol-spec.md](docs/protocol-spec.md) —— **协议规格（单一事实源）**：CanvasDocument v1 数据模型、`ctx.canvas` 服务、节点/连线规则类型、交互管线、命名/版本/降级约定；
 - [docs/implementation-plan.md](docs/implementation-plan.md) —— 落地计划：P0 现状 → P1 协议骨架 → P2 视图布局 → P3 体验面板，含任务清单与验收；
-- [docs/capability-boundaries.md](docs/capability-boundaries.md) —— 能力边界与判定准则；
-- [docs/design-hundun-canvas.md](docs/design-hundun-canvas.md) —— hundun-web 画布参考（P2 移植来源）。
+- [docs/capability-boundaries.md](docs/capability-boundaries.md) —— 能力边界与判定准则。
 
 ## 构建
 
@@ -44,7 +45,7 @@ dsh plugin --profile web add link:<本包绝对路径>
 
 1. 侧边栏工作区搜索行出现画布图标按钮（点搜索图标展开后可见）；
 2. 点击按钮 → 中间区域切换为画布，自动渲染全部工作区；
-3. 点击工作区卡片 → 进入该工作区的新会话；
+3. 点击工作区卡片 → 查看详情；双击卡片 → 进入该工作区的新会话；
 4. 点侧边栏会话/工作区行或「关闭画布」→ 退出画布。
 
 ## 卸载

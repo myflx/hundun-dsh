@@ -1,7 +1,7 @@
 /**
  * 画布控制器：画布开/关状态的唯一所有者 + 中间区域挂载管理。
  *
- * 结构参照 dsh-ssh 的 panel/controller.ts（框架无关的订阅面）与
+ * 结构参照 既有面板 的 panel/controller.ts（框架无关的订阅面）与
  * client/mount.tsx（中间区域 DOM 接管）。要点（对齐定稿设计 T005/T007）：
  *
  * - `conversation` 槽位是单占用的，外部插件不能声明槽位，所以画布在

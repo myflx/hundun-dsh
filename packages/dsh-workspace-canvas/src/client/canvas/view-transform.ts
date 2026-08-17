@@ -1,5 +1,5 @@
 /**
- * 画布视图变换助手（P2，参考 hundun-web WorkspaceGraph 的 view 模型）。
+ * 画布视图变换助手（P2，参考 参考实现 WorkspaceGraph 的 view 模型）。
  *
  * 定稿模型（设计决策 D1）：节点坐标恒为 **scene 绝对像素**；`view {x, y, zoom}`
  * 是「镜头」（平移量 + 缩放），只影响渲染，不写回节点数据。
@@ -75,7 +75,7 @@ export function screenPoint(
   return { x: scene.x * view.zoom + view.x, y: scene.y * view.zoom + view.y }
 }
 
-/** 滚轮缩放因子（1.1 放大 / 0.9 缩小，hundun-web 同款）。 */
+/** 滚轮缩放因子（1.1 放大 / 0.9 缩小，参考实现 同款）。 */
 export function wheelZoomFactor(deltaY: number): number {
   return deltaY < 0 ? 1.1 : 0.9
 }

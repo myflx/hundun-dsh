@@ -73,7 +73,7 @@ export function apply(ctx: Context, config?: Config): void {
   }
 
   // 设置面联动：设置服务缺席时 installSettingsSection 不注册、钩子不触发，
-  // 走组合配置兜底（与 dsh-web-ui 家族一致）。
+  // 走组合配置兜底（与 共享预设 家族一致）。
   // 平台限制（T033 修正）：官方 dsh-host-apiproxy 的配置客户端白名单为硬编码，
   // 第三方 namespace 无法暴露给浏览器设置客户端（官方注释为 deferred work），
   // 故浏览器开关改走 enabled-store（localStorage）；此处注册保留，官方开放

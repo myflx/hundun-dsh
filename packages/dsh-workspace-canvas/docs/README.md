@@ -17,12 +17,6 @@
 | [protocol-spec.md](protocol-spec.md) | **协议规格（单一事实源）**：CanvasDocument v1 数据模型、`ctx.canvas` 服务接口、节点/连线规则完整类型、交互管线、命名/版本/降级约定 | 实现者 / 插件开发者（接入必读） |
 | [implementation-plan.md](implementation-plan.md) | **落地计划**：P0（现状）→ P1 协议骨架 → P2 视图布局 → P3 体验面板 → P4 完善，含任务清单与验收标准 | 实现者 |
 
-## 参考
-
-| 文档 | 内容 |
-| --- | --- |
-| [design-hundun-canvas.md](design-hundun-canvas.md) | hundun-web `WorkspaceGraph` 画布的功能全景与核心机制（scene 坐标、拖拽状态机、连线、吸附、碰撞推挤、持久化），P2 阶段移植的主要来源 |
-
 ## 阅读顺序建议
 
 1. 使用者：README → capability-boundaries；

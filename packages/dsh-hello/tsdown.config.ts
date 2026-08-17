@@ -1,7 +1,7 @@
 /**
  * Standalone build config for the dsh-hello plugin.
  *
- * 复用共享的 dsh 客户端 bundle 预设（shared/tsdown.client.ts，源出 dsh-web-ui /
+ * 复用共享的 dsh 客户端 bundle 预设（shared/tsdown.client.ts，源出 共享预设 /
  * DeepSeek Harness 官方 client 构建）：node 半区产出 lib/，浏览器半区产出
  * lib/client.js（供 GUI 的 __ModuleLoader__ 加载的闭包工厂产物，CSS Modules
  * 内联为自动注入的 <style data-plugin>）。
