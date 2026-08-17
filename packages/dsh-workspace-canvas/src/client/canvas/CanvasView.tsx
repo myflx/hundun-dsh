@@ -4,7 +4,7 @@ import type { ClientContext } from '@deepseek-ai/dsh-client-runtime/client'
 import type { IWorkspaces, WorkspaceListState } from '@deepseek-ai/dsh-client-runtime/client'
 import type { WorkspaceId, WorkspaceView } from '@deepseek-ai/dsh-client-connection/client'
 // 系统组件/图标（primitives 在客户端平台表；操作栏用系统 Button toolbar 变体，颜色交互系统保证）
-import { Button, IconRefreshOutline16 } from '@deepseek-ai/dsh-client-ui-primitives'
+import { Button, IconRefreshOutline16, IconPersonalizationOutline16, IconCheckOutline16 } from '@deepseek-ai/dsh-client-ui-primitives'
 import type { CanvasDocumentStore, CanvasNode } from './document.ts'
 import type { CanvasRegistryImpl } from './registry.ts'
 import { ContextMenu, MENU_ITEM_ICONS, type MenuItem } from './menu.ts'
@@ -16,6 +16,8 @@ import { openWorkspaceSession } from './workspace-open.ts'
 import { commitWorkspacePosition, readWorkspacePositions } from './workspace-position.ts'
 import { defaultView, panBy, resetView, scenePoint, wheelZoomFactor, zoomAt, type ViewTransform } from './view-transform.ts'
 import { canvasText } from './text.ts'
+import { CANVAS_BACKGROUND_STYLES, DEFAULT_BACKGROUND_ID, getCanvasBackgroundStyle } from './background-styles.ts'
+import { getCanvasBackgroundId, setCanvasBackgroundId, subscribeCanvasBackgroundId } from '../background-store.ts'
 
 /** 画布 props：官方 workspaces feed + 文档存储（布局持久化）+ 关闭回调。
  *  ctx/registry 可选（分区渲染编排节点需要；缺省时只渲染工作区卡片，便于隔离测试）。 */
@@ -98,21 +100,8 @@ const CANVAS_STYLE: CSSProperties = {
   cursor: 'grab',
 } as const
 
-/** 网格层（无限画布底）：铺满区域，网格尺寸固定，不随缩放变化；
- *  平移时以 background-position 取模跟随（周期 = 格距），永不露白，制造无限大观感。 */
-const GRID_STYLE: CSSProperties = {
-  position: 'absolute',
-  inset: 0,
-  backgroundImage: [
-    'linear-gradient(var(--dsw-alias-border-l2) 1px, transparent 1px)',
-    'linear-gradient(90deg, var(--dsw-alias-border-l2) 1px, transparent 1px)',
-  ].join(', '),
-  backgroundSize: `${GRID}px ${GRID}px`,
-  zIndex: 0,
-} as const
-
-/** 节点层：全部卡片/成员，经 view 变换（translate + scale，原点 0 0）。
- *  缩放只作用于本层——网格底保持不变，仅节点随 zoom 放大/缩小。 */
+/** 背景层样式由 background-styles 注册表提供（网格/点阵/纯色/渐变/暗色网格/蓝图）；
+ *  图案类平移取模跟随（周期 = GRID），铺满类固定。节点层独立于背景层。 */
 const NODE_LAYER_STYLE: CSSProperties = {
   position: 'absolute',
   inset: 0,
@@ -149,6 +138,33 @@ function toolButton(label: string): CSSProperties {
     lineHeight: 1,
   }
 }
+
+/** 背景风格切换面板（操作栏上方弹出）。 */
+const BACKGROUND_PANEL_STYLE: CSSProperties = {
+  position: 'absolute',
+  bottom: 'calc(100% + 8px)',
+  right: 0,
+  width: 220,
+  padding: 6,
+  background: 'var(--dsw-alias-bg-layer-1)',
+  border: '1px solid var(--dsw-alias-border-l2)',
+  borderRadius: 8,
+  boxShadow: '0 4px 16px rgba(0, 0, 0, 0.16)',
+  zIndex: 75,
+} as const
+
+const BACKGROUND_OPTION_STYLE: CSSProperties = {
+  display: 'flex',
+  alignItems: 'center',
+  gap: 6,
+  width: '100%',
+  padding: '6px 8px',
+  border: 'none',
+  background: 'transparent',
+  cursor: 'pointer',
+  borderRadius: 6,
+  textAlign: 'left',
+} as const
 
 /** ── 操作栏按钮颜色（系统 Button toolbar 结构/圆角/hover 背景系统保证；
  *   颜色覆盖为用户要求的默认灰 → hover 白；特异性高于 Button class 规则） ── */
@@ -424,6 +440,13 @@ export const CanvasView = memo(function CanvasView({ workspaces, store, onClose,
   // 初始布局来自文档（T016 恢复）；拖动时本地即时 + 落盘（T015）。
   const [positions, setPositions] = useState<Positions>(() => readWorkspacePositions(store))
   const [openError, setOpenError] = useState<string | undefined>()
+  // 背景风格（004）：订阅持久化 id，缺省回退默认「网格」；背景层与交互状态解耦。
+  const backgroundId = useSyncExternalStore(
+    subscribeCanvasBackgroundId,
+    () => getCanvasBackgroundId() ?? DEFAULT_BACKGROUND_ID,
+  )
+  const backgroundStyle = getCanvasBackgroundStyle(backgroundId)
+  const [backgroundPanelOpen, setBackgroundPanelOpen] = useState<boolean>(false)
 
   const items = state.items ?? []
   const ready = state.baselinesReady || items.length > 0
@@ -662,13 +685,20 @@ export const CanvasView = memo(function CanvasView({ workspaces, store, onClose,
               onContextMenu={(event) => event.preventDefault()}
               data-dsh-canvas-area=""
             >
-              {/* 无限网格底：固定格距，background-position 取模跟随平移（永不露白）；不随缩放变化 */}
+              {/* 背景层（按当前风格渲染）：图案类取模跟随平移（永不露白），铺满类固定；
+                  不随缩放变化；与节点层解耦，切换风格不重置交互状态 */}
               <div
                 style={{
-                  ...GRID_STYLE,
-                  backgroundPosition: `${view.x % GRID}px ${view.y % GRID}px`,
+                  position: 'absolute',
+                  inset: 0,
+                  zIndex: 0,
+                  backgroundColor: backgroundStyle.backgroundColor,
+                  backgroundImage: backgroundStyle.backgroundImage,
+                  backgroundSize: backgroundStyle.backgroundSize,
+                  backgroundRepeat: 'repeat',
+                  backgroundPosition: backgroundStyle.followPan ? `${view.x % GRID}px ${view.y % GRID}px` : '0 0',
                 }}
-                data-dsh-canvas-grid=""
+                data-dsh-canvas-bg={backgroundStyle.id}
               />
               {/* 节点层：缩放/平移只作用于本层 */}
               <div
@@ -707,13 +737,36 @@ export const CanvasView = memo(function CanvasView({ workspaces, store, onClose,
                 })}
               </div>
               {/* 底部操作栏（系统 Button toolbar 变体，结构/圆角/hover 背景系统保证）：
-                  缩小 → 重置 → 放大 → 刷新（纯图标按钮） */}
+                  缩小 → 重置 → 放大 → 刷新 → 背景风格（纯图标按钮） */}
               <style>{ACTION_BAR_HOVER_CSS}</style>
               <div style={ACTION_BAR_STYLE} data-dsh-action-bar="">
                 <Button variant="toolbar" size="sm" data-dsh-action-zoom-out onClick={() => zoomBy(0.9)} aria-label="缩小" title="缩小"><IconZoomOut /></Button>
                 <Button variant="toolbar" size="sm" data-dsh-action-reset onClick={resetViewTransform} aria-label="重置视图" title="重置视图"><IconLocateFixed /></Button>
                 <Button variant="toolbar" size="sm" data-dsh-action-zoom-in onClick={() => zoomBy(1.1)} aria-label="放大" title="放大"><IconZoomIn /></Button>
                 <Button variant="toolbar" size="sm" data-dsh-action-refresh onClick={handleRefresh} aria-label="刷新" title="刷新"><IconRefreshAction /></Button>
+                <Button variant="toolbar" size="sm" data-dsh-action-background onClick={() => setBackgroundPanelOpen((open) => !open)} aria-label="背景风格" title="背景风格" style={{ color: 'var(--dsw-alias-label-primary)' }}><IconPersonalizationOutline16 /></Button>
+                {backgroundPanelOpen && (
+                  <div style={BACKGROUND_PANEL_STYLE} data-dsh-background-panel="">
+                    {CANVAS_BACKGROUND_STYLES.map((style) => (
+                      <button
+                        key={style.id}
+                        type="button"
+                        data-dsh-background-option={style.id}
+                        onClick={() => { setCanvasBackgroundId(style.id); setBackgroundPanelOpen(false) }}
+                        style={{
+                          ...BACKGROUND_OPTION_STYLE,
+                          color: style.id === backgroundId ? 'var(--dsw-alias-state-business-primary)' : 'var(--dsw-alias-label-secondary)',
+                        }}
+                      >
+                        <span style={{ flex: 1, textAlign: 'left' }}>
+                          <span style={{ display: 'block', fontSize: 13, color: 'var(--dsw-alias-label-primary)' }}>{style.name}</span>
+                          <span style={{ display: 'block', fontSize: 11, color: 'var(--dsw-alias-label-tertiary)' }}>{style.description}</span>
+                        </span>
+                        {style.id === backgroundId ? <IconCheckOutline16 /> : null}
+                      </button>
+                    ))}
+                  </div>
+                )}
               </div>
               {/* 右侧详情框：渲染在画布区域内（顶部在顶部栏之下，不覆盖 header） */}
               {selectedId !== undefined && ctx !== undefined && (() => {

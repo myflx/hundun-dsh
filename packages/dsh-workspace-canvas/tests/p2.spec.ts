@@ -71,8 +71,9 @@ describe('P2 视图（T038-T041 集成）', () => {
     await act(async () => {
       root.render(createElement(CanvasView, { workspaces: feedWith([ws]), store, onClose: () => {} }))
     })
-    const grid = container.querySelector<HTMLElement>('[data-dsh-canvas-grid]')
+    const grid = container.querySelector<HTMLElement>('[data-dsh-canvas-bg]')
     expect(grid).not.toBeNull()
+    expect(grid!.getAttribute('data-dsh-canvas-bg')).toBe('grid')
     expect(grid!.style.backgroundSize).toBe('24px 24px')
     // 平移取模：40%24=16；-20%24=-20（负值等价 +4，周期 24 视觉连续）
     expect(grid!.style.backgroundPosition).toBe('16px -20px')

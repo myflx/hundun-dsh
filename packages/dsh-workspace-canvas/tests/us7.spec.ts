@@ -4,6 +4,7 @@ import { afterEach, describe, expect, it, vi } from 'vitest'
 import { CanvasRuntime } from '../src/client/runtime.ts'
 import { CanvasSettingsCard } from '../src/client/settings.ts'
 import { CANVAS_ENABLED_KEY, setCanvasEnabled } from '../src/client/enabled-store.ts'
+import { CANVAS_BACKGROUND_KEY } from '../src/client/background-store.ts'
 import { DOC_STORAGE_KEY } from '../src/client/canvas/document.ts'
 
 afterEach(() => {
@@ -38,6 +39,32 @@ describe('画布设置栏目（T032，本地持久化）', () => {
     })
     const input = container.querySelector<HTMLInputElement>('[data-dsh-canvas-enabled-switch]')
     expect(input!.checked).toBe(true)
+    await act(async () => root.unmount())
+  })
+
+  it('分组布局：启用组 + 画布背景风格组（6 个单选，切换持久化，004）', async () => {
+    const container = document.createElement('div')
+    document.body.appendChild(container)
+    const root = createRoot(container)
+    await act(async () => {
+      root.render(createElement(CanvasSettingsCard))
+    })
+    const groups = container.querySelectorAll('[data-dsh-settings-group]')
+    expect(groups.length).toBe(2)
+    expect(groups[0].getAttribute('data-dsh-settings-group')).toBe('enabled')
+    expect(groups[1].getAttribute('data-dsh-settings-group')).toBe('background')
+    // 6 个背景风格选项，默认网格选中
+    const options = container.querySelectorAll('[data-dsh-background-setting]')
+    expect(options.length).toBe(6)
+    const grid = container.querySelector<HTMLInputElement>('[data-dsh-background-setting="grid"] input')
+    expect(grid!.checked).toBe(true)
+    // 切换点阵 → 持久化
+    await act(async () => {
+      container.querySelector<HTMLInputElement>('[data-dsh-background-setting="dots"] input')!.click()
+    })
+    expect(localStorage.getItem(CANVAS_BACKGROUND_KEY)).toBe('dots')
+    expect(container.querySelector<HTMLInputElement>('[data-dsh-background-setting="dots"] input')!.checked).toBe(true)
+    expect(container.querySelector<HTMLInputElement>('[data-dsh-background-setting="grid"] input')!.checked).toBe(false)
     await act(async () => root.unmount())
   })
 })

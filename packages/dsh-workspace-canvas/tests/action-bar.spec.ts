@@ -46,8 +46,8 @@ function viewTransformOf(container: HTMLElement): string {
   return vp?.style.transform ?? ''
 }
 
-describe('画布操作栏（对齐 hundun-web：缩小/重置/放大/刷新，纯图标按钮）', () => {
-  it('渲染底部操作栏四图标按钮，顺序 缩小→重置→放大→刷新；无文字；右上角无独立缩放工具', async () => {
+describe('画布操作栏（对齐 hundun-web：缩小/重置/放大/刷新/背景风格，纯图标按钮）', () => {
+  it('渲染底部操作栏五图标按钮，顺序 缩小→重置→放大→刷新→背景；无文字；右上角无独立缩放工具', async () => {
     const { container, root } = await renderView(feedWith([ws('w1', 'A')]), new CanvasDocumentStore(localStorage))
     const bar = container.querySelector<HTMLElement>('[data-dsh-action-bar]')
     expect(bar).not.toBeNull()
@@ -56,8 +56,9 @@ describe('画布操作栏（对齐 hundun-web：缩小/重置/放大/刷新，�
       b.getAttribute('data-dsh-action-zoom-out') !== null ? 'zoom-out'
         : b.getAttribute('data-dsh-action-reset') !== null ? 'reset'
           : b.getAttribute('data-dsh-action-zoom-in') !== null ? 'zoom-in'
-            : b.getAttribute('data-dsh-action-refresh') !== null ? 'refresh' : '?')
-    expect(buttons).toEqual(['zoom-out', 'reset', 'zoom-in', 'refresh'])
+            : b.getAttribute('data-dsh-action-refresh') !== null ? 'refresh'
+              : b.getAttribute('data-dsh-action-background') !== null ? 'background' : '?')
+    expect(buttons).toEqual(['zoom-out', 'reset', 'zoom-in', 'refresh', 'background'])
     // 纯图标：每个按钮含 svg 且无文字
     for (const btn of bar!.querySelectorAll('button')) {
       expect(btn.querySelector('svg')).not.toBeNull()
@@ -181,5 +182,44 @@ describe('画布空白交互（手型光标 + 取消选中）与归档计数', (
     expect(container.querySelector('[data-dsh-canvas-detail]')).toBeNull()
     await act(async () => root.unmount())
     vi.useRealTimers()
+  })
+})
+
+describe('画布背景风格（004）', () => {
+  it('默认背景为网格（data-dsh-canvas-bg=grid），随平移取模跟随', async () => {
+    const { container, root } = await renderView(feedWith([ws('w1', 'A')]), new CanvasDocumentStore(localStorage))
+    const bg = container.querySelector<HTMLElement>('[data-dsh-canvas-bg]')
+    expect(bg).not.toBeNull()
+    expect(bg!.getAttribute('data-dsh-canvas-bg')).toBe('grid')
+    expect(bg!.style.backgroundPosition).toContain('0px 0px')
+    await act(async () => root.unmount())
+  })
+
+  it('操作栏切换背景：面板列出 6 种 → 选点阵 → 持久化 + 背景层变化', async () => {
+    const { container, root } = await renderView(feedWith([ws('w1', 'A')]), new CanvasDocumentStore(localStorage))
+    // 打开面板
+    await act(async () => {
+      container.querySelector<HTMLButtonElement>('[data-dsh-action-background]')!.click()
+    })
+    const options = container.querySelectorAll('[data-dsh-background-option]')
+    expect(options.length).toBe(6)
+    // 选择点阵
+    await act(async () => {
+      container.querySelector<HTMLButtonElement>('[data-dsh-background-option="dots"]')!.click()
+    })
+    expect(localStorage.getItem('dsh.workspaceCanvas.background')).toBe('dots')
+    const bg = container.querySelector<HTMLElement>('[data-dsh-canvas-bg]')
+    expect(bg!.getAttribute('data-dsh-canvas-bg')).toBe('dots')
+    // 面板已关闭
+    expect(container.querySelector('[data-dsh-background-panel]')).toBeNull()
+    await act(async () => root.unmount())
+  })
+
+  it('损坏的持久化值回退默认网格，不崩', async () => {
+    localStorage.setItem('dsh.workspaceCanvas.background', 'bogus-style')
+    const { container, root } = await renderView(feedWith([ws('w1', 'A')]), new CanvasDocumentStore(localStorage))
+    const bg = container.querySelector<HTMLElement>('[data-dsh-canvas-bg]')
+    expect(bg!.getAttribute('data-dsh-canvas-bg')).toBe('grid')
+    await act(async () => root.unmount())
   })
 })
