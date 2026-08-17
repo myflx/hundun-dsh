@@ -5,7 +5,7 @@
 /** 简体中文词典（键集的事实来源）。 */
 export const zh = {
   'canvas.title': '工作区画布',
-  'canvas.subtitle': '点击卡片进入对应工作区的新会话',
+  'canvas.subtitle': '双击卡片进入对应工作区的新会话',
   'canvas.empty': '还没有工作区。先在侧边栏添加一个工作区，画布会自动渲染。',
   'canvas.loading': '正在加载工作区…',
   'canvas.sessions': '{n} 个会话',
