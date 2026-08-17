@@ -7,7 +7,7 @@
  */
 import type { ClientContext } from '@deepseek-ai/dsh-client-runtime/client'
 import type { AutoArchiveConfig } from './archive-store.ts'
-import { resolveArchiveConfig, getGlobalArchiveConfig, getWorkspaceArchiveSetting } from './archive-store.ts'
+import { resolveArchiveConfig, getGlobalArchiveConfig, getWorkspaceArchiveSetting, markArchivedOptimistic } from './archive-store.ts'
 
 /** 会话运行状态与时间查询面（sessions 服务可能缺省——安全降级为无运行中/无时间）。 */
 interface SessionLookup {
@@ -115,6 +115,8 @@ export async function runAutoArchive(
       try {
         await (ctx.workspaces as { archiveSession?: (id: unknown) => Promise<unknown> }).archiveSession?.(sessionId)
         archived += 1
+        // 乐观标记：页面立即反映归档（会话同步消失），不等官方 feed 推送（bugfix）
+        markArchivedOptimistic(sessionId)
       } catch (err) {
         onNotify?.(err instanceof Error ? `自动归档会话失败：${err.message}` : '自动归档会话失败')
         break // 该工作区后续会话失败已提示，不再重复刷屏

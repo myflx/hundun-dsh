@@ -19,6 +19,10 @@ import { canvasText } from './text.ts'
 import { CANVAS_BACKGROUND_STYLES, DEFAULT_BACKGROUND_ID, getCanvasBackgroundStyle } from './background-styles.ts'
 import { getCanvasBackgroundId, setCanvasBackgroundId, subscribeCanvasBackgroundId } from '../background-store.ts'
 import { runAutoArchive } from '../archive-runner.ts'
+import {
+  getOptimisticArchived,
+  subscribeOptimisticArchived,
+} from '../archive-store.ts'
 
 /** 画布 props：官方 workspaces feed + 文档存储（布局持久化）+ 关闭回调。
  *  ctx/registry 可选（分区渲染编排节点需要；缺省时只渲染工作区卡片，便于隔离测试）。 */
@@ -464,8 +468,13 @@ export const CanvasView = memo(function CanvasView({ workspaces, store, onClose,
     }
     return out
   }, [items])
-  // 全局已归档会话集合（dsh 语义：归档保留在 sessionIds 账目，分组界面隐藏）
-  const archivedSessionIds = useMemo(() => new Set((state.archivedSessionIds ?? []).map(String)), [state.archivedSessionIds])
+  // 全局已归档会话集合（dsh 语义：归档保留在 sessionIds 账目，分组界面隐藏）。
+  // 合并 feed archived + 本地乐观已归档集（005：归档后同步消失，不等 feed 推送）。
+  const optimisticArchived = useSyncExternalStore(subscribeOptimisticArchived, getOptimisticArchived)
+  const archivedSessionIds = useMemo(
+    () => new Set([...(state.archivedSessionIds ?? []).map(String), ...optimisticArchived]),
+    [state.archivedSessionIds, optimisticArchived],
+  )
   const orchestrationNodes = doc.nodes.filter((n) => n.kind !== 'workspace')
 
   const commitPosition = (id: WorkspaceId, position: { x: number; y: number }): void => {

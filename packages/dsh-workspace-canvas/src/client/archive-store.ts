@@ -11,6 +11,46 @@ export const ARCHIVE_CONFIG_KEY = 'dsh.workspaceCanvas.archive'
 export const ARCHIVE_WORKSPACES_KEY = 'dsh.workspaceCanvas.archive.workspaces'
 /** 同页广播事件。 */
 export const CANVAS_ARCHIVE_EVENT = 'hundun-canvas-archive'
+/** 乐观归档标记广播事件。 */
+export const CANVAS_ARCHIVE_OPTIMISTIC_EVENT = 'hundun-canvas-archive-optimistic'
+
+/**
+ * 乐观已归档会话集（内存）。归档成功后立即标记，画布据此同步消失，不必等官方 feed
+ * 推送（推送到达后与乐观集合并幂等）。页面刷新后由 feed 权威覆盖。
+ * 不可变更新：mark/clear 时替换整个 Set 引用（useSyncExternalStore 依赖引用变化重渲染，
+ * 原地 add 不触发）。
+ */
+let optimisticArchived: ReadonlySet<string> = new Set()
+
+/** 归档成功后乐观标记（页面立即反映，不等 feed 推送）。 */
+export function markArchivedOptimistic(sessionId: string): void {
+  const next = new Set(optimisticArchived)
+  next.add(sessionId)
+  optimisticArchived = next
+  if (typeof window !== 'undefined') {
+    window.dispatchEvent(new CustomEvent(CANVAS_ARCHIVE_OPTIMISTIC_EVENT))
+  }
+}
+
+/** 读乐观已归档集（只读引用，稳定直到下次变更）。 */
+export function getOptimisticArchived(): ReadonlySet<string> {
+  return optimisticArchived
+}
+
+/** 订阅乐观归档变化。@returns disposer。 */
+export function subscribeOptimisticArchived(fn: () => void): () => void {
+  if (typeof window === 'undefined') return () => {}
+  window.addEventListener(CANVAS_ARCHIVE_OPTIMISTIC_EVENT, fn)
+  return () => window.removeEventListener(CANVAS_ARCHIVE_OPTIMISTIC_EVENT, fn)
+}
+
+/** 清空乐观已归档集（模块级内存，供测试隔离与恢复用）。 */
+export function clearOptimisticArchived(): void {
+  optimisticArchived = new Set()
+  if (typeof window !== 'undefined') {
+    window.dispatchEvent(new CustomEvent(CANVAS_ARCHIVE_OPTIMISTIC_EVENT))
+  }
+}
 
 /** 归档配置：启用 + 双条件阈值（闲置天数 / 未归档会话数上限）。 */
 export interface AutoArchiveConfig {

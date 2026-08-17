@@ -4,15 +4,20 @@
 import { afterEach, describe, expect, it } from 'vitest'
 import {
   ARCHIVE_DEFAULT,
+  clearOptimisticArchived,
   getGlobalArchiveConfig,
+  getOptimisticArchived,
   getWorkspaceArchiveSetting,
+  markArchivedOptimistic,
   resolveArchiveConfig,
   setGlobalArchiveConfig,
   setWorkspaceArchiveSetting,
+  subscribeOptimisticArchived,
 } from '../src/client/archive-store.ts'
 
 afterEach(() => {
   localStorage.clear()
+  clearOptimisticArchived()
 })
 
 describe('归档配置持久化（005）', () => {
@@ -57,5 +62,22 @@ describe('归档配置持久化（005）', () => {
       .toEqual({ enabled: false, idleDays: 30, maxSessions: 0 })
     // 自定义损坏（非 custom）→ 全局
     expect(resolveArchiveConfig(global, { mode: 'bogus' } as never)).toEqual(global)
+  })
+
+  it('乐观归档标记：mark → 集合包含 + 订阅通知；clear 清空', () => {
+    const calls: string[] = []
+    const unsub = subscribeOptimisticArchived(() => calls.push('changed'))
+    markArchivedOptimistic('ss_1')
+    markArchivedOptimistic('ss_2')
+    expect([...getOptimisticArchived()]).toEqual(['ss_1', 'ss_2'])
+    expect(calls.length).toBe(2)
+    // 重复标记幂等
+    markArchivedOptimistic('ss_1')
+    expect(calls.length).toBe(3)
+    expect(getOptimisticArchived().size).toBe(2)
+    clearOptimisticArchived()
+    expect(getOptimisticArchived().size).toBe(0)
+    expect(calls.length).toBe(4)
+    unsub()
   })
 })

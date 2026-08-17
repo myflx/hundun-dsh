@@ -3,6 +3,7 @@ import { createRoot } from 'react-dom/client'
 import { afterEach, beforeAll, describe, expect, it, vi } from 'vitest'
 import { CanvasDocumentStore } from '../src/client/canvas/document.ts'
 import { CanvasView } from '../src/client/canvas/CanvasView.tsx'
+import { clearOptimisticArchived, markArchivedOptimistic } from '../src/client/archive-store.ts'
 
 // jsdom 环境缺 PointerEvent：polyfill 最小实现（React pointer 处理器需要）。
 beforeAll(() => {
@@ -27,6 +28,7 @@ const ws = (id: string, title: string, sessionIds: string[] = []) => ({ workspac
 afterEach(() => {
   document.body.innerHTML = ''
   localStorage.clear()
+  clearOptimisticArchived()
   vi.useRealTimers()
 })
 
@@ -232,6 +234,25 @@ describe('画布背景风格（004）', () => {
     expect(cards.length).toBe(2) // w1 去重后仅一张，加 w2 共两张
     const w1Count = [...cards].filter((c) => c.getAttribute('data-dsh-canvas-card') === 'w1').length
     expect(w1Count).toBe(1)
+    await act(async () => root.unmount())
+  })
+
+  it('归档后会话同步消失（乐观标记合并，不等第二次刷新，005 bugfix）', async () => {
+    // 工作区 w1 有 3 个会话，feed 未标归档
+    const store = new CanvasDocumentStore(localStorage)
+    const { container, root } = await renderView(
+      feedWith([ws('w1', 'A', ['s1', 's2', 's3'])], []),
+      store,
+    )
+    const card = container.querySelector<HTMLElement>('[data-dsh-canvas-card="w1"]')
+    expect(card?.textContent).toContain('3 个会话')
+    // 自动归档标记 s2、s3 为已归档（feed 未推送）→ 页面应同步反映
+    await act(async () => {
+      markArchivedOptimistic('s2')
+      markArchivedOptimistic('s3')
+    })
+    expect(card?.textContent).toContain('1 个会话')
+    expect(card?.textContent).toContain('2 归档')
     await act(async () => root.unmount())
   })
 })
