@@ -42,7 +42,7 @@ describe('画布设置栏目（T032，本地持久化）', () => {
     await act(async () => root.unmount())
   })
 
-  it('分组布局：启用组 + 画布背景风格组（6 个单选，切换持久化，004）', async () => {
+  it('分组布局：启用组 + 画布背景风格组（5 个单选，切换持久化，004）', async () => {
     const container = document.createElement('div')
     document.body.appendChild(container)
     const root = createRoot(container)
@@ -53,9 +53,9 @@ describe('画布设置栏目（T032，本地持久化）', () => {
     expect(groups.length).toBe(2)
     expect(groups[0].getAttribute('data-dsh-settings-group')).toBe('enabled')
     expect(groups[1].getAttribute('data-dsh-settings-group')).toBe('background')
-    // 6 个背景风格选项，默认网格选中
+    // 5 个背景风格选项，默认网格选中
     const options = container.querySelectorAll('[data-dsh-background-setting]')
-    expect(options.length).toBe(6)
+    expect(options.length).toBe(5)
     const grid = container.querySelector<HTMLInputElement>('[data-dsh-background-setting="grid"] input')
     expect(grid!.checked).toBe(true)
     // 切换点阵 → 持久化

@@ -195,14 +195,14 @@ describe('画布背景风格（004）', () => {
     await act(async () => root.unmount())
   })
 
-  it('操作栏切换背景：面板列出 6 种 → 选点阵 → 持久化 + 背景层变化', async () => {
+  it('操作栏切换背景：面板列出 5 种 → 选点阵 → 持久化 + 背景层变化', async () => {
     const { container, root } = await renderView(feedWith([ws('w1', 'A')]), new CanvasDocumentStore(localStorage))
     // 打开面板
     await act(async () => {
       container.querySelector<HTMLButtonElement>('[data-dsh-action-background]')!.click()
     })
     const options = container.querySelectorAll('[data-dsh-background-option]')
-    expect(options.length).toBe(6)
+    expect(options.length).toBe(5)
     // 选择点阵
     await act(async () => {
       container.querySelector<HTMLButtonElement>('[data-dsh-background-option="dots"]')!.click()

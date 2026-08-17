@@ -76,18 +76,6 @@ export const CANVAS_BACKGROUND_STYLES: readonly CanvasBackgroundStyle[] = [
     backgroundColor: 'transparent',
     followPan: true,
   },
-  {
-    id: 'blueprint',
-    name: '蓝图',
-    description: '蓝底白线工程网格',
-    backgroundImage: [
-      'linear-gradient(rgba(255, 255, 255, 0.35) 1px, transparent 1px)',
-      'linear-gradient(90deg, rgba(255, 255, 255, 0.35) 1px, transparent 1px)',
-    ].join(', '),
-    backgroundSize: '24px 24px',
-    backgroundColor: '#0b3d91',
-    followPan: true,
-  },
 ]
 
 /** 按 id 解析背景风格；未知/损坏值回退默认「网格」（不崩）。 */
