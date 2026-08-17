@@ -18,6 +18,7 @@ import { defaultView, panBy, resetView, scenePoint, wheelZoomFactor, zoomAt, typ
 import { canvasText } from './text.ts'
 import { CANVAS_BACKGROUND_STYLES, DEFAULT_BACKGROUND_ID, getCanvasBackgroundStyle } from './background-styles.ts'
 import { getCanvasBackgroundId, setCanvasBackgroundId, subscribeCanvasBackgroundId } from '../background-store.ts'
+import { runAutoArchive } from '../archive-runner.ts'
 
 /** 画布 props：官方 workspaces feed + 文档存储（布局持久化）+ 关闭回调。
  *  ctx/registry 可选（分区渲染编排节点需要；缺省时只渲染工作区卡片，便于隔离测试）。 */
@@ -607,6 +608,12 @@ export const CanvasView = memo(function CanvasView({ workspaces, store, onClose,
   const handleRefresh = (): void => {
     const workspaces = ctx?.workspaces as { refresh?: () => Promise<void> } | undefined
     void workspaces?.refresh?.()
+    // 005 自动归档：画布刷新时执行一次归档判断（页面加载那次由 runtime 负责）
+    if (ctx !== undefined) {
+      void runAutoArchive(ctx, items, archivedSessionIds).catch((err) => {
+        console.error('[workspace-canvas] 自动归档执行失败：', err)
+      })
+    }
   }
 
   const openMenu = (

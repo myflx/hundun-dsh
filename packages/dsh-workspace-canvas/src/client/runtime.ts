@@ -12,6 +12,7 @@ import { MountSupervisor } from './canvas/mount-supervisor.ts'
 import { installCanvasRegistry } from './canvas/registry.ts'
 import { syncWorkspaceNodes } from './canvas/workspace-nodes.ts'
 import { mountSearchButton } from './search-button.tsx'
+import { runAutoArchive } from './archive-runner.ts'
 
 /** 画布全部客户端效果的容器：mount 一次性装配，unmount 按逆序回收。 */
 export class CanvasRuntime {
@@ -51,7 +52,35 @@ export class CanvasRuntime {
       for (const id of removed) {
         console.warn(`[workspace-canvas] 工作区已消失，其画布节点与成员已清理：${id}`)
       }
+      // 005 自动归档：页面加载（画布未打开也要执行）时，feed 首次就绪后执行一次归档判断；
+      // 后续 feed 更新（会话状态变化等）不触发——只有画布刷新按钮会再次触发。
+      // 不影响页面加载速度：延迟到浏览器空闲（requestIdleCallback，兜底 setTimeout）再执行，
+      // 且 fire-and-forget（不阻塞同步加载、不抢占加载期网络）。
+      if (!archiveFired) {
+        archiveFired = true
+        const archivedIds = new Set((state.archivedSessionIds ?? []).map(String))
+        const runArchive = (): void => {
+          void runAutoArchive(ctx, items, archivedIds).catch((err) => {
+            console.error('[workspace-canvas] 自动归档执行失败：', err)
+          })
+        }
+        if (typeof requestIdleCallback === 'function') {
+          idleHandle = requestIdleCallback(runArchive, { timeout: 5000 })
+        } else {
+          idleHandle = window.setTimeout(runArchive, 3000)
+        }
+      }
     }
+    let archiveFired = false
+    let idleHandle: number | undefined
+    push(() => {
+      archiveFired = true
+      if (idleHandle !== undefined) {
+        if (typeof cancelIdleCallback === 'function') cancelIdleCallback(idleHandle)
+        else clearTimeout(idleHandle)
+        idleHandle = undefined
+      }
+    })
     push(ctx.workspaces.list.subscribe(syncWorkspaces))
     syncWorkspaces()
 

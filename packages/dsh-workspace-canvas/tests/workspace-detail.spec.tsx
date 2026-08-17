@@ -51,7 +51,7 @@ describe('WorkspaceDetail（工作区详情框重设计）', () => {
   let rendered: ReturnType<typeof renderDetail> | undefined
 
   beforeEach(() => { rendered = undefined })
-  afterEach(() => { rendered?.cleanup() })
+  afterEach(() => { rendered?.cleanup(); localStorage.clear() })
 
   it('无自定义标题时显示路径文件夹名，不裸显示随机码（FR-003 补充）', () => {
     rendered = renderDetail({ title: '', path: '/home/user/my-proj', workspaceId: 'ws_secret123' })
@@ -73,17 +73,18 @@ describe('WorkspaceDetail（工作区详情框重设计）', () => {
     expect(titleEl?.textContent ?? '').not.toContain('ws_fallback')
   })
 
-  it('按身份/基本信息/会话三区分区渲染：身份区顶行、信息卡片、会话卡片（FR-001）', () => {
+  it('按身份/基本信息/会话/自动归档四区分区渲染（FR-001）', () => {
     rendered = renderDetail({})
     const sections = rendered.container.querySelectorAll('[data-dsh-ws-section]')
-    expect(sections.length).toBe(3)
+    expect(sections.length).toBe(4)
     const names = [...sections].map((s) => s.getAttribute('data-dsh-ws-section'))
-    expect(names).toEqual(['identity', 'info', 'sessions'])
-    // 身份区无分区标题；信息/会话卡片有标题
+    expect(names).toEqual(['identity', 'info', 'sessions', 'archive'])
+    // 身份区无分区标题；信息/会话/归档卡片有标题
     const identity = rendered.container.querySelector('[data-dsh-ws-section="identity"]')
     expect(identity?.querySelector('h4')).toBeNull()
     expect(rendered.container.querySelector('[data-dsh-ws-section="info"] h4')?.textContent).toBe('基本信息')
     expect(rendered.container.querySelector('[data-dsh-ws-section="sessions"] h4')?.textContent).toBe('会话')
+    expect(rendered.container.querySelector('[data-dsh-ws-section="archive"] h4')?.textContent).toBe('自动归档')
     // 工作区名称字号加大（18px，身份区 strong）
     const titleEl = rendered.container.querySelector('[data-dsh-ws-section="identity"] strong')
     expect(titleEl?.textContent).toBe('我的工作区')
@@ -161,5 +162,34 @@ describe('WorkspaceDetail（工作区详情框重设计）', () => {
     expect(() => {
       act(() => { copyBtn?.click() })
     }).not.toThrow()
+  })
+
+  it('自动归档区：默认跟随默认；切自定义即改即存（005）', () => {
+    rendered = renderDetail({ workspaceId: 'ws_arch' })
+    const section = rendered.container.querySelector('[data-dsh-ws-section="archive"]')
+    expect(section).not.toBeNull()
+    // 默认跟随默认（无自定义字段）
+    expect(rendered.container.querySelector('[data-dsh-ws-archive-custom]')).toBeNull()
+    // 切自定义（第二个 radio）→ 出现字段并持久化
+    const radios = rendered.container.querySelectorAll<HTMLInputElement>('[name="archive-mode-ws_arch"]')
+    expect(radios.length).toBe(2)
+    act(() => { radios[1]!.click() })
+    expect(rendered.container.querySelector('[data-dsh-ws-archive-custom]')).not.toBeNull()
+    expect(localStorage.getItem('dsh.workspaceCanvas.archive.workspaces')).toContain('"mode":"custom"')
+    // 启用开关即改即存
+    act(() => {
+      rendered!.container.querySelector<HTMLInputElement>('[data-dsh-ws-archive-enabled]')!.click()
+    })
+    expect(localStorage.getItem('dsh.workspaceCanvas.archive.workspaces')).toContain('"enabled":true')
+  })
+
+  it('自动归档区：切回跟随默认清除自定义（005）', () => {
+    rendered = renderDetail({ workspaceId: 'ws_arch2' })
+    const radios = rendered.container.querySelectorAll<HTMLInputElement>('[name="archive-mode-ws_arch2"]')
+    act(() => { radios[1]!.click() }) // 自定义
+    expect(localStorage.getItem('dsh.workspaceCanvas.archive.workspaces')).toContain('"mode":"custom"')
+    act(() => { radios[0]!.click() }) // 跟随默认
+    expect(localStorage.getItem('dsh.workspaceCanvas.archive.workspaces')).toBeNull()
+    expect(rendered.container.querySelector('[data-dsh-ws-archive-custom]')).toBeNull()
   })
 })

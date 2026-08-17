@@ -5,6 +5,7 @@ import { CanvasRuntime } from '../src/client/runtime.ts'
 import { CanvasSettingsCard } from '../src/client/settings.ts'
 import { CANVAS_ENABLED_KEY, setCanvasEnabled } from '../src/client/enabled-store.ts'
 import { CANVAS_BACKGROUND_KEY } from '../src/client/background-store.ts'
+import { ARCHIVE_CONFIG_KEY as CANVAS_ARCHIVE_KEY } from '../src/client/archive-store.ts'
 import { DOC_STORAGE_KEY } from '../src/client/canvas/document.ts'
 
 afterEach(() => {
@@ -42,7 +43,7 @@ describe('画布设置栏目（T032，本地持久化）', () => {
     await act(async () => root.unmount())
   })
 
-  it('分组布局：启用组 + 画布背景风格组（5 个单选，切换持久化，004）', async () => {
+  it('分组布局：启用组 + 背景风格组 + 自动归档组（005）', async () => {
     const container = document.createElement('div')
     document.body.appendChild(container)
     const root = createRoot(container)
@@ -50,10 +51,16 @@ describe('画布设置栏目（T032，本地持久化）', () => {
       root.render(createElement(CanvasSettingsCard))
     })
     const groups = container.querySelectorAll('[data-dsh-settings-group]')
-    expect(groups.length).toBe(2)
+    expect(groups.length).toBe(3)
     expect(groups[0].getAttribute('data-dsh-settings-group')).toBe('enabled')
     expect(groups[1].getAttribute('data-dsh-settings-group')).toBe('background')
-    // 5 个背景风格选项，默认网格选中
+    expect(groups[2].getAttribute('data-dsh-settings-group')).toBe('archive')
+    // 归档默认：关闭 / 30 天 / 不限；即改即存
+    const archiveEnabled = container.querySelector<HTMLInputElement>('[data-dsh-archive-enabled]')
+    expect(archiveEnabled!.checked).toBe(false)
+    await act(async () => { archiveEnabled!.click() })
+    expect(localStorage.getItem(CANVAS_ARCHIVE_KEY)).toContain('"enabled":true')
+    // 背景风格选项仍为 5 个（003）
     const options = container.querySelectorAll('[data-dsh-background-setting]')
     expect(options.length).toBe(5)
     const grid = container.querySelector<HTMLInputElement>('[data-dsh-background-setting="grid"] input')

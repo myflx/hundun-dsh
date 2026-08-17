@@ -15,6 +15,12 @@ import type {} from '@deepseek-ai/dsh-client-ui-slots'
 import { getCanvasEnabled, setCanvasEnabled, subscribeCanvasEnabled } from './enabled-store.ts'
 import { getCanvasBackgroundId, setCanvasBackgroundId, subscribeCanvasBackgroundId } from './background-store.ts'
 import { CANVAS_BACKGROUND_STYLES, DEFAULT_BACKGROUND_ID } from './canvas/background-styles.ts'
+import {
+  getGlobalArchiveConfig,
+  setGlobalArchiveConfig,
+  subscribeArchiveConfig,
+  type AutoArchiveConfig,
+} from './archive-store.ts'
 
 /** 子槽位声明（与 dsh-all 同形拼写，避免依赖兄弟包；插槽为 list/root）。 */
 declare module '@deepseek-ai/dsh-client-ui-slots' {
@@ -67,6 +73,15 @@ export function CanvasSettingsCard() {
   const pickStyle = (id: string): void => {
     setCanvasBackgroundId(id)
   }
+  // 归档全局默认（005）：即改即存
+  const [archive, setArchive] = useState<AutoArchiveConfig>(getGlobalArchiveConfig())
+  useEffect(
+    () => subscribeArchiveConfig(() => setArchive(getGlobalArchiveConfig())),
+    [],
+  )
+  const patchArchive = (patch: Partial<AutoArchiveConfig>): void => {
+    setGlobalArchiveConfig({ ...archive, ...patch })
+  }
   return createElement(
     'div',
     { 'data-dsh-canvas-settings-column': '', style: { padding: '8px 0' } },
@@ -107,6 +122,57 @@ export function CanvasSettingsCard() {
             createElement('span', { key: 'desc', style: STYLE_DESC }, style.description),
           ],
         )),
+      ]),
+      // 组三 · 自动归档（005：全局默认，即改即存）
+      createElement('div', { key: 'group-archive', 'data-dsh-settings-group': 'archive', style: GROUP }, [
+        createElement('h4', { key: 'title', style: GROUP_TITLE }, '自动归档'),
+        createElement(
+          'label',
+          { key: 'enabled', style: { display: 'flex', alignItems: 'center', gap: 8, cursor: 'pointer', fontSize: 14 } },
+          [
+            createElement('span', { key: 'text' }, '启用自动归档'),
+            createElement('input', {
+              key: 'switch',
+              type: 'checkbox',
+              'data-dsh-archive-enabled': '',
+              checked: archive.enabled,
+              onChange: () => patchArchive({ enabled: !archive.enabled }),
+            }),
+          ],
+        ),
+        createElement(
+          'label',
+          { key: 'idle', style: { display: 'flex', alignItems: 'center', gap: 8, marginTop: 6, fontSize: 13 } },
+          [
+            createElement('span', { key: 'text' }, '闲置天数'),
+            createElement('input', {
+              key: 'input',
+              type: 'number',
+              min: 1,
+              'data-dsh-archive-idle-days': '',
+              value: archive.idleDays,
+              onChange: (event) => patchArchive({ idleDays: Number(event.currentTarget.value) || 30 }),
+              style: { width: 70, padding: '2px 6px', fontSize: 13 },
+            }),
+          ],
+        ),
+        createElement(
+          'label',
+          { key: 'max', style: { display: 'flex', alignItems: 'center', gap: 8, marginTop: 6, fontSize: 13 } },
+          [
+            createElement('span', { key: 'text' }, '会话数上限'),
+            createElement('input', {
+              key: 'input',
+              type: 'number',
+              min: 0,
+              'data-dsh-archive-max-sessions': '',
+              value: archive.maxSessions,
+              onChange: (event) => patchArchive({ maxSessions: Math.max(0, Number(event.currentTarget.value) || 0) }),
+              style: { width: 70, padding: '2px 6px', fontSize: 13 },
+            }),
+            createElement('span', { key: 'hint', style: { fontSize: 11, color: 'var(--dsw-alias-label-tertiary)' } }, '0=不限'),
+          ],
+        ),
       ]),
     ],
   )

@@ -9,6 +9,12 @@
  */
 import { createElement, useEffect, useRef, useState } from 'react'
 import { folderName, workspaceDisplayTitle } from './workspace-title.ts'
+import {
+  getWorkspaceArchiveSetting,
+  setWorkspaceArchiveSetting,
+  subscribeArchiveConfig,
+  type WorkspaceArchiveSetting,
+} from '../../archive-store.ts'
 
 export interface WorkspaceDetailProps {
   /** feed 投影实例（标题/路径/会话数/工作区 ID 来自官方数据）。 */
@@ -149,6 +155,20 @@ export function WorkspaceDetail({ view, recent, sessionStats }: WorkspaceDetailP
   // 标题：自定义标题 → 路径文件夹名 → 「未命名工作区」（不裸显示随机码）
   const title = workspaceDisplayTitle(view.title, view.path)
 
+  // 归档配置（005）：即改即存；跟随默认/自定义切换
+  const [archiveSetting, setArchiveSetting] = useState<WorkspaceArchiveSetting | undefined>(
+    () => getWorkspaceArchiveSetting(view.workspaceId),
+  )
+  useEffect(
+    () => subscribeArchiveConfig(() => setArchiveSetting(getWorkspaceArchiveSetting(view.workspaceId))),
+    [view.workspaceId],
+  )
+  const archiveMode = archiveSetting?.mode ?? 'default'
+  const patchArchive = (patch: Partial<WorkspaceArchiveSetting>): void => {
+    const next: WorkspaceArchiveSetting = { ...archiveSetting, ...patch, mode: 'custom' }
+    setWorkspaceArchiveSetting(view.workspaceId, next)
+  }
+
   return createElement(
     'div',
     { 'data-dsh-workspace-detail': '' },
@@ -212,6 +232,93 @@ export function WorkspaceDetail({ view, recent, sessionStats }: WorkspaceDetailP
             ]),
           ],
         ),
+      ]),
+      // 区域四 · 自动归档（卡片，005）：跟随默认/自定义，即改即存
+      createElement('section', { key: 'archive-card', 'data-dsh-ws-section': 'archive', style: CARD }, [
+        createElement('h4', { key: 'label', style: SECTION_TITLE }, '自动归档'),
+        createElement(
+          'label',
+          { key: 'follow', style: { display: 'flex', alignItems: 'center', gap: 8, cursor: 'pointer', fontSize: 13 } },
+          [
+            createElement('input', {
+              key: 'radio',
+              type: 'radio',
+              name: `archive-mode-${view.workspaceId}`,
+              checked: archiveMode === 'default',
+              onChange: () => setWorkspaceArchiveSetting(view.workspaceId, { mode: 'default' }),
+            }),
+            createElement('span', { key: 'text' }, '跟随默认'),
+          ],
+        ),
+        createElement(
+          'label',
+          { key: 'custom', style: { display: 'flex', alignItems: 'center', gap: 8, cursor: 'pointer', fontSize: 13, marginTop: 4 } },
+          [
+            createElement('input', {
+              key: 'radio',
+              type: 'radio',
+              name: `archive-mode-${view.workspaceId}`,
+              checked: archiveMode === 'custom',
+              onChange: () => patchArchive({}),
+            }),
+            createElement('span', { key: 'text' }, '自定义'),
+          ],
+        ),
+        archiveMode === 'custom'
+          ? createElement(
+            'div',
+            { key: 'custom-fields', 'data-dsh-ws-archive-custom': '', style: { marginTop: 6 } },
+            [
+              createElement(
+                'label',
+                { key: 'enabled', style: { display: 'flex', alignItems: 'center', gap: 8, cursor: 'pointer', fontSize: 13 } },
+                [
+                  createElement('span', { key: 'text' }, '启用自动归档'),
+                  createElement('input', {
+                    key: 'switch',
+                    type: 'checkbox',
+                    'data-dsh-ws-archive-enabled': '',
+                    checked: archiveSetting?.enabled ?? false,
+                    onChange: () => patchArchive({ enabled: !(archiveSetting?.enabled ?? false) }),
+                  }),
+                ],
+              ),
+              createElement(
+                'label',
+                { key: 'idle', style: { display: 'flex', alignItems: 'center', gap: 8, marginTop: 6, fontSize: 13 } },
+                [
+                  createElement('span', { key: 'text' }, '闲置天数'),
+                  createElement('input', {
+                    key: 'input',
+                    type: 'number',
+                    min: 1,
+                    'data-dsh-ws-archive-idle-days': '',
+                    value: archiveSetting?.idleDays ?? 30,
+                    onChange: (event) => patchArchive({ idleDays: Number(event.currentTarget.value) || 30 }),
+                    style: { width: 64, padding: '2px 6px', fontSize: 13 },
+                  }),
+                ],
+              ),
+              createElement(
+                'label',
+                { key: 'max', style: { display: 'flex', alignItems: 'center', gap: 8, marginTop: 6, fontSize: 13 } },
+                [
+                  createElement('span', { key: 'text' }, '会话数上限'),
+                  createElement('input', {
+                    key: 'input',
+                    type: 'number',
+                    min: 0,
+                    'data-dsh-ws-archive-max-sessions': '',
+                    value: archiveSetting?.maxSessions ?? 0,
+                    onChange: (event) => patchArchive({ maxSessions: Math.max(0, Number(event.currentTarget.value) || 0) }),
+                    style: { width: 64, padding: '2px 6px', fontSize: 13 },
+                  }),
+                  createElement('span', { key: 'hint', style: { fontSize: 11, color: 'var(--dsw-alias-label-tertiary)' } }, '0=不限'),
+                ],
+              ),
+            ],
+          )
+          : null,
       ]),
     ],
   )
