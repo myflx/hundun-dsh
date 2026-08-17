@@ -68,7 +68,7 @@ export function installNavIconOverride(): () => void {
   display: inline-block;
   width: 16px;
   height: 16px;
-  margin-right: 8px;
+  flex: none;
   vertical-align: -3px;
   background-color: currentColor;
   -webkit-mask: url("${PACKAGE_ICON_MASK}") center / contain no-repeat;
