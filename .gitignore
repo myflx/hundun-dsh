@@ -18,3 +18,7 @@ dist/
 # 编辑器/IDE
 .idea/
 .vscode/
+
+# 本地工具状态（reasonix 任务缓存与本机权限配置，不入库）
+.reasonix/
+reasonix.toml
