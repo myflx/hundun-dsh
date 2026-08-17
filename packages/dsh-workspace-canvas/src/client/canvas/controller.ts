@@ -29,6 +29,24 @@ import { CanvasView } from './CanvasView.tsx'
 /** 画布视图容器（保持挂载，隐藏时不可见）。 */
 export const CANVAS_VIEW_SELECTOR = '[data-dsh-canvas-view]'
 
+/** 读持久化的画布打开状态（未设置/损坏 → false）。 */
+function readOpenState(): boolean {
+  try {
+    return localStorage.getItem(CanvasController.OPEN_KEY) === 'true'
+  } catch {
+    return false
+  }
+}
+
+/** 持久化画布打开状态（写失败忽略——仅影响刷新恢复）。 */
+function persistOpenState(open: boolean): void {
+  try {
+    localStorage.setItem(CanvasController.OPEN_KEY, String(open))
+  } catch {
+    // 忽略
+  }
+}
+
 const CONVERSATION_COLUMN_SELECTOR = '[data-slot="conversation"] > *, [data-pane="conversation"]'
 /** 本面板名（单标记协议：`data-dsh-panel-active` 的值）。 */
 const OWN_NAME = PANELS.workspaceCanvas
@@ -59,6 +77,9 @@ export interface CanvasControllerSnapshot {
 
 /** 画布状态所有者 + 中间区域挂载器。 */
 export class CanvasController {
+  /** 打开状态持久化键（刷新后画布及其打开内容自动恢复，bugfix）。 */
+  static readonly OPEN_KEY = 'dsh.workspaceCanvas.open'
+
   private opened = false
   private listeners = new Set<() => void>()
   private root: Root | undefined
@@ -92,18 +113,24 @@ export class CanvasController {
   }
 
   /**
-   * 启动：注册挂载自愈 + 互斥监听 + 侧边栏点击让位。插件 apply 时调用一次。
+   * 启动：注册挂载自愈 + 互斥监听 + 侧边栏点击让位 + 恢复上次打开状态。
+   * 插件 apply 时调用一次。
    * @param supervisor - 单一挂载监督器（画布挂载自愈注册到其上）。
    */
   start(supervisor: MountSupervisor): void {
     this.unregisterEnsure = supervisor.register(() => { this.ensure() })
     this.disposeOtherListener = onOtherActivate(OWN_NAME, () => { this.close() })
     document.addEventListener('click', this.onClickSidebarRow, true)
+    // 刷新恢复：上次画布打开则自动重新打开（持久化状态，bugfix「刷新不消失」）
+    if (readOpenState()) {
+      this.open()
+    }
   }
 
   open(): void {
     if (this.opened) return
     this.opened = true
+    persistOpenState(true)
     this.applyActive()
     this.ensure()
     this.notify()
@@ -115,6 +142,7 @@ export class CanvasController {
   close(): void {
     if (!this.opened) return
     this.opened = false
+    persistOpenState(false)
     this.applyActive()
     this.notify()
   }

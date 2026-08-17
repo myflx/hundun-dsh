@@ -22,6 +22,7 @@ function makeController(): { controller: CanvasController; supervisor: MountSupe
 afterEach(() => {
   document.documentElement.removeAttribute(ACTIVE_ATTR)
   document.body.innerHTML = ''
+  localStorage.clear()
 })
 
 describe('CanvasController 单标记互斥（T005）', () => {
@@ -75,6 +76,28 @@ describe('CanvasController 单标记互斥（T005）', () => {
     // 之后对方激活：不崩溃、无残留监听（标记由协议正常写入）。
     activate(PANELS.helloPanel)
     expect(document.documentElement.getAttribute(ACTIVE_ATTR)).toBe(PANELS.helloPanel)
+    supervisor.dispose()
+  })
+
+  it('open/close 持久化打开状态（刷新恢复，bugfix）', () => {
+    const { controller, supervisor } = makeController()
+    controller.open()
+    expect(localStorage.getItem('dsh.workspaceCanvas.open')).toBe('true')
+    controller.close()
+    expect(localStorage.getItem('dsh.workspaceCanvas.open')).toBe('false')
+    controller.dispose()
+    supervisor.dispose()
+  })
+
+  it('start 时上次打开 → 自动恢复打开（刷新不消失，bugfix）', () => {
+    localStorage.setItem('dsh.workspaceCanvas.open', 'true')
+    const supervisor = new MountSupervisor()
+    supervisor.start()
+    const controller = new CanvasController(makeCtx(), new CanvasDocumentStore(localStorage))
+    controller.start(supervisor)
+    expect(controller.getSnapshot().open).toBe(true)
+    expect(document.documentElement.getAttribute(ACTIVE_ATTR)).toBe(PANELS.workspaceCanvas)
+    controller.dispose()
     supervisor.dispose()
   })
 })
