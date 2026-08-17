@@ -19,7 +19,7 @@ describe('hundun-dsh 设置页骨架（T031）', () => {
     expect(props.name).toBe('settings.section')
     expect(props.id).toBe('hundun-dsh')
     expect(props.order).toBe(30)
-    expect(props.label).toBe('hundun-dsh')
+    expect(props.label).toBe('★ hundun-dsh')
     expect(props.children).toEqual({ 'hundun.settings.item': { kind: 'list', scope: 'root' } })
   })
 

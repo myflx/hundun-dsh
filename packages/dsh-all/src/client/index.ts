@@ -12,8 +12,6 @@ import type { ClientContext } from '@deepseek-ai/dsh-client-runtime/client'
 import type {} from '@deepseek-ai/dsh-client-ui-slots'
 import type { PropsRenderSlots } from '@deepseek-ai/dsh-client-ui-slots'
 import type {} from '@deepseek-ai/dsh-client-ui-settings/client'
-// 设置页标题图标（用户选定：星星 IconSparkle16）。
-import { IconSparkle16 } from '@deepseek-ai/dsh-client-ui-primitives'
 
 /** 设置页子槽位声明（画布等插件注册设置栏目的位置；list/root）。 */
 declare module '@deepseek-ai/dsh-client-ui-slots' {
@@ -35,14 +33,7 @@ export function HundunSettingsPage(props: HundunSettingsPageProps): ReactNode {
     'div',
     { 'data-dsh-hundun-settings-page': '', style: { padding: '16px 20px' } },
     [
-      createElement(
-        'h3',
-        { key: 'title', style: { display: 'flex', alignItems: 'center', gap: 8, margin: '0 0 4px' } },
-        [
-          createElement(IconSparkle16, { key: 'icon', size: 16 }),
-          createElement('span', { key: 'text' }, 'hundun-dsh'),
-        ],
-      ),
+      createElement('h3', { key: 'title', style: { margin: '0 0 4px' } }, 'hundun-dsh'),
       createElement('p', { key: 'desc', style: { margin: '0 0 12px', fontSize: 12, color: 'var(--dsw-alias-label-tertiary, #888)' } }, 'hundun-dsh 聚合插件配置'),
       createElement('div', { key: 'columns', style: { marginTop: 8 } }, renderSlot('hundun.settings.item', {})),
     ],
@@ -52,6 +43,9 @@ export function HundunSettingsPage(props: HundunSettingsPageProps): ReactNode {
 /** 所需客户端服务（fiber inject 等待）。 */
 export const inject = ['slots']
 
+/** 「hundun-dsh」设置页导航 tab 标签：★ 星星符号（文本色，随整体色调；官方槽位 label 仅支持字符串）。 */
+export const HUNDUN_SETTINGS_LABEL = '★ hundun-dsh'
+
 /** 聚合包客户端半区入口。 */
 export function apply(ctx: ClientContext): void {
   // 声明感知注册：设置面板出现时挂载「hundun-dsh」页，折叠时自动回收。
@@ -59,7 +53,7 @@ export function apply(ctx: ClientContext): void {
     name: 'settings.section',
     id: 'hundun-dsh',
     order: 30,
-    label: 'hundun-dsh',
+    label: HUNDUN_SETTINGS_LABEL,
     children: { 'hundun.settings.item': { kind: 'list', scope: 'root' } },
     inject: () => ({}),
   }, HundunSettingsPage))
