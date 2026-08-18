@@ -1,17 +1,20 @@
 /**
- * 画布设置栏目（T032 平台限制修正；004 重设计为分组布局）。
+ * 画布设置页（自持 settings.section）。
  *
- * 注册到 dsh-all 设置页「hundun-dsh」声明的子槽位 hundun.settings.item。
+ * 画布自行注册官方设置面页面（settings.section, id `workspace-canvas`），
+ * 不再依赖 dsh-all 聚合设置页骨架与 hundun.settings.item 子槽位。
  * 分组：第一组「启用」（画布开关，enabled-store）；第二组「画布背景风格」
- * （单选，background-store，风格来自 background-styles 注册表）。
+ * （单选，background-store，风格来自 background-styles 注册表）；第三组
+ * 「自动归档」（archive-store，005）。
  * 读写均走 localStorage 持久化 + 事件广播（官方 settings 命名空间白名单硬编码，
  * 第三方 namespace 无法暴露给浏览器设置客户端，见 enabled-store.ts 注释）。
- * 设置面缺席（槽位未声明）时静默跳过。
  */
 import { createElement, useEffect, useState } from 'react'
 import type { ClientContext } from '@deepseek-ai/dsh-client-runtime/client'
 // 类型导入：拉入 slots 服务与 SlotMap（注册类型）。
 import type {} from '@deepseek-ai/dsh-client-ui-slots'
+// 类型导入：拉入官方 settings.section 槽位契约（SlotMap 声明）。
+import type {} from '@deepseek-ai/dsh-client-ui-settings/client'
 import { getCanvasEnabled, setCanvasEnabled, subscribeCanvasEnabled } from './enabled-store.ts'
 import { getCanvasBackgroundId, setCanvasBackgroundId, subscribeCanvasBackgroundId } from './background-store.ts'
 import { CANVAS_BACKGROUND_STYLES, DEFAULT_BACKGROUND_ID } from './canvas/background-styles.ts'
@@ -21,13 +24,7 @@ import {
   subscribeArchiveConfig,
   type AutoArchiveConfig,
 } from './archive-store.ts'
-
-/** 子槽位声明（与 dsh-all 同形拼写，避免依赖兄弟包；插槽为 list/root）。 */
-declare module '@deepseek-ai/dsh-client-ui-slots' {
-  interface SlotMap {
-    'hundun.settings.item': { kind: 'list'; scope: 'root'; owner: { children?: never } }
-  }
-}
+import { dictionary } from './locales.ts'
 
 const GROUP: React.CSSProperties = {
   marginBottom: 12,
@@ -55,7 +52,7 @@ const STYLE_OPTION: React.CSSProperties = {
 const STYLE_NAME: React.CSSProperties = { flex: '0 0 auto', minWidth: 64 }
 const STYLE_DESC: React.CSSProperties = { flex: 1, fontSize: 11, color: 'var(--dsw-alias-label-tertiary)' }
 
-/** 画布设置栏目卡片：分组「启用」+「画布背景风格」（均本地持久化）。 */
+/** 画布设置页卡片：分组「启用」+「画布背景风格」+「自动归档」（均本地持久化）。 */
 export function CanvasSettingsCard() {
   const [enabled, setEnabled] = useState<boolean>(getCanvasEnabled() ?? true)
   const [backgroundId, setBackgroundId] = useState<string>(getCanvasBackgroundId() ?? DEFAULT_BACKGROUND_ID)
@@ -93,7 +90,7 @@ export function CanvasSettingsCard() {
           'label',
           { style: { display: 'flex', alignItems: 'center', gap: 8, cursor: 'pointer', fontSize: 14 } },
           [
-            createElement('span', { key: 'text' }, '启用画布'),
+            createElement('span', { key: 'text' }, '画布视图'),
             createElement('input', {
               key: 'switch',
               type: 'checkbox',
@@ -189,12 +186,18 @@ export function CanvasSettingsCard() {
   )
 }
 
-/** 注册画布设置栏目到 dsh-all 设置页；返回 disposer（设置面缺席返回空操作）。 */
-export function registerCanvasSettingsColumn(ctx: ClientContext): () => void {
-  return ctx.slots.inject('hundun.settings.item', () => ctx.slots.register({
-    name: 'hundun.settings.item',
-    id: 'canvas',
-    order: 10,
+/** 画布设置页导航 tab 标签（本地化；随挂载语言取字典）。 */
+export function canvasSettingsLabel(): string {
+  return dictionary()['canvas.settings'] ?? '工作区'
+}
+
+/** 注册画布设置页到官方设置面（settings.section）；返回 disposer。 */
+export function registerCanvasSettingsPage(ctx: ClientContext): () => void {
+  return ctx.slots.inject('settings.section', () => ctx.slots.register({
+    name: 'settings.section',
+    id: 'workspace-canvas',
+    order: 30,
+    label: canvasSettingsLabel(),
     inject: () => ({}),
   }, CanvasSettingsCard))
 }

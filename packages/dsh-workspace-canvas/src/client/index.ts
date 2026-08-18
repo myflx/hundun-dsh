@@ -6,7 +6,7 @@
  * - apply-guard 防重复挂载（T006）；
  * - enabled 总开关（T033，平台限制修正）：客户端本地持久化（enabled-store）
  *   优先、组合配置兜底；false 时立即卸载画布本体（文档/注册服务/入口/控制器）；
- *   设置栏目常驻注册，用户始终可从设置页重新开启；
+ *   设置页自持注册，用户始终可从设置页重新开启；
  * - 其余装配（文档存储 / ctx.canvas 注册服务 / 挂载监督器 / 控制器 / 按钮）
  *   集中在 CanvasRuntime.mount()。
  */
@@ -19,7 +19,7 @@ import type {} from '@deepseek-ai/dsh-client-runtime/client'
 import { claimCanvasApply, releaseCanvasApply } from './apply-guard.ts'
 import { en, zh, type CanvasKey } from './locales.ts'
 import { CanvasRuntime } from './runtime.ts'
-import { registerCanvasSettingsColumn } from './settings.ts'
+import { registerCanvasSettingsPage } from './settings.ts'
 import { getCanvasEnabled, subscribeCanvasEnabled } from './enabled-store.ts'
 
 // 对外公开的注册契约类型（消费方插件经 '@hundun/dsh-workspace-canvas/client' 引用）。
@@ -87,6 +87,6 @@ export function apply(ctx: ClientContext, config?: CanvasClientConfig): void {
   ctx.effect(() => unsub, 'workspace-canvas: enabled subscription')
   sync()
 
-  // 设置栏目常驻注册（不随 enabled 卸载）：关闭画布后用户仍可从设置页重新开启。
-  ctx.effect(() => registerCanvasSettingsColumn(ctx), 'workspace-canvas: settings column')
+  // 设置页自持注册（不随 enabled 卸载）：关闭画布后用户仍可从设置页重新开启。
+  ctx.effect(() => registerCanvasSettingsPage(ctx), 'workspace-canvas: settings page')
 }

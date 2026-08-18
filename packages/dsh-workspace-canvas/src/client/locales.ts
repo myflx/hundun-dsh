@@ -14,6 +14,7 @@ export const zh = {
   'canvas.buttonTooltip': '打开工作区画布视图',
   'canvas.openHint': '画布已打开',
   'canvas.openError': '进入会话失败：{message}',
+  'canvas.settings': '工作区',
 } satisfies Record<string, string>
 
 /** 键集并集。 */
@@ -31,6 +32,7 @@ export const en = {
   'canvas.buttonTooltip': 'Open workspace canvas view',
   'canvas.openHint': 'Canvas is open',
   'canvas.openError': 'Failed to open session: {message}',
+  'canvas.settings': 'Canvas',
 } satisfies Record<CanvasKey, string>
 
 /** 微型插值：{name} -> value（参照 既有面板 的 t 实现）。 */

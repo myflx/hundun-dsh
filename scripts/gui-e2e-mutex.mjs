@@ -92,8 +92,8 @@ const canvasVisible = () => page.evaluate(() => {
 // ── E2E-18 关闭画布开关 → 入口消失 + 画布立即关闭 ──
 {
   const settingsBtn = page.locator('[data-slot="sidebar.settings"] button')
-  // 设置页导航「hundun-dsh」项（navCell，精确文本匹配）
-  const hundunNav = page.locator('[data-slot="sidebar.settings"] button', { hasText: /^hundun-dsh$/ })
+  // 设置页导航「画布」项（navCell，精确文本匹配；画布自持 settings.section「workspace-canvas」）
+  const hundunNav = page.locator('[data-slot="sidebar.settings"] button', { hasText: /^画布$/ })
   const sw = () => page.locator('[data-dsh-canvas-enabled-switch]')
   if ((await settingsBtn.count()) === 0) {
     record('E2E-18', false, { settingsBtn: 0 }, 'SKIP：设置入口不可见（dsh-all 未加载）')
@@ -102,7 +102,7 @@ const canvasVisible = () => page.evaluate(() => {
     if ((await canvasEntry()) === 0) { await page.locator('[data-dsh-canvas-entry]').first().click(); await sleep(800) }
     await settingsBtn.first().click()
     await sleep(1000)
-    // 切到「hundun-dsh」设置页（默认选中「通用设置」）
+    // 切到「画布」设置页（默认选中「通用设置」）
     if ((await hundunNav.count()) > 0) { await hundunNav.first().click(); await sleep(800) }
     const swVisible = await sw().count()
     if (swVisible > 0 && (await sw().isChecked())) {
@@ -120,7 +120,7 @@ const canvasVisible = () => page.evaluate(() => {
 // ── E2E-19 重新开启 → 恢复且布局保留 ──
 {
   const settingsBtn = page.locator('[data-slot="sidebar.settings"] button')
-  const hundunNav = page.locator('[data-slot="sidebar.settings"] button', { hasText: /^hundun-dsh$/ })
+  const hundunNav = page.locator('[data-slot="sidebar.settings"] button', { hasText: /^画布$/ })
   const sw = () => page.locator('[data-dsh-canvas-enabled-switch]')
   if ((await settingsBtn.count()) === 0) {
     record('E2E-19', false, {}, 'SKIP：设置入口不可见')

@@ -13,7 +13,7 @@ import { DetailPanel } from './detail/panel.tsx'
 import { WorkspaceDetail } from './detail/workspace-detail.tsx'
 import { workspaceDisplayTitle } from './detail/workspace-title.ts'
 import { openWorkspaceSession } from './workspace-open.ts'
-import { commitWorkspacePosition, readWorkspacePositions } from './workspace-position.ts'
+import { commitWorkspacePosition, readWorkspacePositions, avoidOverlap } from './workspace-position.ts'
 import { defaultView, panBy, resetView, scenePoint, wheelZoomFactor, zoomAt, type ViewTransform } from './view-transform.ts'
 import { canvasText } from './text.ts'
 import { CANVAS_BACKGROUND_STYLES, DEFAULT_BACKGROUND_ID, getCanvasBackgroundStyle } from './background-styles.ts'
@@ -476,10 +476,43 @@ export const CanvasView = memo(function CanvasView({ workspaces, store, onClose,
     [state.archivedSessionIds, optimisticArchived],
   )
   const orchestrationNodes = doc.nodes.filter((n) => n.kind !== 'workspace')
+  // 有效位置表：已存档位置去重 + 完全重叠避让。
+  // 修复：多个工作区曾同时补建为 (0,0)（旧版 syncWorkspaceNodes 写死原点）会在文档中
+  // 留下相同坐标，导致卡片完全叠在一起、视觉上「少工作区」。此处对相同坐标只保留 feed
+  // 顺序最靠前的那个，其余让位给 GRID 自动布局；无存档的走 autoPosition。
+  // 语义：允许部分重叠（卡片可交叠一部分），仅禁止完全重叠（同点）。
+  const effectivePositions = useMemo((): Positions => {
+    const used = new Set<string>()
+    const out: Positions = {}
+    uniqueItems.forEach((workspace, index) => {
+      const stored = positions[workspace.workspaceId]
+      let pos: { x: number; y: number }
+      if (stored !== undefined && !used.has(`${stored.x},${stored.y}`)) {
+        pos = stored
+      } else {
+        // 无存档，或存档坐标与更早的工作区冲突 → 从 feed 顺序开始找第一个空 GRID 格。
+        let i = index
+        do {
+          pos = autoPosition(i)
+          i += 1
+        } while (used.has(`${pos.x},${pos.y}`))
+      }
+      used.add(`${pos.x},${pos.y}`)
+      out[workspace.workspaceId] = pos
+    })
+    return out
+  }, [uniqueItems, positions])
 
   const commitPosition = (id: WorkspaceId, position: { x: number; y: number }): void => {
-    setPositions((prev) => ({ ...prev, [String(id)]: position }))
-    commitWorkspacePosition(store, String(id), position)
+    // 拖拽落位防重叠：目标位置与其他卡片冲突时推挤到最近的空 GRID 格。
+    // 覆盖「强行拖到一起」场景——即使有效位置表已避让，落盘值也必须不重叠。
+    const others = uniqueItems
+      .filter((w) => String(w.workspaceId) !== String(id))
+      .map((w) => effectivePositions[w.workspaceId] ?? autoPosition(uniqueItems.findIndex((x) => x.workspaceId === w.workspaceId)))
+      .filter((p): p is { x: number; y: number } => p !== undefined)
+    const resolved = avoidOverlap(position, others)
+    setPositions((prev) => ({ ...prev, [String(id)]: resolved }))
+    commitWorkspacePosition(store, String(id), resolved)
   }
 
   const handleOpen = (id: WorkspaceId): void => {
@@ -600,7 +633,7 @@ export const CanvasView = memo(function CanvasView({ workspaces, store, onClose,
     let maxX = -Infinity
     let maxY = -Infinity
     items.forEach((w, index) => {
-      const pos = positions[w.workspaceId] ?? autoPosition(index)
+      const pos = effectivePositions[w.workspaceId] ?? autoPosition(index)
       minX = Math.min(minX, pos.x)
       minY = Math.min(minY, pos.y)
       maxX = Math.max(maxX, pos.x + 200)
@@ -738,7 +771,7 @@ export const CanvasView = memo(function CanvasView({ workspaces, store, onClose,
                 data-dsh-canvas-viewport=""
               >
                 {uniqueItems.map((workspace, index) => {
-                  const workspacePosition = positions[workspace.workspaceId] ?? autoPosition(index)
+                  const workspacePosition = effectivePositions[workspace.workspaceId] ?? autoPosition(index)
                   const members = orchestrationNodes.filter((n) => n.workspaceId === workspace.workspaceId)
                   const workspaceNode: CanvasNode = {
                     id: `ws:${String(workspace.workspaceId)}`,

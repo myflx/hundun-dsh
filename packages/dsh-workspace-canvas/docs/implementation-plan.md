@@ -35,13 +35,13 @@
 - [ ] **健壮性补丁**：`startSession` 失败 catch；`CanvasView` 增加 ErrorBoundary 兜底（渲染崩不白屏）
 - [ ] **单测基建 + 首批测试**：vitest 接入；覆盖控制器状态机（open/close/toggle/dispose）、
       互斥协议（激活/让位/后写者胜）、拖拽阈值判定
-- [ ] **hundun-dsh 设置页骨架**：聚合包 dsh-all 新增客户端半区（注册 `settings.section` 页面
-      「hundun-dsh」+ 声明子槽位 `hundun.settings.item`）；aggregate.yml 增 `self` 行；
-      画布注册「画布」栏目（**启用画布开关 `enabled`**，当前唯一配置项）
+- [x] **画布设置页（自持 settings.section）**：画布注册 `settings.section`「workspace-canvas」页面
+      （label 本地化），页面直接渲染分组内容；**不再依赖聚合包 dsh-all 骨架/子槽位**
+      （dsh-all 客户端半区降为空壳）；设置项：启用画布开关 `enabled` + 背景风格 + 自动归档（005）
 - [ ] **设置链路联动**：`enabled=false` 时客户端跳过按钮与画布挂载、宿主关公告；开关经设置面
       双半区生效；无设置服务时读组合配置兜底
 - [ ] 验收：功能与 P0 等价不退化；`pnpm typecheck && pnpm build` 通过；互斥协议单测全绿；
-      设置页「hundun-dsh → 画布」开关可关/开画布（双半区）
+      设置页「画布」开关可关/开画布（双半区）
 
 ## P1 —— 协议骨架（画布成为平台）
 

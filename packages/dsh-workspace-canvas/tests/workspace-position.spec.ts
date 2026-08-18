@@ -1,6 +1,13 @@
 import { afterEach, describe, expect, it, vi } from 'vitest'
 import { CanvasDocumentStore } from '../src/client/canvas/document.ts'
-import { autoLayoutWorkspaces, commitWorkspacePosition, readWorkspacePositions } from '../src/client/canvas/workspace-position.ts'
+import {
+  autoLayoutWorkspaces,
+  avoidOverlap,
+  commitWorkspacePosition,
+  overlapRatio,
+  positionsFullyOverlap,
+  readWorkspacePositions,
+} from '../src/client/canvas/workspace-position.ts'
 
 afterEach(() => {
   localStorage.clear()
@@ -94,5 +101,56 @@ describe('工作区位置持久化（T015/T016）', () => {
     const member = doc.nodes.find((n) => n.id === 'm1')
     expect(ws?.position).toEqual({ x: 12, y: 12 }) // 工作区重排
     expect(member?.position).toEqual({ x: 20, y: 30 }) // 成员局部坐标不变
+  })
+})
+
+describe('拖拽落位防完全重叠（avoidOverlap / positionsFullyOverlap / overlapRatio）', () => {
+  it('overlapRatio：同点 1.0；部分重叠按面积占比；不重叠 0', () => {
+    const a = { x: 0, y: 0 }
+    expect(overlapRatio(a, { x: 0, y: 0 })).toBe(1)          // 完全同点
+    expect(overlapRatio(a, { x: 100, y: 0 })).toBe(0.5)      // 水平重叠一半（100/200）
+    expect(overlapRatio(a, { x: 0, y: 40 })).toBe(0.5)       // 垂直重叠一半（40/80）
+    expect(overlapRatio(a, { x: 200, y: 0 })).toBe(0)        // 刚好卡宽 → 不重叠
+    expect(overlapRatio(a, { x: 0, y: 80 })).toBe(0)         // 刚好卡高 → 不重叠
+    expect(overlapRatio(a, { x: 300, y: 300 })).toBe(0)
+  })
+
+  it('positionsFullyOverlap：仅重叠面积占比 ≥ 阈值视为完全重叠；部分重叠允许', () => {
+    const a = { x: 0, y: 0 }
+    expect(positionsFullyOverlap(a, { x: 0, y: 0 })).toBe(true)     // 完全同点
+    expect(positionsFullyOverlap(a, { x: 20, y: 0 })).toBe(true)    // 重叠 90%（180/200）
+    expect(positionsFullyOverlap(a, { x: 100, y: 0 })).toBe(false)  // 重叠 50% → 部分重叠，允许
+    expect(positionsFullyOverlap(a, { x: 0, y: 20 })).toBe(false)   // 垂直重叠 75%（60/80）< 80% → 允许
+    expect(positionsFullyOverlap(a, { x: 0, y: 15 })).toBe(true)    // 垂直重叠 81.25%（65/80）≥ 80% → 禁止
+    expect(positionsFullyOverlap(a, { x: 200, y: 0 })).toBe(false)  // 不重叠
+    expect(positionsFullyOverlap(a, { x: 300, y: 300 })).toBe(false)
+  })
+
+  it('avoidOverlap：目标不与任何占用完全重叠 → 原样返回（部分重叠保留）', () => {
+    const target = { x: 12, y: 12 }
+    // 与 (100,12) 重叠 44%（|12-100|=88，重叠 112/200=0.56；垂直同线）→ 非完全重叠 → 不动
+    expect(avoidOverlap(target, [{ x: 100, y: 12 }])).toEqual(target)
+    // 完全不重叠 → 不动
+    expect(avoidOverlap(target, [{ x: 228, y: 12 }])).toEqual(target)
+  })
+
+  it('avoidOverlap：目标与占用完全重叠 → 推挤到最近非完全重叠的 GRID 格', () => {
+    const occupied = [{ x: 12, y: 12 }]
+    const result = avoidOverlap({ x: 12, y: 12 }, occupied)
+    expect(positionsFullyOverlap(result, occupied[0])).toBe(false)
+    // 最近的格是 +216（右移一格）：(12+216, 12) = (228, 12)
+    expect(result).toEqual({ x: 228, y: 12 })
+  })
+
+  it('avoidOverlap：多个占用时跳过被占格，找到第一个非完全重叠格', () => {
+    const occupied = [
+      { x: 12, y: 12 },   // 目标格
+      { x: 228, y: 12 },  // 右一格
+      { x: 12, y: 124 },  // 下一格
+      { x: 228, y: 124 }, // 右下格
+    ]
+    const result = avoidOverlap({ x: 12, y: 12 }, occupied)
+    expect(occupied.some((o) => positionsFullyOverlap(result, o))).toBe(false)
+    expect(result).not.toEqual({ x: 12, y: 12 })
   })
 })

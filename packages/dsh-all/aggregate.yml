@@ -6,6 +6,6 @@ patchFrom:
 deps:
   - ../dsh-hello
   - ../dsh-workspace-canvas
-# 聚合包自身作为插件行加载（设置页骨架在客户端半区）。
+# 聚合包自身作为插件行加载（宿主半区空 apply；设置页由各功能插件自持）。
 self:
   - hundun-all

@@ -42,6 +42,66 @@ export const AUTO_LAYOUT_STEP_X = 216
 export const AUTO_LAYOUT_STEP_Y = 112
 export const AUTO_LAYOUT_ORIGIN = 12
 
+/** 卡片物理尺寸（与 CanvasView.CARD_STYLE 同源）：水平/垂直相邻卡片不重叠的最小间距。 */
+export const CARD_WIDTH = 200
+export const CARD_HEIGHT = 80
+
+/**
+ * 完全重叠阈值：两张卡片重叠面积占比超过该比例即视为「完全重叠」（禁止状态）。
+ * 允许部分重叠（卡片可交叠一部分，便于紧凑摆放），仅当几乎完全叠在一起时推挤。
+ */
+export const FULL_OVERLAP_RATIO = 0.8
+
+/** 两张卡片的重叠面积占比（0~1；不重叠为 0）。 */
+export function overlapRatio(a: CanvasPosition, b: CanvasPosition): number {
+  const overlapW = Math.max(0, CARD_WIDTH - Math.abs(a.x - b.x))
+  const overlapH = Math.max(0, CARD_HEIGHT - Math.abs(a.y - b.y))
+  return (overlapW * overlapH) / (CARD_WIDTH * CARD_HEIGHT)
+}
+
+/**
+ * 判定两个工作区位置是否「完全重叠」（禁止状态）。
+ * 部分重叠允许；仅当重叠面积占比 ≥ {@link FULL_OVERLAP_RATIO}（几乎完全叠在一起、
+ * 无法区分/点选）时视为完全重叠，需要避让。
+ */
+export function positionsFullyOverlap(a: CanvasPosition, b: CanvasPosition): boolean {
+  return overlapRatio(a, b) >= FULL_OVERLAP_RATIO
+}
+
+/**
+ * 推挤避让：目标位置若与其他工作区「完全重叠」，沿 GRID 螺旋向外找最近的、不再完全
+ * 重叠的位置。
+ * 语义：允许部分重叠（卡片可交叠一部分），仅禁止完全重叠（重叠面积占比 ≥
+ * {@link FULL_OVERLAP_RATIO}，即几乎叠在一起无法区分）。
+ * - 目标与所有占用均非完全重叠 → 原样返回；
+ * - 完全重叠 → 从目标格出发按半径 1、2、3… 逐圈扫描 8 邻域，返回第一个与任何占用
+ *   都非完全重叠的 GRID 格（步进 = AUTO_LAYOUT_STEP_*）。
+ * @param target - 期望落位（scene 坐标）。
+ * @param occupied - 其他工作区的已占用位置（不含自身）。
+ * @returns 非完全重叠的落位（尽量靠近目标）。
+ */
+export function avoidOverlap(
+  target: CanvasPosition,
+  occupied: ReadonlyArray<CanvasPosition>,
+): CanvasPosition {
+  if (!occupied.some((o) => positionsFullyOverlap(target, o))) return target
+  // 从半径 1 起逐圈扫描（上限 32 圈 = 足够大的画布范围，理论上不会耗尽）。
+  for (let radius = 1; radius <= 32; radius += 1) {
+    for (let dy = -radius; dy <= radius; dy += 1) {
+      for (let dx = -radius; dx <= radius; dx += 1) {
+        if (Math.max(Math.abs(dx), Math.abs(dy)) !== radius) continue // 只扫当前圈
+        const candidate = {
+          x: target.x + dx * AUTO_LAYOUT_STEP_X,
+          y: target.y + dy * AUTO_LAYOUT_STEP_Y,
+        }
+        if (!occupied.some((o) => positionsFullyOverlap(candidate, o))) return candidate
+      }
+    }
+  }
+  // 兜底（32 圈内全占满——极不现实）：直接偏移一大步。
+  return { x: target.x + AUTO_LAYOUT_STEP_X * 33, y: target.y }
+}
+
 /** 自动布局：按传入顺序（通常为 feed 顺序）把每个工作区重排到 GRID 格位（消除重叠、对齐网格）。
  *  空数组 = 空操作（不 mutate）。成员节点存工作区局部坐标，随工作区移动自动保留相对位置。 */
 export function autoLayoutWorkspaces(

@@ -69,7 +69,7 @@
 | 面板互斥 | **单一激活标记协议**：页面只有一个 `data-dsh-panel-active="<name>"` 属性，后写者胜；激活时写自己名字并广播 `dsh-panel-activate` 事件，收到事件且名字不是自己即关闭。协议常量/工具来自聚合仓库共享包 `@hundun/dsh-panel-protocol`（画布不再枚举/擦除其它面板的属性） |
 | 侧边栏 | 唯一注入点：工作区搜索行右侧的画布按钮（DOM 注入 + 自愈）。**不注入其它区域**；侧边栏槽位（`sidebar.footer.action` 等）不占用，留给其它插件 |
 | host 半区 | 只做系统提示词公告（`systemPrompt.section`）+ 配置解析；**不注册工具、不注册路由、不碰设置命名空间**（画布无宿主业务）。配置：`enabled`（总开关，双半区生效）与 `announceToAgent`（仅控制公告）由双半区共同读取 |
-| 设置页 | 「hundun-dsh」设置页（`settings.section`，多栏目结构）由聚合包 **dsh-all** 提供骨架并声明子槽位；各插件注册自己的栏目（画布栏目：启用画布开关，当前唯一配置项）。画布 `enabled` 开关经设置面联动双半区；无设置服务时读组合配置兜底 |
+| 设置页 | 画布自持 `settings.section`「workspace-canvas」（官方设置槽位，"A feature owns its own settings pages"），页面直接渲染分组内容（启用/背景风格/自动归档），无聚合骨架/子槽位依赖；聚合包 dsh-all 客户端半区为空壳。画布 `enabled` 开关经设置面联动双半区；无设置服务时读组合配置兜底 |
 | 节点插件（扩展方） | 经 `ctx.canvas.registerNodeType()` / `registerEdgeRule()` 贡献节点类型与连线规则；**画布提供服务、不反向依赖任何节点插件**（`ctx.get('canvas')` 可选依赖，画布缺席时节点插件正常降级） |
 | 其它插件 | 不读取/不修改 任务看板、ssh 等插件的数据；连线/节点仅基于官方 workspaces/sessions 域 + 节点插件数据域 |
 | 卸载 | 插件卸载时：移除按钮、卸载 React 树、移除注入样式、恢复 `data-*` 属性、**保留画布文档**（`localStorage` 不清，重装即恢复）；节点插件卸载时其节点显示「未知类型」占位，画布不删其数据 |

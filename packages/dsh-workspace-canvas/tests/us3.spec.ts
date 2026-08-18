@@ -23,7 +23,27 @@ describe('工作区节点投影同步（T018）', () => {
     const store = new CanvasDocumentStore(localStorage)
     const removed = syncWorkspaceNodes(store, [{ workspaceId: 'ws-1' }, { workspaceId: 'ws-2' }])
     expect(removed).toEqual([])
-    expect(store.read().nodes.filter((n) => n.kind === 'workspace').map((n) => n.ref)).toEqual(['ws-1', 'ws-2'])
+    const nodes = store.read().nodes.filter((n) => n.kind === 'workspace').map((n) => n.ref)
+    expect(nodes).toEqual(['ws-1', 'ws-2'])
+  })
+
+  it('补建多个工作区按 GRID 落位，不重叠（回归：旧版写死 (0,0) 导致卡片全部堆在原点上）', () => {
+    const store = new CanvasDocumentStore(localStorage)
+    syncWorkspaceNodes(store, [
+      { workspaceId: 'ws-1' },
+      { workspaceId: 'ws-2' },
+      { workspaceId: 'ws-3' },
+      { workspaceId: 'ws-4' },
+      { workspaceId: 'ws-5' }, // 第 5 个应换行到第二行
+    ])
+    const pos = new Map(
+      store.read().nodes.filter((n) => n.kind === 'workspace').map((n) => [n.ref, n.position]),
+    )
+    const keys = [...new Set([...pos.values()].map((p) => `${p.x},${p.y}`))]
+    expect(keys.length).toBe(5) // 五个工作区五个不同坐标
+    expect(pos.get('ws-1')).toEqual({ x: 12, y: 12 })       // autoPosition(0)
+    expect(pos.get('ws-2')).toEqual({ x: 228, y: 12 })      // autoPosition(1)
+    expect(pos.get('ws-5')).toEqual({ x: 12, y: 124 })      // autoPosition(4) 换行
   })
 
   it('已存档位置在同步中保留', () => {
