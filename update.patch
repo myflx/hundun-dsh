@@ -1,0 +1,3334 @@
+Subject: [PATCH] 设置所在包调整
+---
+Index: specs/001-canvas-orchestration/checklists/requirements.md
+===================================================================
+diff --git a/specs/001-canvas-orchestration/checklists/requirements.md b/specs/001-canvas-orchestration/checklists/requirements.md
+deleted file mode 100644
+--- a/specs/001-canvas-orchestration/checklists/requirements.md	(revision 9d59e61ec4277ba0124a26520d4810abc052d63d)
++++ /dev/null	(revision 9d59e61ec4277ba0124a26520d4810abc052d63d)
+@@ -1,37 +0,0 @@
+-# Specification Quality Checklist: 编排画布（Canvas Orchestration）
+-
+-**Purpose**: Validate specification completeness and quality before proceeding to planning
+-**Created**: 2026-08-16
+-**Feature**: [spec.md](../spec.md)
+-
+-## Content Quality
+-
+-- [x] No implementation details (languages, frameworks, APIs)
+-- [x] Focused on user value and business needs
+-- [x] Written for non-technical stakeholders
+-- [x] All mandatory sections completed
+-
+-## Requirement Completeness
+-
+-- [x] No [NEEDS CLARIFICATION] markers remain
+-- [x] Requirements are testable and unambiguous
+-- [x] Success criteria are measurable
+-- [x] Success criteria are technology-agnostic (no implementation details)
+-- [x] All acceptance scenarios are defined
+-- [x] Edge cases are identified
+-- [x] Scope is clearly bounded
+-- [x] Dependencies and assumptions identified
+-
+-## Feature Readiness
+-
+-- [x] All functional requirements have clear acceptance criteria
+-- [x] User scenarios cover primary flows
+-- [x] Feature meets measurable outcomes defined in Success Criteria
+-- [x] No implementation details leak into specification
+-
+-## Notes
+-
+-- 全部校验项通过（1 次迭代）。
+-- 规格输入为 `packages/dsh-workspace-canvas/docs/` 四份定稿设计文档；[NEEDS CLARIFICATION] 为 0（设计已决策完整，默认值记于 Assumptions）。
+-- 设计门槛已如实写入规格：连线交互框架（US3 连线部分 / FR-009 实施）依赖第三方插件租户确认（P1.4）；缩放平移（US8 / FR-015）为未来阶段，不在 MVP 验收范围。
+-- 建议下一步：`$speckit-clarify`（确认无歧义后可跳过）或直接 `$speckit-plan`。
+Index: specs/001-canvas-orchestration/contracts/canvas-registry.md
+===================================================================
+diff --git a/specs/001-canvas-orchestration/contracts/canvas-registry.md b/specs/001-canvas-orchestration/contracts/canvas-registry.md
+deleted file mode 100644
+--- a/specs/001-canvas-orchestration/contracts/canvas-registry.md	(revision 9d59e61ec4277ba0124a26520d4810abc052d63d)
++++ /dev/null	(revision 9d59e61ec4277ba0124a26520d4810abc052d63d)
+@@ -1,60 +0,0 @@
+-# Contract: ctx.canvas 注册服务
+-
+-> 画布向第三方插件暴露的扩展协议。消费方：节点/连线规则插件（浏览器半区）。
+-> 权威类型见 `packages/dsh-workspace-canvas/docs/protocol-spec.md` §3。
+-
+-## 接入
+-
+-```ts
+-declare module '@deepseek-ai/cordis' {
+-  interface Context {
+-    /** 编排画布注册表（dsh-workspace-canvas 提供；缺席 = undefined）。 */
+-    canvas?: CanvasRegistry
+-  }
+-}
+-```
+-
+-画布缺席时 `ctx.get('canvas') === undefined`，插件跳过注册、正常降级。
+-
+-## 接口
+-
+-```ts
+-interface CanvasRegistry {
+-  /** 注册节点类型；返回注销函数。 */
+-  registerNodeType(def: NodeTypeDefinition): () => void
+-
+-  /** 向任意 kind（含内置 'workspace'）追加上下文菜单动作；返回注销函数。合并渲染：类型所有者 + 扩展，按 order 排序。 */
+-  registerNodeActions(kind: string, actions: NodeAction[], order?: number): () => void
+-
+-  /** 向任意 kind 追加右侧明细区块；返回注销函数。合并渲染：类型所有者 detail + 扩展区块，按 order 排序。 */
+-  registerNodeDetailSection(kind: string, section: NodeDetailSection): () => void
+-
+-  /** 注册连线规则；返回注销函数。 */
+-  registerEdgeRule(def: EdgeRuleDefinition): () => void
+-
+-  /** 读当前画布文档（只读快照；内容变化时引用更新）。 */
+-  readDocument(): CanvasDocument
+-
+-  /** 订阅文档变化。 */
+-  subscribe(fn: (doc: CanvasDocument) => void): () => void
+-
+-  /** 写入（合并式）；画布负责校验/查重/持久化/广播；非法写入抛错。 */
+-  mutate(mutator: (draft: CanvasDocument) => void): void
+-}
+-```
+-
+-## 语义要点
+-
+-- kind 命名 `scope:type`（节点）/ `scope:edge`（边）；内置 `'workspace'`（节点）与 `'link'`（边）保留；
+-  重复注册同 kind → 后者抛错
+-- `mutate` 校验：kind 已注册、ref 可解析、workspaceId 归属完整、边完整性（§数据模型不变量）；
+-  失败 → 抛错拒绝（不静默删）
+-- 归属不是边：无 member 边类型
+-- 卸载兼容：插件卸载后节点「未知类型」占位、边「未知规则」占位，数据保留，重装恢复
+-
+-## 验收（Contract test 覆盖）
+-
+-1. 注册节点类型 → 成功；重复注册同 kind → 抛错
+-2. 画布缺席时 `ctx.get('canvas') === undefined`，消费方不报错
+-3. `mutate` 写非法（无归属节点 / 查重边 / 跨 scope link）→ 抛错拒绝
+-4. 注销函数调用后注册表移除对应条目
+Index: specs/001-canvas-orchestration/contracts/panel-protocol.md
+===================================================================
+diff --git a/specs/001-canvas-orchestration/contracts/panel-protocol.md b/specs/001-canvas-orchestration/contracts/panel-protocol.md
+deleted file mode 100644
+--- a/specs/001-canvas-orchestration/contracts/panel-protocol.md	(revision 9d59e61ec4277ba0124a26520d4810abc052d63d)
++++ /dev/null	(revision 9d59e61ec4277ba0124a26520d4810abc052d63d)
+@@ -1,48 +0,0 @@
+-# Contract: 面板互斥协议（Panel Mutex Protocol）
+-
+-> 中间区域面板（画布 / 任务看板 / SSH / 测试面板）之间的互斥约定。
+-> 设计决策 D4 + clarify Q3。共享实现位于 `@hundun/dsh-panel-protocol`（纯常量 + 工具，内联进各消费者 bundle）。
+-
+-## 机制（单一激活标记，后写者胜）
+-
+-| 对象 | 值 | 说明 |
+-|---|---|---|
+-| `data-dsh-panel-active` 属性 | `<panel-name>`（如 `workspace-canvas`、`hello-panel`） | 页面唯一激活标记，挂在 `documentElement`；后写者覆盖先写者 |
+-| `dsh-panel-activate` 事件 | `CustomEvent`，`detail` = `<panel-name>` | 激活时广播；收到事件且名字不是自己 → 关闭自己 |
+-
+-## 行为约定
+-
+-1. **激活**：面板打开时 —— 写 `data-dsh-panel-active = 自己名字` + dispatch `dsh-panel-activate(自己名字)`
+-2. **让位**：面板监听 `dsh-panel-activate`，收到 `detail !== 自己名字` → 关闭自己
+-3. **后写者胜**：不需要枚举/擦除其他面板的属性（单一标记天然覆盖）
+-4. **样式联动**：面板的显示条件 = `html[data-dsh-panel-active="<自己名字>"]`（如画布视图的 display 规则）
+-
+-## 共享包 API（`@hundun/dsh-panel-protocol`）
+-
+-```ts
+-/** 面板名常量（内置） */
+-export const PANELS = { workspaceCanvas: 'workspace-canvas', helloPanel: 'hello-panel' } as const
+-/** 激活标记属性名 */
+-export const ACTIVE_ATTR = 'data-dsh-panel-active'
+-/** 激活事件名 */
+-export const ACTIVATE_EVENT = 'dsh-panel-activate'
+-
+-/** 自己是否当前激活（读标记） */
+-export function isActive(name: string): boolean
+-/** 声明激活：写标记 + 广播 */
+-export function activate(name: string): void
+-/** 监听他方激活事件；回调在“激活者非自己”时触发 */
+-export function onOtherActivate(name: string, fn: () => void): () => void
+-```
+-
+-## 兼容性
+-
+-- 现有 dsh-web-ui 家族（task-board / ssh）使用旧多属性协议（`data-dsh-taskboard-active` 等）；
+-  本仓库不依赖它们。将来整合时可在共享包内提供兼容桥（同时清/写旧属性），本阶段不做
+-- 测试对方面板：`dsh-hello` 改造（clarify Q3），面板名 `hello-panel`
+-
+-## 验收（单测 + E2E-16/17）
+-
+-1. 单测：`activate(A)` 后 `isActive(A) === true`、`isActive(B) === false`；A/B 先后激活 → 后者胜；
+-   `onOtherActivate` 回调只在他人激活时触发
+-2. E2E：画布打开时打开 dsh-hello 测试面板 → 画布让位；反之亦然（quickstart E2E-16/17）
+Index: specs/001-canvas-orchestration/contracts/settings.md
+===================================================================
+diff --git a/specs/001-canvas-orchestration/contracts/settings.md b/specs/001-canvas-orchestration/contracts/settings.md
+deleted file mode 100644
+--- a/specs/001-canvas-orchestration/contracts/settings.md	(revision 9d59e61ec4277ba0124a26520d4810abc052d63d)
++++ /dev/null	(revision 9d59e61ec4277ba0124a26520d4810abc052d63d)
+@@ -1,38 +0,0 @@
+-# Contract: hundun-dsh 设置页
+-
+-> 聚合品牌设置面。设计决策 D10 + clarify Q1/Q4。页面骨架由聚合包 `dsh-all` 提供，栏目由各插件注册。
+-
+-## 页面骨架（dsh-all 客户端半区）
+-
+-- 注册 `settings.section` 条目：`id: 'hundun-dsh'`，`label: 'hundun-dsh'`，`order: 20`（官方页之后）
+-- 页面内声明子槽位 `hundun.settings.item`（list），供各插件注册自己的栏目
+-- `dsh-all` 需要客户端半区（aggregate.yml 增 `self` 行 + src/client + 构建配置）
+-
+-## 栏目注册（插件侧）
+-
+-| 插件 | 栏目 id | 配置项 | 命名空间 |
+-|---|---|---|---|
+-| dsh-workspace-canvas | `canvas` | `enabled`（启用画布开关）| `hundun-canvas` |
+-| （未来）dsh-hello / task-board / ssh | 各自栏目 | — | — |
+-
+-## 画布栏目 schema（schemastery）
+-
+-```ts
+-const Config = z.object({
+-  enabled: z.boolean().default(true),        // 总开关（双半区生效）
+-  announceToAgent: z.boolean().default(true), // 仅控制宿主公告（本期不在设置面暴露，保留组合配置）
+-})
+-```
+-
+-## 生效链路（双半区实时联动）
+-
+-1. 用户在设置页切换 `enabled`
+-2. 客户端：`settingsScope.bind({ namespace: 'hundun-canvas' })` 订阅 → `enabled=false` 时
+-   **立即**卸载画布入口按钮与画布视图（clarify Q1）、移除互斥标记；`true` 时重新挂载（布局保留）
+-3. 宿主：`installSettingsSection` 联动 → `enabled=false` 时移除公告段落
+-4. 无设置服务时：读组合文件配置兜底（缺省 enabled=true）
+-
+-## 验收（E2E-18/19）
+-
+-1. 关闭开关 → 入口/内容/公告均消失；若画布正打开则立即关闭；其他功能不受影响
+-2. 重新开启 → 恢复且布局保留
+Index: specs/001-canvas-orchestration/contracts/workspace-feed.md
+===================================================================
+diff --git a/specs/001-canvas-orchestration/contracts/workspace-feed.md b/specs/001-canvas-orchestration/contracts/workspace-feed.md
+deleted file mode 100644
+--- a/specs/001-canvas-orchestration/contracts/workspace-feed.md	(revision 9d59e61ec4277ba0124a26520d4810abc052d63d)
++++ /dev/null	(revision 9d59e61ec4277ba0124a26520d4810abc052d63d)
+@@ -1,33 +0,0 @@
+-# Contract: 官方数据面调用契约（workspaces / sessions）
+-
+-> 画布对官方 DSH 客户端服务的调用面（只读投影 + 官方写 API）。画布不缓存/不复制业务数据。
+-
+-## 数据读取（只读投影）
+-
+-| 来源 | 用途 | 形态 |
+-|---|---|---|
+-| `ctx.workspaces.list` | 工作区实例数据（标题/路径/会话数/最近活跃） | `ObservableSnapshot`：`subscribe(fn)` + `getSnapshot()`，直接喂 `useSyncExternalStore`（P0 已验证） |
+-| workspace 节点 `ref` | 与 feed 对齐 | 节点 `ref` = 工作区 id；feed 消失 → 级联清理（§不变量 4） |
+-| `ctx.sessions` | （明细面板本期只显示会话数，按 clarify Q2 不列条目） | 会话数来自 feed 投影 |
+-
+-## 写操作（走官方 API，画布不持有业务写路径）
+-
+-| 操作 | API | 画布行为 |
+-|---|---|---|
+-| 进入工作区新会话 | `workspaces.startSession(workspaceId)` | 点击卡片触发；失败须 catch 提示（不产生未处理拒绝） |
+-| 重命名 | `workspaces.rename(...)` | 右键菜单「重命名」转发 |
+-| 删除注册 | `workspaces.delete(workspaceId)` | 右键菜单「删除」：先确认（列出成员数）→ 级联清理画布成员 → 调官方删除（只删注册，目录与日志不动） |
+-| 归档会话 | `workspaces.archiveSession(...)` | 右键菜单「归档会话」转发 |
+-
+-## 边界
+-
+-- 画布**不新建工作区**（新建走宿主目录选择流）；「新建」不是画布能力（capability-boundaries §3）
+-- 画布不订阅会话内容（那是 conversation 的领域）；节点点击只负责跳转
+-- 工作区增删以 feed 为准：新增 → 自动补建节点；消失 → 提示 + 级联清理
+-
+-## 验收（Integration test + E2E）
+-
+-1. 工作区列表变化（增/删）→ 画布节点自动补建/清理（E2E-02/E2E-21）
+-2. 点击卡片 → 进入该工作区新会话（E2E-02）
+-3. 删除工作区 → 确认提示 + 级联清理 + 官方删除（E2E-11）
+-4. `startSession` 失败（工作区删除竞态）→ 提示且不崩溃
+Index: specs/001-canvas-orchestration/data-model.md
+===================================================================
+diff --git a/specs/001-canvas-orchestration/data-model.md b/specs/001-canvas-orchestration/data-model.md
+deleted file mode 100644
+--- a/specs/001-canvas-orchestration/data-model.md	(revision 9d59e61ec4277ba0124a26520d4810abc052d63d)
++++ /dev/null	(revision 9d59e61ec4277ba0124a26520d4810abc052d63d)
+@@ -1,86 +0,0 @@
+-# Data Model: 编排画布（Canvas Orchestration）
+-
+-> Phase 1 输出。实体、字段、校验规则与状态迁移；权威类型语义见
+-> `packages/dsh-workspace-canvas/docs/protocol-spec.md` §2（本文为面向实现的落地视图）。
+-
+-## 1. CanvasDocument（画布文档，持久化载体）
+-
+-| 字段 | 类型 | 说明 | 校验 |
+-|---|---|---|---|
+-| `version` | `1`（字面量） | 文档版本 | 读取时校验，低版本走 `migrate()` 链 |
+-| `view` | `{ x: number; y: number; zoom: number }`（可选） | 视图「镜头」（P2 启用，缺省默认视图） | zoom ∈ [0.3, 3] |
+-| `nodes` | `CanvasNode[]` | 全部节点 | 见 §2 不变量 |
+-| `edges` | `CanvasEdge[]` | 全部关系边（仅 link/扩展） | 见 §3 |
+-
+-**持久化**：`localStorage['dsh.workspaceCanvas.doc.v1']`，500ms 防抖写；损坏 → `.bak` 备份 + 空文档 + 提示；配额满 → 只读降级。
+-**迁移**：`migrate(doc): CanvasDocument` 链（当前无旧版本，留接口）。
+-
+-## 2. CanvasNode（节点）
+-
+-| 字段 | 类型 | 必填 | 说明 |
+-|---|---|---|---|
+-| `id` | `string`（uuid v4） | 是 | 画布内唯一 |
+-| `kind` | `string`（`scope:type`） | 是 | 节点类型注册键；`'workspace'` = 工作区基底节点 |
+-| `ref` | `string` | 是 | 业务引用（workspace 节点 = 工作区 id；编排节点 = 插件实例 id；空串 = 纯编排占位） |
+-| `workspaceId` | `string` | 编排节点必填 | 归属：所属工作区的业务 id（与 workspace 节点 `ref` 同值）；工作区节点无此字段 |
+-| `label` | `string`（可选） | 否 | 展示覆盖名 |
+-| `position` | `{ x: number; y: number }`（px） | 是 | workspace 节点 = 场景全局坐标；编排节点 = 所属工作区区域内局部坐标 |
+-| `meta` | `Record<string, unknown>`（可选） | 否 | 插件自由扩展；`meta.invalid` 为画布保留 |
+-
+-**不变量（校验强制，失败 → `meta.invalid` 标记，不静默删）**：
+-1. 每个编排节点（`kind !== 'workspace'`）必须带合法 `workspaceId`，且指向存在的 workspace 节点 ref；缺失/非法 → `meta.invalid='no-scope'`
+-2. 归属是字段不是边：不存在 member 边类型
+-3. workspace 节点 = 官方 feed 投影 + 位置存档（ref/position 存档；标题/路径/会话数实时读 feed）
+-4. feed 新增工作区 → 自动补建节点（自动落位）；feed 消失 → 提示 + 级联删除其成员节点与边
+-
+-## 3. CanvasEdge（关系边）
+-
+-| 字段 | 类型 | 必填 | 说明 |
+-|---|---|---|---|
+-| `id` | `string`（uuid v4） | 是 | 唯一 |
+-| `kind` | `string` | 是 | `'link'` 或 `<scope>:<edge-kind>`（插件注册）；无 member |
+-| `source` / `target` | `string` | 是 | 指向存在的节点 id |
+-| `meta` | `Record<string, unknown>`（可选） | 否 | 规则插件扩展字段 |
+-
+-**校验**：同 `(kind, source, target)` 至多一条（查重）；`link`/扩展边默认仅限同一工作区内（两端 `workspaceId` 相等），跨区需规则 `crossScope: true`；`meta.invalid` 保留字段。
+-
+-## 4. 注册表（ctx.canvas 服务持有，不持久化）
+-
+-| 实体 | 关键字段 | 说明 |
+-|---|---|---|
+-| `NodeTypeDefinition` | `kind` / `label` / `data.list` / `render` / `detail?` / `actions?` / `edgeKinds?` / `order?` | 节点类型注册；重复 kind 注册抛错 |
+-| `EdgeRuleDefinition` | `kind` / `accepts` / `arity?` / `onConnect?` / `onDisconnect?` / `renderEdge?` / `metaFields?` / `ports?` / `crossScope?` / `validate?` | 连线规则注册 |
+-| `NodeAction` | `id` / `label` / `run(node, doc)` | 右键动作（类型所有者 + `registerNodeActions` 扩展合并） |
+-| `NodeDetailSection` | `render` / `label` / `order?` | 明细区块（类型所有者 `detail` + `registerNodeDetailSection` 扩展合并） |
+-
+-**生命周期**：注册返回 disposer；插件卸载即注销；卸载后节点显示「未知类型」占位，数据保留。
+-
+-## 5. 配置（设置面）
+-
+-| 键 | 类型 | 默认 | 说明 |
+-|---|---|---|---|
+-| `enabled` | boolean | true | 总开关（双半区生效；关闭时入口/内容/公告消失，画布正打开则立即关闭——clarify Q1） |
+-| `announceToAgent` | boolean | true | 仅控制宿主公告 |
+-
+-**载体**：settings 命名空间 `hundun.canvas`（官方 settings）；宿主 `installSettingsSection` 联动 + 客户端 `settingsScope.bind`；无设置服务时读组合配置兜底。
+-
+-## 6. 运行时状态（不持久化）
+-
+-| 状态 | 值域 | 说明 |
+-|---|---|---|
+-| 画布开关 | `open` / `closed` | controller 状态机；与其它面板互斥 |
+-| 面板激活标记 | `documentElement.dataset.dshPanelActive` | 单标记，值 = 当前激活面板名；后写者胜（协议见 contracts/panel-protocol.md） |
+-| 选中节点 | `nodeId \| undefined` | 驱动右侧明细面板 |
+-
+-**状态迁移（面板互斥）**：
+-```text
+-closed --open()--> open --(其它面板 activate)--> closed
+-open   --close()--> closed
+-open   --(dsh-hello 测试面板 activate)--> closed（互斥让位）
+-```
+-
+-## 7. 边界与规模
+-
+-- 工作区 ≤ 100、节点 ≤ 100（DOM 渲染；超限降级留 P2 评估）
+-- 单画布单文档；单用户单浏览器；无跨设备同步
+-- 画布文档只含「引用 + 布局 + 关系」，不含业务数据
+Index: specs/001-canvas-orchestration/plan.md
+===================================================================
+diff --git a/specs/001-canvas-orchestration/plan.md b/specs/001-canvas-orchestration/plan.md
+deleted file mode 100644
+--- a/specs/001-canvas-orchestration/plan.md	(revision 9d59e61ec4277ba0124a26520d4810abc052d63d)
++++ /dev/null	(revision 9d59e61ec4277ba0124a26520d4810abc052d63d)
+@@ -1,125 +0,0 @@
+-# Implementation Plan: 编排画布（Canvas Orchestration）
+-
+-**Branch**: `001-canvas-orchestration` | **Date**: 2026-08-16 | **Spec**: [spec.md](./spec.md)
+-
+-**Input**: Feature specification from `/specs/001-canvas-orchestration/spec.md`
+-
+-> 依据：spec.md（含 4 项 clarify 结论）+ `packages/dsh-workspace-canvas/docs/` 四份定稿设计文档 +
+-> 项目章程 v1.0.0。本计划面向**当前阶段（P0.5 + P1）**；US8 缩放平移（P2）不在本计划实现范围。
+->
+-> **更新（P2 本轮激活）**：US8 / FR-015 视图与布局已于后续轮次激活并落地——view 变换助手
+-> （`canvas/view-transform.ts`）、画布滚轮缩放 / 空白拖拽平移、工具栏功能项（缩放 +/− / 百分比 / 重置）、
+-> view 持久化（防抖写入 CanvasDocument.view）；对应任务 T038–T041（tasks.md Phase 11），
+-> 已通过单测 + playwright 真机验证。对齐辅助线、碰撞推挤、GRID 自动布局、拖拽 ghost 仍为后续增量。
+-
+-## Summary
+-
+-在聚合仓库中实现「编排画布」：以现有 `dsh-workspace-canvas` 插件为载体，先把 P0 代码对齐定稿设计
+-（单标记互斥、配置语义、防重复挂载、挂载监督器、单测），再落地 P1 协议骨架（CanvasDocument v1
+-像素坐标 + workspaceId 归属、`ctx.canvas` 注册服务、工作区节点投影与分区渲染、可扩展右键菜单与右侧
+-明细面板）；由 `dsh-all` 提供「hundun-dsh」设置页骨架，画布注册「画布」栏目（enabled 开关，双半区
+-实时生效）；新增共享包 `@hundun/dsh-panel-protocol` 统一面板互斥协议。连线交互框架（FR-009 实施）
+-按设计门槛**待第三方节点类型租户确认后启动**，本计划只落协议 API 与校验，不落拖线手势。
+-
+-## Technical Context
+-
+-**Language/Version**: TypeScript ~5.7.2（monorepo 既有）；宿主 Node ≥22（ESM），浏览器 ES2022+（CJS bundle）
+-
+-**Primary Dependencies**:
+-- `@deepseek-ai/cordis` ^4.0.1（双半区插件框架，运行时由 DSH profile 树解析，仅 devDep + external）
+-- 客户端 SDK（类型/服务）：`dsh-client-runtime` / `dsh-client-connection` / `dsh-client-ui-slots` /
+-  `dsh-client-ui-sidebar` / `dsh-client-ui-settings`（设置面）@0.1.0-rc.6
+-- `@deepseek-ai/dsh-settings`（宿主侧 installSettingsSection 联动）@0.1.0-rc.6
+-- React 18（客户端 UI）+ `@deepseek-ai/dsh-client-ui-primitives`（Tooltip 等平台模块）
+-- `schemastery`（配置 schema）；`tsdown` 0.22.x + 共享预设 `shared/tsdown.client.ts`（构建）
+-- 无新增运行时依赖；新增 workspace 包 `@hundun/dsh-panel-protocol`（纯常量/工具，内联进各消费者 bundle）
+-
+-**Storage**: 浏览器 `localStorage['dsh.workspaceCanvas.doc.v1']`（CanvasDocument v1，500ms 防抖写 +
+-`.bak` 损坏备份 + `migrate()` 迁移链）；设置走官方 settings 命名空间（`hundun.canvas`）
+-
+-**Testing**: vitest（单测 + Contract test + Integration test，jsdom）；E2E 走 quickstart.md 人工/GUI 验证
+-（DSH web profile，HMR）。TDD：spec 已声明 `**TDD**: true`，tasks 阶段 MUST 生成 Contract/Integration 测试任务
+-
+-**Target Platform**: DSH web GUI（浏览器半区）+ DSH 宿主进程（宿主半区）；Windows 本机
+-
+-**Project Type**: DSH 双半区插件（cordis 插件包），pnpm workspace monorepo（聚合项目）
+-
+-**Performance Goals**: 打开画布首帧 ≤ 1s；拖动卡片帧间隔 < 100ms；工作区 ≤ 100 无感知卡顿（SC-002）
+-
+-**Constraints**:
+-- 客户端 bundle 纯度门：浏览器半区只可 import 平台模块表（`shared/web-platform.ts`）与内联安全层；
+-  SDK 其余仅类型导入；跨插件协作走 cordis 服务或 DOM 协议
+-- `@deepseek-ai/*` 只进 devDependencies 且列入 `libExternal`（宿主）/ 平台表（客户端），运行时由 profile 树解析
+-- 中间区域 DOM 接管（`[data-pane="conversation"]`）为结构性代价：选择器集中 + 单一挂载监督器自愈，DSH 升级时纳入回归
+-- 单用户单浏览器；zoom 0.3–3x；节点 ≤100 用 DOM 渲染（超限降级留 P2 评估）
+-
+-**Scale/Scope**: 工作区 ≤100；节点 ≤100；单画布单文档；本计划实现 P0.5 + P1（P1.4 拖线手势除外）
+-
+-## Constitution Check
+-
+-*GATE: Must pass before Phase 0 research. Re-check after Phase 1 design.*
+-
+-| 门禁（章程 v1.0.0） | 状态 |
+-|---|---|
+-| G1 Test-First：spec 声明 `TDD: true` | ✅ spec.md 含 `**TDD**: true`；tasks 阶段强制 Contract/Integration 测试任务 |
+-| G2 四字段任务格式 | ✅ 待 tasks 阶段执行（tasks-template 已按四字段更新） |
+-| G3 运行时可验证完成定义（verify 字段） | ✅ 设计产物与 tasks 生成规则已对齐；实现阶段执行 |
+-| G4 E2E 验证门禁（quickstart.md 场景） | ✅ quickstart.md 已生成 25 条 E2E 场景（含 clarify 结论） |
+-| G5 阶段收敛（每 Phase 跑 `$speckit-converge`） | ✅ 计划内显式安排 |
+-
+-**评估结果**：设计层面全部通过，无违规；进入 Phase 0。
+-
+-## Project Structure
+-
+-### Documentation (this feature)
+-
+-```text
+-specs/001-canvas-orchestration/
+-├── plan.md              # 本文件（$speckit-plan 输出）
+-├── research.md          # Phase 0 输出
+-├── data-model.md        # Phase 1 输出
+-├── quickstart.md        # Phase 1 输出（E2E 验证清单）
+-├── contracts/           # Phase 1 输出（接口契约）
+-│   ├── canvas-registry.md     # ctx.canvas 服务契约
+-│   ├── panel-protocol.md      # 面板互斥协议
+-│   ├── settings.md            # hundun-dsh 设置页契约
+-│   └── workspace-feed.md      # 官方数据面调用契约
+-└── tasks.md             # Phase 2 输出（$speckit-tasks，本命令不创建）
+-```
+-
+-### Source Code (repository root)
+-
+-```text
+-packages/dsh-panel-protocol/          # 新增：共享面板互斥协议（常量 + 工具，纯 client，内联进消费者 bundle）
+-└── src/index.ts
+-
+-packages/dsh-workspace-canvas/
+-├── src/index.ts                      # 宿主半区：公告 + 配置解析（enabled/announceToAgent，设置联动）
+-└── src/client/
+-    ├── index.ts                      # 客户端入口：apply-guard + 配置订阅 + 挂载监督器
+-    ├── search-button.tsx             # 画布入口按钮（自愈）
+-    ├── settings.ts                   # 画布设置栏目（enabled 开关，settingsScope）
+-    ├── locales.ts
+-    └── canvas/
+-        ├── controller.ts             # 状态机 + 中间区域挂载（单标记互斥）
+-        ├── mount-supervisor.ts       # 单一挂载监督器（收窄观察范围）
+-        ├── document.ts               # CanvasDocument v1：存储/校验/迁移（P1.1）
+-        ├── registry.ts               # ctx.canvas 注册服务（P1.2）
+-        ├── view/                     # 视图助手：workspace-nodes 投影 + 坐标工具（P1.3；CanvasView 组件保持 canvas/ 根）
+-        ├── menu.ts                   # 右键菜单 + 动作合并（P1.3）
+-        └── detail/                   # 右侧明细面板 + 区块合并（P1.3）
+-
+-packages/dsh-all/
+-└── src/client/index.ts               # 设置页骨架：settings.section「hundun-dsh」+ 子槽位
+-
+-packages/dsh-hello/
+-└── src/client/panel.tsx              # 改造：参与互斥协议的测试面板（互斥验收对方面板，可随意改动）
+-```
+-
+-**Structure Decision**: 采用「聚合 monorepo 多包」结构——画布功能集中在 `dsh-workspace-canvas` 双半区；
+-互斥协议抽独立共享包（设计决策 D4，跨插件零硬编码）；设置页骨架放聚合包 `dsh-all`（设计决策 D10）；
+-`dsh-hello` 兼任互斥测试面板（clarify Q3）。测试按包内 `tests/` 组织（vitest）。
+-
+-## Complexity Tracking
+-
+-> 无宪法违规，本表不填（新增 `dsh-panel-protocol` 包为设计决策 D4，非违规；monorepo 包数量不受章程限制）。
+Index: specs/001-canvas-orchestration/quickstart.md
+===================================================================
+diff --git a/specs/001-canvas-orchestration/quickstart.md b/specs/001-canvas-orchestration/quickstart.md
+deleted file mode 100644
+--- a/specs/001-canvas-orchestration/quickstart.md	(revision 9d59e61ec4277ba0124a26520d4810abc052d63d)
++++ /dev/null	(revision 9d59e61ec4277ba0124a26520d4810abc052d63d)
+@@ -1,101 +0,0 @@
+-# Quickstart: 编排画布（Canvas Orchestration）端到端验证
+-
+-> **用途**：implement 完成后的人工/交互式端到端验证清单。场景来自 `spec.md` 的验收场景与边界情况。
+-> **约束（项目章程 IV 条）**：场景 checkbox 与 tasks.md 任务 checkbox **同等约束力**——
+-> 场景未全部通过时，对应任务的 `[X]` 无效（改回 `[ ]`）并 MUST 追加 Convergence 任务。
+-
+-**Feature**: [spec.md](./spec.md) | **Plan**: [plan.md](./plan.md) | **Data**: [data-model.md](./data-model.md) | **Contracts**: [contracts/](./contracts/)
+-**验证环境**: DSH web profile（本机，HMR 开启）
+-**Created**: 2026-08-16
+-
+-> 场景依据：spec.md 验收场景（含 clarify 结论）+ 边界情况；技术细节见 data-model.md 与 contracts/（本清单不重复）。
+-> E2E 具体操作与预期以 GUI 实际交互为准；性能指标见 SC-002（首帧 ≤1s、拖动帧间隔 <100ms）。
+-
+-## E2E 场景（按用户故事分组）
+-
+-### US1 - 工作区总览与快速进入
+-
+-- [x] E2E-01 打开画布 → 全部工作区以卡片呈现（标题/路径/会话数/最近活跃），数量与侧边栏列表一致；首帧呈现 ≤ 1s
+-- [x] E2E-02 点击工作区卡片 → 进入该工作区新会话并退出画布
+-- [x] E2E-03 点侧边栏会话/工作区行或「关闭」→ 画布退出，对话界面恢复且原对话状态保留
+-
+-### US2 - 布局持久化
+-
+-- [x] E2E-04 拖拽卡片位置 → 刷新/重开画布 → 位置一致
+-- [x] E2E-05 写入损坏数据 → 提示 + 空布局启动（不崩溃），原数据备份保留
+-
+-### US3 - 编排画布平台（节点与连线）
+-
+-- [ ] E2E-06 第三方注册节点类型 → 节点出现在画布并按注册外观渲染
+-- [ ] E2E-07 创建无归属节点 → 系统要求先落入工作区（无游离态）
+-- [ ] E2E-08 同工作区两节点拖线 → 连接建立成功
+-- [ ] E2E-09 跨工作区两节点拖线 → 默认拒绝并给出原因
+-
+-### US4 - 工作区管理与可扩展右键操作
+-
+-- [x] E2E-10 右键工作区 → 菜单含进入/重命名/删除/归档
+-- [x] E2E-11 删除含成员的工作区 → 确认（列出成员数）→ 级联清理成员与关系
+-- [ ] E2E-12 第三方注册扩展动作 → 右键菜单出现并可执行
+-
+-### US5 - 明细面板
+-
+-- [x] E2E-13 点击工作区 → 右侧明细（基础信息 + 会话数，不含条目列表；有跳转侧边栏会话列表入口）
+-- [ ] E2E-14 点击注册类型节点 → 明细含内置视图 + 扩展区块（按序）
+-- [x] E2E-15 点空白/关闭 → 面板收起
+-
+-### US6 - 面板互斥
+-
+-- [ ] E2E-16 画布打开时打开 dsh-hello 测试面板 → 画布让位
+-- [ ] E2E-17 dsh-hello 测试面板打开时打开画布 → 面板让位
+-
+-### US7 - 设置项
+-
+-- [ ] E2E-18 关闭画布开关 → 入口/内容/公告均消失；若画布正打开则立即关闭；其他功能不受影响
+-- [ ] E2E-19 重新开启 → 恢复且布局保留
+-
+-### US8 - 视图浏览（本轮激活）
+-
+-- [x] E2E-20 缩放 0.3x–3x、平移流畅；新节点自动落位不重叠；拖拽有对齐参考
+-  - 已实现：缩放（滚轮/工具栏 0.3–3x）、空白平移、视图重置与持久化（本轮 T038–T041，playwright 真机已验证）。
+-  - 后续增量：GRID 自动布局、拖拽对齐辅助线。
+-
+-### 边界情况
+-
+-- [ ] E2E-21 工作区从官方列表消失 → 提示 + 清理其成员与关系
+-- [ ] E2E-22 无工作区/首次打开 → 空状态引导，不报错
+-- [ ] E2E-23 节点插件卸载 → 占位显示，位置与关系保留，重装恢复
+-- [ ] E2E-24 拖节点出所有工作区区域 → 无效提示，节点保持原位
+-- [ ] E2E-25 画布与其他面板并发打开 → 后打开者胜，不双占
+-
+-## 结果记录
+-
+-| 场景 | 结果（通过/失败） | 失败原因 | 关联任务 |
+-|------|-------------------|----------|----------|
+-| E2E-01 | ✅ 通过（playwright 自动化） | 首帧 headless 冷启动 1270ms（略超 1s 目标，真机热缓存可复测；功能断言全过） | T014 |
+-| E2E-02 | ✅ 通过（playwright 自动化） | 修复：点卡片进入会话后画布让位（workspace-open onSuccess + handleOpen onClose） | T014 |
+-| E2E-03 | ✅ 通过（playwright 自动化） | | T014 |
+-| E2E-04 | ✅ 通过（playwright 自动化） | 拖拽 12,12 → 175.6,93.8，重开一致 | T017 |
+-| E2E-05 | ✅ 通过（playwright 自动化） | 备份保存存储原串（取证，对齐单测语义）；空文档启动不崩溃、feed 卡片照常 | T017 |
+-| E2E-06 | ✅ 通过（3199 验证实例，注入 demo 节点按注册外观渲染） | 修复跨插件 isolate 可见性：canvas/ready 事件携带 registry + 画布打开补发 | T022 |
+-| E2E-07 | ✅ 通过（约束层） | GUI 创建入口属平台 API 能力（第三方经 registry.mutate 创建）；「无游离态」由 mutate 校验（validateDocument：归属完整、workspaceId 指向存在工作区）实现并单测覆盖，无游离态节点不可存在 | T022 |
+-| E2E-08 | ⏸ 挂起：待 P1.4 拖线手势租户 | 设计标注 | T022 |
+-| E2E-09 | ⏸ 挂起：待 P1.4 拖线手势租户 | 设计标注 | T022 |
+-| E2E-10 | ✅ 通过（playwright 自动化） | 菜单 5 项齐全（进入/详情/重命名/归档会话/删除（级联）） | T025 |
+-| E2E-11 | ✅ 通过（GUI 验证 confirm 取消路径） | 真实删除不做（保护用户数据）；级联清理由单测覆盖 | T025 |
+-| E2E-12 | ✅ 通过（3080 主实例，demo 节点扩展动作） | demo 节点注册「示例动作」→ 右键菜单出现并可执行（alert） | T025 |
+-| E2E-13 | ✅ 通过（playwright 自动化） | 明细含标题/路径/会话/最近活跃/侧边栏跳转入口 | T028 |
+-| E2E-14 | ✅ 通过（3080 主实例，demo 节点明细） | 点节点 → 明细含内置视图（标签/引用/类型）+ 扩展区块「演示区块」按序 | T028 |
+-| E2E-15 | ✅ 通过（playwright 自动化） | 关闭按钮收起明细 | T028 |
+-| E2E-16 | ✅ 通过（3199 验证实例） | 画布开 → hello 面板开 → 画布让位（单标记协议） | T034 |
+-| E2E-17 | ✅ 通过（3199 验证实例） | hello 面板开 → 画布开 → 面板让位 | T034 |
+-| E2E-18 | ✅ 通过（3199 验证实例） | 修复：官方 settings 白名单硬编码（第三方 namespace 不可暴露给浏览器），开关改 localStorage 持久化；关闭后入口消失、画布立即关闭 | T034 |
+-| E2E-19 | ✅ 通过（3199 验证实例） | 重开恢复、布局保留；修复 registry remount 重复 provide（service "canvas" has been registered） | T034 |
+-| E2E-20 | ✅ 通过（playwright 自动化） | 缩放/重置/滚轮/平移/持久化全过；自动布局与对齐为增量 | T038-T041 |
+-| E2E-21 | ⏸ 受限：需 feed 移除工作区（GUI 构造困难） | 清理逻辑单测覆盖（workspace-nodes） | T037 |
+-| E2E-22 | ⏸ 受限：需空工作区环境 | 空状态单测覆盖（us1） | T037 |
+-| E2E-23 | ⏸ 受限：需节点插件卸载/重装 | 占位渲染逻辑单测覆盖（us3） | T037 |
+-| E2E-24 | ⏸ 受限：需 member 节点拖出区域 | 待 dsh-hello demo 节点加载后可验证 | T037 |
+-| E2E-25 | ✅ 通过（3199 验证实例） | 连续开 hello + 画布 → 单一标记，不双占 | T037 |
+-
+-> **收尾**：全部场景通过 → 可宣告功能完成；存在失败 → 对应任务 `[X]` 回退 `[ ]`，
+-> 运行 `$speckit-converge` 追加 Convergence 任务。
+Index: specs/001-canvas-orchestration/research.md
+===================================================================
+diff --git a/specs/001-canvas-orchestration/research.md b/specs/001-canvas-orchestration/research.md
+deleted file mode 100644
+--- a/specs/001-canvas-orchestration/research.md	(revision 9d59e61ec4277ba0124a26520d4810abc052d63d)
++++ /dev/null	(revision 9d59e61ec4277ba0124a26520d4810abc052d63d)
+@@ -1,94 +0,0 @@
+-# Research: 编排画布（Canvas Orchestration）
+-
+-> Phase 0 输出。把 plan.md Technical Context 中的未知点与选型固化为决策；每条含 Decision / Rationale / Alternatives。
+-> 依据：定稿设计文档 + 既有代码（P0 实现）+ 本机 DSH 运行时实测（slot 契约、SDK 类型）。
+-
+-## R1 坐标与视图模型
+-
+-- **Decision**: 场景绝对像素坐标 + 视图变换（`position` = px；`view {x,y,zoom}` 为「镜头」，缩放平移不改坐标）
+-- **Rationale**: 画布地基——「东西在哪」与「怎么看」分离；区域尺寸变化/缩放下位置不漂移（设计决策 D1）
+-- **Alternatives**: 百分比坐标（缩放/区域变化漂移，P2 必返工）；像素+百分比混用（两套换算，复杂）
+-
+-## R2 归属模型
+-
+-- **Decision**: 节点 `workspaceId` 字段（业务工作区 id），**不是 member 边**；edges 只表达关联（link/扩展）
+-- **Rationale**: 归属是简单关系；建模成边会让查重/删边/拖线全系统特判（设计决策 D2）；字段校验 O(1)
+-- **Alternatives**: member 边（概念对称但复杂度泄漏）；parentId 指向画布内部节点 id（工作区重挂需重指，不如业务 id 稳）
+-
+-## R3 面板互斥协议
+-
+-- **Decision**: 单一激活标记 `data-dsh-panel-active="<name>"` + `dsh-panel-activate` 事件（后写者胜）；
+-  协议常量/工具抽共享包 `@hundun/dsh-panel-protocol`（设计决策 D4，clarify Q3）
+-- **Rationale**: 画布只需看「标记是不是我」，不需要枚举所有面板；新面板零改动；常量一处维护
+-- **Alternatives**: 现状多属性硬编码（要认识所有面板，改名即失效）；纯 DOM 事件无属性（刷新后状态丢失）
+-
+-## R4 官方数据面（workspaces / sessions）
+-
+-- **Decision**: 数据经官方 `ctx.workspaces` / `ctx.sessions` 服务读取；工作区实例数据实时投影、画布只存档位置与 ref；
+-  写操作（进入/重命名/删除/归档）走官方 API（`startSession` / `rename` / `delete` / `archiveSession`）
+-- **Rationale**: 画布不缓存/不复制业务数据（capability-boundaries §1）；数据一致性由官方 feed 保证
+-- **Alternatives**: 自行持久化工作区元数据（与官方脱节、重复数据源，弃）
+-
+-## R5 设置面接入
+-
+-- **Decision**: 设置页「hundun-dsh」由聚合包 `dsh-all` 注册（`settings.section` + 子槽位）；
+-  画布注册「画布」栏目；宿主侧 `installSettingsSection`（`@deepseek-ai/dsh-settings`）+ 客户端
+-  `settingsScope.bind`（`@deepseek-ai/dsh-client-ui-settings`）；schema 用 schemastery
+-  （设计决策 D10，clarify Q1：enabled 关闭时实时卸载）
+-- **Rationale**: 聚合品牌设置面归聚合包，栏目按插件扩展；双半区联动落实 D5 统一总开关
+-- **Alternatives**: 画布插件自注册整页（未来插件加栏目要改画布代码，弃）；仅组合文件配置（无 UI，弃）
+-
+-## R6 中间区域 DOM 接管与自愈
+-
+-- **Decision**: 保留 DOM 接管（`[data-pane="conversation"]`，absolute + z-index，对话保持挂载），
+-  但把两套 MutationObserver 合并为**单一挂载监督器**，观察范围收窄到侧边栏/对话列两个锚点子树；
+-  选择器集中为「挂载点契约」模块
+-- **Rationale**: `conversation` 槽位单占用，官方未开放全局视图槽，DOM 接管是当前唯一路径；
+-  收窄观察范围降低与 shell 复杂度线性相关的开销；选择器集中便于 DSH 升级回归（设计评审 G 项）
+-- **Alternatives**: 官方槽位方案（无可用全局视图槽）；保持两套观察器（职责重叠，弃）
+-
+-## R7 持久化与降级
+-
+-- **Decision**: `localStorage['dsh.workspaceCanvas.doc.v1']` 500ms 防抖写；损坏 → `.bak` 备份 + 空文档启动 + 提示；
+-  `migrate()` 迁移链（版本号并入 key）；配额满 → 只读降级 + 一次性提示
+-- **Rationale**: 单用户单浏览器，localStorage 足够；降级契约保证「不崩溃、不静默删」（protocol-spec §7）
+-- **Alternatives**: 宿主 JSON 文件路由（v2 跨浏览器共享，按需再做）；无持久化（布局刷新即丢，P0 缺陷，弃）
+-
+-## R8 性能（≤100 工作区/节点）
+-
+-- **Decision**: DOM 渲染卡片（≤100）；拖动用 pointer events + `setPointerCapture` + rAF 节流提交；
+-  帧间隔 <100ms 验收（SC-002，clarify Q4）；超过 100 的降级（静态层转 canvas 2D）留 P2 评估
+-- **Rationale**: 100 节点 DOM 完全可承受；避免过早引入 canvas 2D 复杂度（capability-boundaries §5）
+-- **Alternatives**: 直接 canvas 2D 渲染（过早优化，维护成本高，弃）
+-
+-## R9 测试策略
+-
+-- **Decision**: vitest（jsdom）分三层：单元（controller 状态机/互斥/拖拽阈值）、Contract（文档校验引擎：
+-  workspaceId 不变量/查重/arity/crossScope/迁移）、Integration（注册→渲染→归属→明细链路）；E2E 走
+-  quickstart.md 人工/GUI 验证（25 条场景，章程 IV 门禁）
+-- **Rationale**: 章程 I（TDD）+ III（四字段任务）+ IV（E2E 门禁）；校验逻辑（平台承诺）必须先测后写
+-- **Alternatives**: 纯人工验证（改动越多越怕，弃）；E2E 自动化（Playwright 后置，本阶段人工 GUI 为准）
+-
+-## R10 dsh-hello 改造为互斥测试面板
+-
+-- **Decision**: 在 dsh-hello 客户端半区增加一个简单面板（复用 `@hundun/dsh-panel-protocol` 参与互斥协议），
+-  作为互斥 E2E 的对方面板（clarify Q3，可随意改动）
+-- **Rationale**: 聚合仓库内自包含、可立即验证互斥协议；将来整合真实 task-board/SSH 时复用同一协议即可
+-- **Alternatives**: 新建专用桩面板插件（多一个包，收益低，弃）；等真实面板（阻塞验收，弃）
+-
+-## 汇总
+-
+-| 未知点 | 结论 | 状态 |
+-|---|---|---|
+-| 坐标模型 | 场景像素 + view 变换 | 已定（D1） |
+-| 归属模型 | workspaceId 字段 | 已定（D2） |
+-| 互斥协议 | 单标记 + 共享包 | 已定（D4/Q3） |
+-| 数据面 | 官方 feed 投影 + 官方写 API | 已定 |
+-| 设置面 | dsh-all 骨架 + 画布栏目 | 已定（D10/Q1） |
+-| DOM 接管 | 保留 + 单一监督器 | 已定 |
+-| 持久化 | localStorage v1 + 降级链 | 已定 |
+-| 性能 | ≤100 DOM + 指标量化 | 已定（Q4） |
+-| 测试 | vitest 三层 + E2E | 已定（章程） |
+-| 互斥对方面板 | dsh-hello 改造 | 已定（Q3） |
+-
+-**残留 NEEDS CLARIFICATION**：无。
+Index: specs/001-canvas-orchestration/spec.md
+===================================================================
+diff --git a/specs/001-canvas-orchestration/spec.md b/specs/001-canvas-orchestration/spec.md
+deleted file mode 100644
+--- a/specs/001-canvas-orchestration/spec.md	(revision 9d59e61ec4277ba0124a26520d4810abc052d63d)
++++ /dev/null	(revision 9d59e61ec4277ba0124a26520d4810abc052d63d)
+@@ -1,212 +0,0 @@
+-# Feature Specification: 编排画布（Canvas Orchestration）
+-
+-**Feature Branch**: `001-canvas-orchestration`
+-
+-**Created**: 2026-08-16
+-
+-**Status**: Draft
+-
+-**TDD**: true
+-<!-- 项目章程 I 条：TDD 必为 true，$speckit-tasks 须生成 Contract test 与 Integration test 任务。 -->
+-
+-**Input**: User description: "基于当前的设计和文档生成需求"
+-
+-> 依据：`packages/dsh-workspace-canvas/docs/` 下四份设计文档（protocol-spec / orchestration-design / capability-boundaries / implementation-plan）定稿内容。
+-
+-## Clarifications
+-
+-### Session 2026-08-16
+-
+-- Q: 关闭「启用画布」开关时，如果画布此刻正打开着，画布应该立即关闭吗？ → A: 立即关闭（设置变更实时生效）
+-- Q: 工作区明细面板中的「会话列表」应该显示到什么程度？ → A: 仅显示会话数（不列会话条目；跳转侧边栏会话列表由既有能力承载）
+-- Q: 面板互斥的 E2E 场景用什么作为对方面板？ → A: 以现有 dsh-hello 插件改造为参与互斥协议的测试面板（可随意改动），作为互斥验收的对方面板
+-
+-## User Scenarios & Testing *(mandatory)*
+-
+-### User Story 1 - 工作区总览与快速进入（Priority: P1）
+-
+-用户打开画布视图，一屏看到全部工作区（标题 / 路径 / 会话数 / 最近活跃标记），点击任意工作区卡片直接进入该工作区的新会话；关闭画布后对话界面恢复原状。
+-
+-**Why this priority**: 这是画布最基础、可独立交付的价值——把「逐个翻列表找工作区」变成「一屏总览 + 一步直达」，不依赖任何平台能力。
+-
+-**Independent Test**: 打开画布 → 看到全部工作区卡片 → 点击一张 → 进入该工作区新会话 → 关闭画布 → 对话界面恢复且原对话状态保留。此流程独立成立即为可用 MVP。
+-
+-**Acceptance Scenarios**:
+-
+-1. **Given** 画布已打开, **When** 用户查看, **Then** 全部工作区以卡片呈现（标题 / 路径 / 会话数 / 最近活跃标记），数量与官方工作区列表一致
+-2. **Given** 画布已打开, **When** 用户点击某工作区卡片, **Then** 打开该工作区的新会话并退出画布
+-3. **Given** 画布已打开, **When** 用户点击侧边栏的会话/工作区行或「关闭」按钮, **Then** 画布退出，对话界面恢复且原对话状态保留
+-
+----
+-
+-### User Story 2 - 布局持久化（Priority: P1）
+-
+-用户按自己的心智模型拖拽摆放工作区卡片；刷新页面或重启后布局原样保留；数据异常时不崩溃。
+-
+-**Why this priority**: 画布区别于普通列表的核心体验就是「空间记忆」，位置必须能留存，否则只是换了皮的列表。
+-
+-**Independent Test**: 拖乱几张卡片 → 刷新 → 位置一致；写入坏数据 → 系统提示并正常启动。
+-
+-**Acceptance Scenarios**:
+-
+-1. **Given** 用户已拖动若干卡片位置, **When** 刷新页面或重新打开画布, **Then** 卡片位置与之前完全一致
+-2. **Given** 画布数据损坏, **When** 系统检测到, **Then** 不崩溃，提示用户并以空布局正常启动（原数据备份保留）
+-
+----
+-
+-### User Story 3 - 编排画布平台：节点与连线（Priority: P1）
+-
+-第三方插件可注册新的节点类型（外观 / 动作 / 明细）与连线规则；每个节点必须归属某个工作区（不允许「无家可归」的节点）；同工作区内的节点之间可连线，跨工作区默认禁止。
+-
+-**Why this priority**: 这是画布从「视图」升级为「平台」的核心能力，也是聚合项目差异化的关键——让任务、主机、AI 预设等以节点形式共存于一个空间并表达关系。
+-
+-**Independent Test**: 一个测试插件注册节点类型 → 节点出现在画布并可渲染 → 拖入工作区建立归属 → 同工作区两节点连线成功。
+-
+-**Acceptance Scenarios**:
+-
+-1. **Given** 某插件已注册节点类型, **When** 画布打开, **Then** 该类节点出现在画布上并按注册外观渲染
+-2. **Given** 一个新节点被创建, **When** 用户未为其指定工作区, **Then** 系统要求其先落入某工作区，无归属节点不可存在（显示提示而非静默丢弃）
+-3. **Given** 两节点同属一个工作区, **When** 用户拖线连接, **Then** 连接建立成功（同工作区内默认允许）
+-4. **Given** 两节点分属不同工作区, **When** 用户尝试跨区连线, **Then** 默认拒绝并给出原因；仅当规则显式允许跨区时方可
+-
+----
+-
+-### User Story 4 - 工作区管理与可扩展右键操作（Priority: P2）
+-
+-工作区卡片右键菜单提供「进入 / 重命名 / 删除 / 归档会话」；删除需确认并级联清理；其他插件可向任意节点类型追加右键动作。
+-
+-**Why this priority**: 工作区管理是高频操作，动作可扩展是「操作开放给其他插件」的平台承诺；但不影响 MVP 的查看与进入。
+-
+-**Independent Test**: 右键工作区 → 菜单出现内置动作 → 删除弹出确认 → 第三方注册动作后菜单新增该项。
+-
+-**Acceptance Scenarios**:
+-
+-1. **Given** 用户右键点击工作区卡片, **Then** 出现菜单：进入 / 重命名 / 删除 / 归档会话
+-2. **Given** 工作区下存在成员节点, **When** 用户选择删除, **Then** 弹出确认（列出将删除的成员数），确认后级联删除该工作区的全部成员节点与关系
+-3. **Given** 某插件注册了扩展动作, **When** 用户右键点击对应类型节点, **Then** 菜单中出现该扩展动作并可正常执行
+-
+----
+-
+-### User Story 5 - 节点/工作区明细面板（Priority: P2）
+-
+-点击节点或工作区时，画布右侧弹出明细面板；工作区明细含基础信息与会话数（不列会话条目，跳转侧边栏会话列表由既有能力承载）；其他插件可向任意节点类型追加明细区块。
+-
+-**Why this priority**: 「点开看详情」是浏览编排空间的自然交互；可扩展区块让其他插件（如 SSH 主机状态）无需改画布即可贡献内容。
+-
+-**Independent Test**: 点击工作区 → 右侧出现明细（基础信息 + 会话列表）→ 第三方注册区块后明细按顺序追加显示。
+-
+-**Acceptance Scenarios**:
+-
+-1. **Given** 用户点击某工作区卡片, **Then** 右侧弹出明细面板：标题 / 路径 / 会话数 / 最近活跃（不列会话条目；提供跳转侧边栏会话列表的入口）
+-2. **Given** 某插件注册了扩展明细区块, **When** 用户点击该类型节点, **Then** 明细面板按顺序渲染内置视图与扩展区块
+-3. **Given** 明细面板打开, **When** 用户点击空白处或「关闭」, **Then** 面板收起
+-
+----
+-
+-### User Story 6 - 面板互斥（Priority: P2）
+-
+-画布与任务看板、SSH 面板共享中间区域，同一时刻只显示一个；后打开者胜。
+-
+-**Why this priority**: 多面板共存是聚合项目的必然场景，互斥保证界面不打架；协议已定稿，实现成本低。
+-
+-**Independent Test**: 画布打开时打开 dsh-hello 改造的测试面板 → 画布让位；反之亦然。
+-
+-**Acceptance Scenarios**:
+-
+-1. **Given** 画布已打开, **When** 用户打开 dsh-hello 测试面板, **Then** 画布关闭，测试面板显示
+-2. **Given** dsh-hello 测试面板已打开, **When** 用户打开画布, **Then** 测试面板关闭，画布显示
+-
+----
+-
+-### User Story 7 - 设置项：画布开关（Priority: P3）
+-
+-设置面板新增「hundun-dsh」配置页（预留多栏目），「画布」栏目提供启用/关闭画布开关；关闭后画布入口、画布内容与系统公告一并消失，已保存布局保留。
+-
+-**Why this priority**: 开关是配置能力而非核心功能，但「统一总开关语义」是设计定稿项，随 P0.5 一起落地。
+-
+-**Independent Test**: 关闭开关 → 界面不再出现画布入口与内容 → 重新开启 → 恢复且布局保留。
+-
+-**Acceptance Scenarios**:
+-
+-1. **Given** 用户将画布开关设为关闭, **Then** 画布入口与画布内容不再出现（含系统公告）；**若画布此刻打开，立即关闭**，其他功能不受影响
+-2. **Given** 用户重新开启开关, **Then** 画布入口恢复，此前布局与数据保留
+-
+----
+-
+-### User Story 8 - 视图浏览：缩放与平移（Priority: P3，本轮激活）
+-
+-画布支持缩放（0.3x–3x）、平移、自动布局与对齐吸附，用户可自由浏览编排空间。
+-
+-**Why this priority**: 工作区/节点增多后的浏览体验增强；设计已定稿（像素坐标 + 视图变换），实施依赖前序阶段完成。
+-
+-**Independent Test**: 缩放平移流畅、新节点自动落位不重叠、拖拽有对齐参考。
+-
+-**Acceptance Scenarios**:
+-
+-1. **Given** 画布节点较多, **When** 用户滚轮缩放或空白拖拽平移, **Then** 视图流畅变换，缩放范围 0.3x–3x
+-2. **Given** 新节点加入, **When** 自动布局, **Then** 节点落位不与既有节点重叠
+-3. **Given** 用户拖动节点, **When** 接近对齐位置, **Then** 显示对齐参考线并可吸附
+-
+----
+-
+-### Edge Cases
+-
+-- 工作区从官方列表消失（被删除/移动）→ 画布提示并清理该工作区节点及其全部成员与关系
+-- 首次打开或没有工作区 → 空状态引导，不报错
+-- 画布数据损坏（JSON 解析失败）→ 备份原数据 → 以空布局启动并提示
+-- 节点插件卸载 → 该类节点显示「未知类型」占位，位置与关系保留，重装即恢复
+-- 拖动节点拖出所有工作区区域 → 无效操作并提示「请拖入目标工作区」，节点保持原位
+-- 删除含成员的工作区 → 确认提示列出成员数，防止误删
+-- 画布打开时点击侧边栏会话/工作区行 → 自动退出画布，对话优先
+-- 画布与其他面板并发打开 → 后打开者胜，不出现两个面板同时占用
+-
+-## Requirements *(mandatory)*
+-
+-### Functional Requirements
+-
+-- **FR-001**: 侧边栏工作区搜索行 MUST 提供「画布视图」入口，用户可打开/关闭画布
+-- **FR-002**: 画布 MUST 呈现全部工作区（标题 / 路径 / 会话数 / 最近活跃标记），并与官方工作区列表实时保持一致（新增/删除自动反映）
+-- **FR-003**: 用户 MUST 能通过点击工作区卡片直接进入该工作区的新会话
+-- **FR-004**: 系统 MUST 持久化用户拖拽的工作区位置，刷新/重启后原样恢复
+-- **FR-005**: 用户 MUST 能退出画布（侧边栏行 / 关闭按钮），退出后对话界面恢复且原对话状态保留
+-- **FR-006**: 画布 MUST 与任务看板、SSH 面板互斥：同一时刻中间区域最多呈现一个面板，后打开者胜（验收对方面板 = 以 dsh-hello 改造的测试面板）
+-- **FR-007**: 第三方插件 MUST 能注册新的节点类型（外观 / 动作 / 明细视图）与连线规则，无需修改画布代码
+-- **FR-008**: 每个编排节点 MUST 归属且仅归属一个工作区；拖入工作区建立归属、拖到另一工作区迁移归属；无归属节点 MUST NOT 存在（提示用户而非静默丢弃）
+-- **FR-009**: 同工作区内的节点之间 MUST 能连线；跨工作区连线 MUST 默认禁止，仅当对应规则显式允许时方可
+-- **FR-010**: 工作区卡片 MUST 提供右键菜单：进入 / 重命名 / 删除 / 归档会话；删除 MUST 弹出确认（列出将删除的成员数）并级联清理该工作区全部成员与关系
+-- **FR-011**: 第三方插件 MUST 能向任意节点类型追加右键动作，与内置动作合并展示
+-- **FR-012**: 点击节点/工作区 MUST 在右侧弹出明细面板；工作区明细 MUST 含基础信息与会话数（不列会话条目）；第三方插件 MUST 能追加明细区块并按序展示
+-- **FR-013**: 数据异常时系统 MUST NOT 崩溃：节点插件卸载 → 占位显示且位置/关系保留；画布文档损坏 → 备份后以空布局启动并提示
+-- **FR-014**: 设置面板 MUST 提供「hundun-dsh」配置页（预留多栏目结构）；「画布」栏目 MUST 提供启用/关闭画布开关；关闭后画布入口、画布内容与系统公告 MUST 不再出现，**若画布正在打开 MUST 立即关闭**，已保存布局 MUST 保留
+-- **FR-015**: 画布 MUST 支持缩放（0.3x–3x）、平移与视图重置（P2，**本轮已激活**：缩放/平移/工具栏已实现并真机验证；自动布局/对齐吸附为 P2 后续增量，见 Assumptions 与 US8）
+-
+-### Key Entities *(include if feature involves data)*
+-
+-- **工作区（Workspace）**: 画布上的基底卡片，含标题 / 路径 / 会话数 / 最近活跃状态；是唯一容器——其他所有节点必须归属某个工作区
+-- **编排节点（Node）**: 第三方插件注册的卡片，含类型、外观、动作、明细；必须归属且仅归属一个工作区；业务数据留在插件域，画布只保存引用与位置
+-- **关系连线（Edge）**: 节点间的关联，含类型与两端节点；默认仅限同工作区内，跨工作区需规则显式允许；归属（属于哪个工作区）不是连线
+-- **画布布局（Layout）**: 全部节点的位置与视图状态；随用户会话持久保存，只含「引用 + 布局 + 关系」，不含业务数据
+-- **画布配置（Configuration）**: 「hundun-dsh」设置页下的画布栏目配置项（当前为启用/关闭开关），随设置持久保存
+-
+-## Success Criteria *(mandatory)*
+-
+-### Measurable Outcomes
+-
+-- **SC-001**: 用户可在 2 次点击内从画布进入任意工作区的新会话
+-- **SC-002**: 工作区数量 ≤ 100 时，打开画布、拖动卡片、切换面板均无明显卡顿（交互即时响应）
+-- **SC-003**: 用户自定义的布局在刷新/重启后 100% 恢复
+-- **SC-004**: 第三方插件无需修改画布代码即可完成「注册节点类型 → 渲染 → 建立归属 → 同区连线」全流程
+-- **SC-005**: 任何删除操作后不残留无主节点或失效关系（无游离态）
+-- **SC-006**: 关闭画布开关后，界面 100% 不再出现画布入口、画布内容与系统公告
+-- **SC-007**: 数据异常（文档损坏 / 插件卸载）时不崩溃，以明确提示或占位呈现，且不丢失业务数据
+-- **SC-008**: 面板互斥下，同一时刻中间区域最多呈现一个面板
+-
+-## Assumptions
+-
+-- 单用户、单浏览器使用；多人协作 / 跨设备实时同步不在范围内
+-- 画布只保存「引用 + 布局 + 关系」，不保存业务数据（业务数据归各插件与官方域）；卸载画布只丢布局不丢业务
+-- 工作区的新建 / 重命名 / 删除沿用宿主既有能力；画布不提供新建工作区
+-- 连线交互框架（US3 的连线部分）的实施以至少一个第三方插件承诺接入为前提（设计门槛 P1.4）
+-- 缩放 / 平移（US8 / FR-015）本轮已激活（不在 MVP 但进入实现范围）；自动布局 / 对齐吸附为 P2 后续增量
+-- 删除工作区 = 级联删除其成员节点与关系（成员不可脱离工作区存在），删除前必确认
+-- 项目章程（`.specify/memory/constitution.md`）当前为模板初始态、尚无生效原则；正式 ratify 后以其为准
+Index: specs/001-canvas-orchestration/tasks.md
+===================================================================
+diff --git a/specs/001-canvas-orchestration/tasks.md b/specs/001-canvas-orchestration/tasks.md
+deleted file mode 100644
+--- a/specs/001-canvas-orchestration/tasks.md	(revision 9d59e61ec4277ba0124a26520d4810abc052d63d)
++++ /dev/null	(revision 9d59e61ec4277ba0124a26520d4810abc052d63d)
+@@ -1,172 +0,0 @@
+-# Tasks: 编排画布（Canvas Orchestration）
+-
+-**Input**: Design documents from `/specs/001-canvas-orchestration/`
+-
+-**Prerequisites**: plan.md（技术栈/结构）、spec.md（用户故事与优先级）、data-model.md、contracts/（canvas-registry / panel-protocol / settings / workspace-feed）、research.md
+-
+-**Tests**: spec.md 已声明 `**TDD**: true` —— 每个用户故事阶段 MUST 含 Contract test 与 Integration test 任务（项目章程 I 条）。
+-
+-**Organization**: Tasks are grouped by user story to enable independent implementation and testing of each story.
+-
+-## Format（四字段，全必填，项目章程 III 条）
+-
+-```text
+-- [ ] T### [P?] [USx?] 描述 `file: 文件路径` `function: 函数/组件名` `calls: API/函数调用` `verify: 运行时可验证行为`
+-```
+-
+-`file` / `function` / `calls` / `verify` 全必填（`calls` 无则填「无」）。**禁止** `verify: tsc 通过 / build 成功 / 代码已实现`；
+-标记 `[X]` 的唯一依据是 `verify` 行为真实通过（章程 II 条）。
+-
+----
+-
+-## Phase 1: Setup（共享基础设施）
+-
+-**Purpose**: 新包与测试/构建基建就绪（互不依赖，可并行）
+-
+-- [X] T001 [P] 新建 `@hundun/dsh-panel-protocol` 包骨架（package.json / tsconfig / tsdown.config / exports，接入 monorepo） `file: packages/dsh-panel-protocol/package.json` `function: 无（新包）` `calls: 无` `verify: pnpm -r list 显示 @hundun/dsh-panel-protocol；workspace 可 resolve 其入口`
+-- [X] T002 [P] 实现互斥协议常量与工具（PANELS / ACTIVE_ATTR / ACTIVATE_EVENT / isActive / activate / onOtherActivate） `file: packages/dsh-panel-protocol/src/index.ts` `function: activate / isActive / onOtherActivate` `calls: 无` `verify: Contract test：activate('a') 后 isActive('a')===true 且 isActive('b')===false；先后激活后写者胜；onOtherActivate 仅在他人激活时触发`
+-- [X] T003 [P] dsh-workspace-canvas 接入 vitest + jsdom（devDeps、vitest.config.ts、首条冒烟测试） `file: packages/dsh-workspace-canvas/package.json` `function: 无（基建）` `calls: pnpm install` `verify: pnpm -r --filter @hundun/dsh-workspace-canvas test 能收集并跑通 tests/ 下冒烟用例`
+-- [X] T004 [P] dsh-all 客户端半区脚手架（dsh.client 字段、tsconfig/tsdown、aggregate.yml 增 self 行并重跑 aggregate） `file: packages/dsh-all/package.json` `function: 无（新半区）` `calls: node scripts/aggregate.mjs` `verify: 重跑 aggregate 后 packages/dsh-all/cordis.patch.yml 含 self 行；dsh-all 构建产出 lib/client.js`
+-
+----
+-
+-## Phase 2: Foundational（阻塞性前置）
+-
+-**Purpose**: 定稿设计的基础件——互斥协议接入、防重挂载、挂载监督器、文档模型、注册服务、配置语义。全部完成后 US 才可开工。
+-
+-- [X] T005 画布控制器接入单标记互斥（写 data-dsh-panel-active + 广播 + 他方激活让位；删除旧多属性枚举） `file: packages/dsh-workspace-canvas/src/client/canvas/controller.ts` `function: CanvasController.applyActive / onOtherActivate / open / close` `calls: @hundun/dsh-panel-protocol activate / isActive / onOtherActivate` `verify: 单测：open() 后 documentElement 的 data-dsh-panel-active==='workspace-canvas'；收到其他面板激活事件后 close()；代码不再引用 data-dsh-taskboard-active / data-dsh-ssh-active`
+-- [X] T006 客户端 apply-guard（首应用生效、卸载释放，防 HMR/重复加载双挂载） `file: packages/dsh-workspace-canvas/src/client/index.ts` `function: claimCanvasApply / releaseCanvasApply` `calls: 无` `verify: 单测：同页面第二次 apply 调用被忽略（claim 返回 false）；effect 释放后恢复可 claim`
+-- [X] T007 单一挂载监督器（合并按钮自愈与画布挂载两套 MutationObserver，观察范围收窄到侧边栏/对话列锚点子树） `file: packages/dsh-workspace-canvas/src/client/canvas/mount-supervisor.ts` `function: MountSupervisor.ensure / dispose` `calls: MutationObserver` `verify: 单测：模拟侧边栏/对话列重建后画布与按钮自动重挂；卸载后观察器全部断开`
+-- [X] T008 CanvasDocument v1 文档模型与存储（类型 + localStorage 读写 + 500ms 防抖 + .bak 损坏恢复 + migrate 链） `file: packages/dsh-workspace-canvas/src/client/canvas/document.ts` `function: loadDocument / saveDocument / migrate` `calls: localStorage` `verify: 单测：写入→重读一致；连续写入合并为一次落盘；坏 JSON → 生成 .bak + 空文档启动；配额满（setItem 抛 QuotaExceededError）→ 只读降级 + 一次性提示且内存文档不丢`
+-- [X] T009 ctx.canvas 注册服务（registerNodeType / registerNodeActions / registerNodeDetailSection / registerEdgeRule / readDocument / subscribe / mutate + 校验） `file: packages/dsh-workspace-canvas/src/client/canvas/registry.ts` `function: CanvasRegistry.*` `calls: ctx.provide('canvas') / document.mutate` `verify: Contract test：注册→注销→重复 kind 注册抛错；mutate 非法写入（无归属节点 / 查重边 / 跨 scope link）抛错拒绝；画布缺席时 ctx.get('canvas')===undefined 消费方不报错`
+-- [X] T010 配置语义双半区（enabled 总开关 + announceToAgent；宿主公告随配置联动） `file: packages/dsh-workspace-canvas/src/index.ts` `function: apply / syncAnnouncement` `calls: installSettingsSection / ctx.systemPrompt.section` `verify: 单测：enabled=false 时公告段落不注册；enabled=true 时注册；设置源变化后即时增删`
+-
+-**Checkpoint**: 基础件就绪 —— US 实现可并行开工。
+-
+----
+-
+-## Phase 3: User Story 1 - 工作区总览与快速进入（Priority: P1）🚩 MVP
+-
+-**Goal**: 画布入口稳定挂载；一屏总览全部工作区；点击直达新会话；空/加载状态完整。
+-**Independent Test**: 打开画布 → 全部工作区卡片 → 点击进入新会话 → 关闭恢复对话（E2E-01/02/03）。
+-
+-- [X] T011 [US1] 画布入口按钮接入挂载监督器（原自愈逻辑迁移，观察器并入 T007） `file: packages/dsh-workspace-canvas/src/client/search-button.tsx` `function: mountSearchButton / tryPlace` `calls: MountSupervisor` `verify: 单测：搜索行渲染后按钮出现；行重建后同帧重插；卸载后按钮与样式移除`
+-- [X] T012 [US1] 点击进入新会话 + startSession 失败兜底 `file: packages/dsh-workspace-canvas/src/client/canvas/CanvasView.tsx` `function: WorkspaceCard.onOpen` `calls: workspaces.startSession` `verify: 单测：点击卡片调用 startSession(workspaceId)；mock 失败时提示且无 unhandled rejection`
+-- [X] T013 [US1] 空状态与加载状态（无工作区 / feed 未就绪） `file: packages/dsh-workspace-canvas/src/client/canvas/CanvasView.tsx` `function: CanvasView 渲染分支` `calls: 无` `verify: 单测：无工作区渲染空状态引导；baselinesReady 前渲染加载态`
+-- [x] T014 [US1] US1 集成测试 + E2E 验证 `file: packages/dsh-workspace-canvas/tests/us1.spec.ts` `function: 无（测试）` `calls: vitest` `verify: us1 测试全绿；quickstart E2E-01/02/03 逐条通过并记录`（us1 测试全绿；E2E-01/02/03 已由 playwright 自动化验证通过，见 scripts/gui-e2e.mjs）
+-
+----
+-
+-## Phase 4: User Story 2 - 布局持久化（Priority: P1）
+-
+-**Goal**: 拖拽位置刷新不丢；损坏数据不崩溃。
+-**Independent Test**: 拖乱卡片 → 刷新 → 位置一致；坏数据 → 提示 + 空布局（E2E-04/05）。
+-
+-- [X] T015 [US2] 拖拽位置提交画布文档（防抖写入 document，接入 T008） `file: packages/dsh-workspace-canvas/src/client/canvas/CanvasView.tsx` `function: commitPosition` `calls: document.mutate` `verify: 单测：拖动提交后 localStorage 中 nodes 位置更新；连续拖动合并为一次写；拖动过程帧间隔 <100ms（性能断言，SC-002）`
+-- [X] T016 [US2] 加载恢复与损坏提示流程（启动时读文档 → 恢复位置 / 提示 + 空文档） `file: packages/dsh-workspace-canvas/src/client/canvas/document.ts` `function: loadDocument 启动分支` `calls: 无` `verify: 单测：预置文档加载后画布位置与文档一致；坏 JSON 走 .bak 恢复路径`
+-- [x] T017 [US2] US2 集成测试 + E2E 验证 `file: packages/dsh-workspace-canvas/tests/us2.spec.ts` `function: 无（测试）` `calls: vitest` `verify: us2 测试全绿；quickstart E2E-04/05 逐条通过并记录`（us2 测试全绿；E2E-04/05 已由 playwright 自动化验证通过，见 scripts/gui-e2e.mjs）
+-
+----
+-
+-## Phase 5: User Story 3 - 编排画布平台：节点与连线（Priority: P1）
+-
+-**Goal**: 第三方可注册节点类型/动作/明细区块/连线规则；节点强制归属；同区连线数据合法（拖线手势 P1.4 待租户，本阶段只落协议与校验）。
+-**Independent Test**: 测试插件注册节点类型 → 渲染 → 拖入工作区建归属 → 同区 link 数据合法（E2E-06/07；E2E-08/09 待手势）。
+-
+-- [X] T018 [US3] 工作区节点投影同步（feed 订阅：新增自动补建、消失提示并级联清理成员） `file: packages/dsh-workspace-canvas/src/client/canvas/view/workspace-nodes.ts` `function: syncWorkspaceNodes` `calls: ctx.workspaces.list subscribe / document.mutate` `verify: 单测：mock feed 增删 → 文档节点自动补建/清理；成员级联删除；无业务数据写入文档`
+-- [X] T019 [US3] 分区渲染（场景像素坐标 + 区域局部坐标换算；拖工作区成员整体跟随） `file: packages/dsh-workspace-canvas/src/client/canvas/CanvasView.tsx` `function: 渲染位置计算 / 拖拽提交` `calls: 无` `verify: 单测：编排节点绝对位置 = 工作区位置 + 局部坐标；拖工作区后成员相对位置不变（整体跟随）`
+-- [X] T020 [US3] link 边数据模型与校验接入（写入/查重/crossScope 校验；删节点连带删边；不实现拖线手势） `file: packages/dsh-workspace-canvas/src/client/canvas/document.ts` `function: validateEdges / removeNodeCascade` `calls: 无` `verify: Contract test：同区 link 合法写入；跨区默认拒绝；同 kind/source/target 查重拒绝；删节点连带删其边`
+-- [X] T021 [US3] 注册表类型接入测试插件（最小节点类型 demo：注册→渲染→归属） `file: packages/dsh-hello/src/client/canvas-demo-node.tsx` `function: registerDemoNodeType` `calls: ctx.get('canvas').registerNodeType` `verify: E2E-06：demo 节点出现在画布并按注册外观渲染；E2E-07：无归属节点被要求先落入工作区`
+-- [x] T022 [US3] US3 Contract/集成测试 + E2E 验证 `file: packages/dsh-workspace-canvas/tests/us3.spec.ts` `function: 无（测试）` `calls: vitest` `verify: us3 测试全绿；E2E-06/07 通过；E2E-08/09（拖线）标注待 P1.4 手势`（us3 测试全绿；E2E-06 真机注入 demo 节点按注册外观渲染通过；E2E-07 无游离态约束由 mutate 校验实现并单测覆盖（GUI 创建入口属平台 API 能力）；E2E-08/09 按设计挂起待 P1.4）
+-
+----
+-
+-## Phase 6: User Story 4 - 工作区管理与可扩展右键操作（Priority: P2）
+-
+-**Goal**: 右键菜单（进入/重命名/删除级联/归档）+ 扩展动作合并。
+-**Independent Test**: 右键菜单动作齐全；删除确认级联；扩展动作出现（E2E-10/11/12）。
+-
+-- [X] T023 [US4] 右键菜单框架与动作合并（类型所有者 actions + registerNodeActions 扩展，按 order 排序） `file: packages/dsh-workspace-canvas/src/client/canvas/menu.ts` `function: ContextMenu / mergeActions` `calls: registry 动作注册表` `verify: 单测：内置+扩展动作合并且排序正确；右键弹出菜单、点空白关闭`
+-- [X] T024 [US4] 工作区内置动作（进入 / 重命名 / 删除（级联确认，列出成员数）/ 归档会话） `file: packages/dsh-workspace-canvas/src/client/canvas/menu.ts` `function: workspaceActions` `calls: workspaces.startSession / rename / delete / archiveSession` `verify: 单测：删除含成员工作区 → 确认框列出成员数 → 确认后级联清理 + 调用官方 delete；E2E-11 通过`
+-- [x] T025 [US4] US4 集成测试 + E2E 验证 `file: packages/dsh-workspace-canvas/tests/us4.spec.ts` `function: 无（测试）` `calls: vitest` `verify: us4 测试全绿；quickstart E2E-10/11/12 逐条通过并记录`（us4 测试全绿；E2E-10/11 playwright 自动化通过；E2E-12 demo 节点扩展动作「示例动作」右键可执行，3080 主实例验证通过）
+-
+----
+-
+-## Phase 7: User Story 5 - 节点/工作区明细面板（Priority: P2）
+-
+-**Goal**: 点击右侧弹出明细；工作区明细 = 基础信息 + 会话数（不列条目，clarify Q2）；扩展区块合并。
+-**Independent Test**: 点击工作区 → 明细；注册区块 → 按序追加（E2E-13/14/15）。
+-
+-- [X] T026 [US5] 明细面板框架与区块合并（类型所有者 detail + registerNodeDetailSection 扩展，按 order 渲染） `file: packages/dsh-workspace-canvas/src/client/canvas/detail/panel.tsx` `function: DetailPanel / mergeSections` `calls: registry 明细注册表` `verify: 单测：点击节点弹出面板；内置+扩展区块按序渲染；点空白/关闭收起`
+-- [X] T027 [US5] 工作区明细内容（标题/路径/会话数/最近活跃 + 跳转侧边栏入口；不含条目列表） `file: packages/dsh-workspace-canvas/src/client/canvas/detail/workspace-detail.tsx` `function: WorkspaceDetail` `calls: workspaces feed（会话数）` `verify: 单测：明细字段齐全且无会话条目列表；跳转入口触发侧边栏会话列表定位`
+-- [x] T028 [US5] US5 集成测试 + E2E 验证 `file: packages/dsh-workspace-canvas/tests/us5.spec.ts` `function: 无（测试）` `calls: vitest` `verify: us5 测试全绿；quickstart E2E-13/14/15 逐条通过并记录`（us5 测试全绿；E2E-13/15 playwright 自动化通过；E2E-14 demo 节点明细含内置视图 + 扩展区块「演示区块」按序，3080 主实例验证通过）
+-
+----
+-
+-## Phase 8: User Story 6 - 面板互斥（Priority: P2）
+-
+-**Goal**: 画布与 dsh-hello 测试面板互斥（后写者胜），协议已在 T005 接入，本阶段完成对方面板与端到端验证。
+-**Independent Test**: 画布↔测试面板互斥让位（E2E-16/17）。
+-
+-- [X] T029 [US6] dsh-hello 测试面板（参与互斥协议的简单中间区域面板，面板名 hello-panel） `file: packages/dsh-hello/src/client/panel.tsx` `function: HelloPanel / mountHelloPanel` `calls: @hundun/dsh-panel-protocol activate / onOtherActivate` `verify: E2E-16/17：画布打开时打开 hello 面板 → 画布让位；反之亦然；标记值始终唯一`
+-- [X] T030 [US6] 互斥完整性测试（dispose 清理标记/监听；并发激活后写者胜；刷新后状态收敛） `file: packages/dsh-workspace-canvas/tests/us6.spec.ts` `function: 无（测试）` `calls: vitest` `verify: us6 测试全绿；卸载后 documentElement 无残留 data-dsh-panel-active`
+-
+----
+-
+-## Phase 9: User Story 7 - 设置项：画布开关（Priority: P3）
+-
+-**Goal**: 「hundun-dsh」设置页（多栏目骨架）+ 画布栏目开关；关闭立即生效（clarify Q1）。
+-**Independent Test**: 设置页出现画布栏目；开关关闭 → 立即消失；重开恢复（E2E-18/19）。
+-
+-- [X] T031 [US7] dsh-all 设置页骨架（注册 settings.section「hundun-dsh」+ 声明子槽位 hundun.settings.item） `file: packages/dsh-all/src/client/index.ts` `function: registerHundunSettingsPage` `calls: ctx.slots.register（settings.section）/ ctx.provide 子槽位声明` `verify: E2E-18 前置：设置面板出现「hundun-dsh」页且栏目区可注册`
+-- [X] T032 [US7] 画布设置栏目（enabled 开关，绑定 hundun.canvas 命名空间） `file: packages/dsh-workspace-canvas/src/client/settings.ts` `function: CanvasSettingsCard` `calls: settingsScope.bind('hundun.canvas') / slots.register('hundun.settings.item')` `verify: 单测：栏目渲染含开关；切换值写入设置命名空间`
+-- [X] T033 [US7] 开关双半区实时联动（enabled=false：入口/画布立即卸载 + 公告移除；true：恢复且布局保留） `file: packages/dsh-workspace-canvas/src/client/index.ts` `function: onEnabledChange` `calls: 无（订阅 settingsScope）` `verify: E2E-18/19：画布打开时关闭开关 → 画布立即关闭；重开 → 恢复且布局保留`
+-- [x] T034 [US7] US7 集成测试 + E2E 验证 `file: packages/dsh-workspace-canvas/tests/us7.spec.ts` `function: 无（测试）` `calls: vitest` `verify: us7 测试全绿；quickstart E2E-18/19 逐条通过并记录`（us7 测试全绿；E2E-18/19 已在 3199 验证实例自动化通过，见 scripts/gui-e2e-mutex.mjs；实现改为 localStorage 持久化——官方 settings 白名单硬编码，第三方 namespace 无法暴露给浏览器设置客户端）
+-
+----
+-
+-## Phase 10: Polish & Cross-Cutting Concerns
+-
+-**Purpose**: 健壮性兜底与全量回归（章程 IV 门禁）。
+-
+-- [X] T035 CanvasView 错误边界（渲染抛错 → 兜底提示不白屏） `file: packages/dsh-workspace-canvas/src/client/canvas/CanvasView.tsx` `function: CanvasErrorBoundary` `calls: 无` `verify: 单测：子组件抛错时显示兜底而非白屏；错误后可重试`
+-- [X] T036 生命周期完整性回归（dispose：移除样式/容器/观察器/监听/标记；双半区卸载无残留） `file: packages/dsh-workspace-canvas/src/client/canvas/controller.ts` `function: CanvasController.dispose` `calls: 无` `verify: 单测：dispose 后 DOM 无注入样式/容器、无 data-dsh-panel-active、观察器已断开`
+-- [x] T037 全量回归与 E2E 门禁（全仓 typecheck/test/build + quickstart 25 条场景逐条记录） `file: specs/001-canvas-orchestration/quickstart.md` `function: 无（回归）` `calls: pnpm -r typecheck / test / build` `verify: quickstart.md 场景逐条通过并记录（E2E-08/09 标注待 P1.4 手势；E2E-20 属 P2 未来阶段）；未过场景对应任务 [X] 回退并追加 Convergence`（全仓 typecheck/test/build 通过，114 测试全绿；quickstart 25 条逐条记录：19 条通过、E2E-08/09 按设计挂起待 P1.4 手势租户、E2E-21/22/23/24 受限（真实删除/空环境/插件卸载/member 拖拽，自动化环境无法构造，逻辑均有单测覆盖））
+-
+----
+-
+-## Dependencies（用户故事完成顺序）
+-
+-```text
+-Phase 1/2（Setup + Foundational：T001-T010）── 全部完成才可开工 US
+-  ├─► US1（T011-T014）        ← 依赖 T003/T006/T007
+-  ├─► US2（T015-T017）        ← 依赖 T008
+-  ├─► US3（T018-T022）        ← 依赖 T008/T009（T021 依赖 dsh-hello 已有包）
+-  ├─► US4（T023-T025）        ← 依赖 T009/T011
+-  ├─► US5（T026-T028）        ← 依赖 T009
+-  ├─► US6（T029-T030）        ← 依赖 T001/T002/T005
+-  └─► US7（T031-T034）        ← 依赖 T004/T010
+-US 相互独立，Foundational 完成后可并行；Phase 10（T035-T037）最后。
+-```
+-
+-**并行机会**：T001-T004（Setup 四包并行）；Foundational 完成后 US1-US7 各阶段内部 [P] 任务可并行
+-（同一阶段内不同文件任务）；T029 与 T031 无依赖可并行。
+-
+-## Implementation Strategy（MVP 优先）
+-
+-- **MVP = US1（Phase 3）**：完成「总览 + 进入 + 稳定挂载」即可独立交付（对应既有 P0 功能 + 稳定性改造），
+-  其余 US 为增量；
+-- 增量顺序：US2（持久化，修复 P0 最大缺陷）→ US3（平台）→ US4/US5（管理/明细）→ US6/US7（互斥/设置，依赖前置基础件）；
+-- 每个 Phase 完成后运行 `$speckit-converge` 对照 spec 检查缺口（章程 V 条），不等到全部完成；
+-- E2E 门禁：quickstart.md 逐条记录（章程 IV 条）；E2E-08/09（拖线）标注待 P1.4 手势租户。
+-
+----
+-
+-## Phase 11: P2 视图与布局（本轮激活，参考 hundun-web）
+-
+-**Purpose**: 缩放 / 平移 / 工具栏功能项（US8 / FR-015 激活）；对齐辅助线、碰撞推挤、GRID 自动布局、拖拽创建 ghost 为后续增量。
+-
+-- [x] T038 [P] view 变换纯函数助手（缩放 0.3–3 / 平移 / reset / scene 坐标换算） `file: packages/dsh-workspace-canvas/src/client/canvas/view-transform.ts` `function: zoomAt / panBy / scenePoint / resetView / clampZoom` `calls: 无` `verify: view-transform.spec 7 条单测：缩放锚点不变、scene/screen 互逆、夹取 [0.3,3]、滚轮因子 1.1/0.9`
+-- [x] T039 画布接入滚轮缩放（以鼠标为锚）+ 空白拖拽平移 `file: packages/dsh-workspace-canvas/src/client/canvas/CanvasView.tsx` `function: setAreaRef（回调 ref 挂 wheel）/ onAreaPointer*` `calls: view-transform zoomAt / panBy` `verify: playwright 真机：滚轮派发后 scale 1→1.1 且锚点补偿；空白拖拽后 translate(120,60)；p2.spec 单测`
+-- [x] T040 画布工具栏功能项（缩放 +/− / 百分比 / 重置视图） `file: packages/dsh-workspace-canvas/src/client/canvas/CanvasView.tsx` `function: zoomBy / resetViewTransform` `calls: 无` `verify: playwright 真机：放大 110%、重置回 100%；单测渲染含 −/百分比/+/重置 按钮`
+-- [x] T041 view 持久化到 CanvasDocument.view（尾随防抖，初始恢复） `file: packages/dsh-workspace-canvas/src/client/canvas/CanvasView.tsx` `function: viewTimer effect / 初始 useState` `calls: store.mutate` `verify: p2.spec 单测：缩放后防抖写入 view.zoom=1.1；预置 view 重挂载恢复 translate(40px,-20px) scale(1.5)`
+Index: specs/002-canvas-action-bar/checklists/requirements.md
+===================================================================
+diff --git a/specs/002-canvas-action-bar/checklists/requirements.md b/specs/002-canvas-action-bar/checklists/requirements.md
+deleted file mode 100644
+--- a/specs/002-canvas-action-bar/checklists/requirements.md	(revision 9d59e61ec4277ba0124a26520d4810abc052d63d)
++++ /dev/null	(revision 9d59e61ec4277ba0124a26520d4810abc052d63d)
+@@ -1,36 +0,0 @@
+-# Specification Quality Checklist: 画布底部操作栏（Canvas Action Bar）
+-
+-**Purpose**: Validate specification completeness and quality before proceeding to planning
+-**Created**: 2026-08-16
+-**Feature**: [spec.md](../specs/002-canvas-action-bar/spec.md)
+-
+-## Content Quality
+-
+-- [x] No implementation details (languages, frameworks, APIs)
+-- [x] Focused on user value and business needs
+-- [x] Written for non-technical stakeholders
+-- [x] All mandatory sections completed
+-
+-## Requirement Completeness
+-
+-- [x] No [NEEDS CLARIFICATION] markers remain
+-- [x] Requirements are testable and unambiguous
+-- [x] Success criteria are measurable
+-- [x] Success criteria are technology-agnostic (no implementation details)
+-- [x] All acceptance scenarios are defined
+-- [x] Edge cases are identified
+-- [x] Scope is clearly bounded
+-- [x] Dependencies and assumptions identified
+-
+-## Feature Readiness
+-
+-- [x] All functional requirements have clear acceptance criteria
+-- [x] User scenarios cover primary flows
+-- [x] Feature meets measurable outcomes defined in Success Criteria
+-- [x] No implementation details leak into specification
+-
+-## Notes
+-
+-- 全部 16 项通过；无 [NEEDS CLARIFICATION] 标记（需求均有合理默认，见 Assumptions）
+-- 规格不含实现细节（设计令牌的提及属验收判据的客观描述，非技术选型）
+-- 可进入下一步：$speckit-plan
+Index: specs/002-canvas-action-bar/contracts/action-bar.md
+===================================================================
+diff --git a/specs/002-canvas-action-bar/contracts/action-bar.md b/specs/002-canvas-action-bar/contracts/action-bar.md
+deleted file mode 100644
+--- a/specs/002-canvas-action-bar/contracts/action-bar.md	(revision 9d59e61ec4277ba0124a26520d4810abc052d63d)
++++ /dev/null	(revision 9d59e61ec4277ba0124a26520d4810abc052d63d)
+@@ -1,40 +0,0 @@
+-# Contract: 画布操作栏（Canvas Controls，对齐 hundun-web）
+-
+-**Phase 1 输出（v2）**。操作栏是画布内部 UI 契约——DOM 标记与行为供单测、E2E 与未来扩展引用。
+-
+-## DOM 标记
+-
+-| 标记 | 元素 | 含义 |
+-| --- | --- | --- |
+-| `[data-dsh-action-bar]` | `div` | 操作栏容器（画布底部浮层，水平居中） |
+-| `[data-dsh-action-zoom-out]` | `button` | 缩小（步进 10%，夹取 ≥30%）——hundun-web ZoomOut |
+-| `[data-dsh-action-reset]` | `button` | 重置视图（100% + 原点归位）——hundun-web LocateFixed/resetView |
+-| `[data-dsh-action-zoom-in]` | `button` | 放大（步进 10%，夹取 ≤300%）——hundun-web ZoomIn |
+-| `[data-dsh-action-refresh]` | `button` | 刷新（重新拉取工作区基线）——hundun-web RefreshCw |
+-
+-> 四按钮顺序固定：缩小 → 重置 → 放大 → 刷新（SC-003）。
+-> 右上角不再渲染独立缩放工具（`[data-dsh-canvas-toolbar]` 不复存在，FR-002）。
+-
+-## 行为契约
+-
+-### 缩小 / 放大（FR-003）
+-
+-- 点击：`zoom` 乘 0.9 / 1.1，夹取 `[0.3, 3]`；百分比显示实时更新
+-- 视口/节点层变换随 view 更新（既有：节点层 translate+scale，网格层不变）
+-
+-### 重置（FR-004）
+-
+-- 点击：`zoom = 1`、`x = 0`、`y = 0`；已是默认态时幂等（无多余写入）
+-
+-### 刷新（FR-005）
+-
+-- 点击：调用 `ctx.workspaces.refresh?.()`（workspaces 基线重新拉取）
+-- feed 更新 → 画布自动反映最新工作区（新增出现、移除消失）
+-- 刷新失败/能力缺失：静默降级（可选链兜底），画布保持原数据，零未处理异常
+-
+-### UI 一致性（FR-006/FR-007）
+-
+-- 操作栏样式使用系统设计令牌（`--dsw-alias-surface-raised` / `--dsw-alias-border-l2` /
+-  `--dsw-alias-label-*` / `--dsw-alias-interactive-bg-hover`）
+-- 按钮形态参考 hundun-web（约 30×30、圆角、透明背景、hover 高亮），视觉值走系统令牌
+-- 浮层 `z-index` 低于右键菜单/明细面板；`pointer-events` 只作用于自身元素（不拦截画布拖拽/平移）
+Index: specs/002-canvas-action-bar/data-model.md
+===================================================================
+diff --git a/specs/002-canvas-action-bar/data-model.md b/specs/002-canvas-action-bar/data-model.md
+deleted file mode 100644
+--- a/specs/002-canvas-action-bar/data-model.md	(revision 9d59e61ec4277ba0124a26520d4810abc052d63d)
++++ /dev/null	(revision 9d59e61ec4277ba0124a26520d4810abc052d63d)
+@@ -1,47 +0,0 @@
+-# Data Model: 画布操作栏（对齐 hundun-web）
+-
+-**Phase 1 输出（v2）**。本特征不引入新持久化实体——操作栏读写**既有** `CanvasDocument.view`，
+-刷新驱动官方 workspaces feed 更新。
+-
+-## 实体
+-
+-### CanvasDocument（既有，key `dsh.workspaceCanvas.doc.v1`）
+-
+-| 字段 | 类型 | 说明 | 操作栏读写 |
+-| --- | --- | --- | --- |
+-| `view` | `{ x, y, zoom }` | 视图变换（平移 + 缩放） | 缩小/放大/重置读写（防抖持久化） |
+-
+-### WorkspaceListState（官方 feed，`ctx.workspaces.list`）
+-
+-| 字段 | 类型 | 说明 | 用途 |
+-| --- | --- | --- | --- |
+-| `items[]` | `WorkspaceView[]` | 工作区列表 | 「刷新」重新拉取后驱动画布更新 |
+-
+-### workspaces 服务（`ctx.workspaces`）
+-
+-| 成员 | 类型 | 说明 |
+-| --- | --- | --- |
+-| `list` | `ObservableSnapshot<WorkspaceListState>` | 标准 feed（订阅驱动画布） |
+-| `refresh()`（运行时） | `() => Promise<void>` | 重新拉取工作区基线（Wire-pump 入口；IWorkspaces 接口未暴露，运行时 WorkspaceRuntime 有） |
+-
+-## 状态与转换
+-
+-### 视图（view）
+-
+-- 初始：`store.read().view ?? { x:0, y:0, zoom:1 }`（既有）
+-- 缩小/放大：`zoom * 0.9 | 1.1`（10% 步进），夹取 `[0.3, 3]`（既有 `clampZoom`）
+-- 重置：`{ x:0, y:0, zoom:1 }`（既有 `resetView`）
+-- 持久化：尾随防抖 400ms 写 `doc.view`（既有）
+-
+-### 刷新（refresh）
+-
+-- 触发：`(ctx.workspaces as { refresh?: () => Promise<void> }).refresh?.()`
+-- 效果：workspaces 基线重新拉取 → feed 更新 → CanvasView `useSyncExternalStore` 重渲染 → 画布反映
+-  新增/移除工作区；runtime 的 feed 订阅重跑工作区对账（syncWorkspaceNodes）
+-- 失败降级：refresh 缺失或抛错 → 静默（可选链 + void），画布保持原数据，不产生未处理异常
+-
+-## 约束（来自 spec FR）
+-
+-- 四按钮顺序固定：缩小 → 重置 → 放大 → 刷新（hundun-web 对齐，SC-003）
+-- 操作栏不引入非系统设计令牌的硬编码视觉值（SC-004）
+-- 刷新失败不报错（FR-005）
+Index: specs/002-canvas-action-bar/plan.md
+===================================================================
+diff --git a/specs/002-canvas-action-bar/plan.md b/specs/002-canvas-action-bar/plan.md
+deleted file mode 100644
+--- a/specs/002-canvas-action-bar/plan.md	(revision 9d59e61ec4277ba0124a26520d4810abc052d63d)
++++ /dev/null	(revision 9d59e61ec4277ba0124a26520d4810abc052d63d)
+@@ -1,88 +0,0 @@
+-# Implementation Plan: 画布操作栏（Canvas Controls，对齐 hundun-web）
+-
+-**Branch**: `002-canvas-action-bar` | **Date**: 2026-08-16 | **Spec**: [spec.md](./spec.md)
+-
+-**Input**: Feature specification from `/specs/002-canvas-action-bar/spec.md`（v2：缩小/重置/放大/刷新）
+-
+-## Summary
+-
+-把右上角独立缩放工具整合为**画布底部操作栏**，按序提供四个按钮——**缩小 / 重置 / 放大 / 刷新**
+-（对齐 hundun-web `canvas-controls` 工具栏，L1375-1380）：缩小/放大复用既有 view 变换（10% 步进、
+-0.3–3 夹取）；重置恢复 100% + 原点；刷新调用 workspaces 服务基线重新拉取（`refresh()`），feed 更新后
+-画布经订阅自动反映最新工作区数据。操作栏复用系统设计令牌（`--dsw-alias-*`），低干扰浮层不拦截画布交互。
+-
+-## Technical Context
+-
+-**Language/Version**: TypeScript（浏览器半区，tsdown 闭包工厂 bundle）
+-
+-**Primary Dependencies**: react；既有 `canvas/view-transform.ts`（zoomAt/panBy/resetView/clampZoom）、
+-`canvas/CanvasView.tsx`（画布主组件，现有右上角工具栏）；官方服务 `ctx.workspaces`（feed + `refresh()` 基线拉取）；
+-跨插件协议 `@hundun/dsh-panel-protocol`（面板互斥）
+-
+-**Storage**: localStorage（`CanvasDocument` v1，view 防抖持久化，既有）
+-
+-**Testing**: vitest（jsdom 单测）+ playwright（真机 E2E，3080）；TDD 先行
+-
+-**Target Platform**: DSH web GUI 浏览器半区（`[data-slot="conversation"] > *` 子盒子挂载）
+-
+-**Project Type**: DSH 插件（`packages/dsh-workspace-canvas` 浏览器半区功能增量）
+-
+-**Performance Goals**: 操作栏交互即时响应（<100ms）；刷新后画布更新 <1s（feed 驱动）
+-
+-**Constraints**: 操作栏复用系统设计令牌（无硬编码颜色/圆角/阴影）；不拦截画布拖拽/平移；不占用官方槽位；
+-刷新失败安全降级；遵循面板互斥协议
+-
+-**Scale/Scope**: 单用户单浏览器；工作区 ≤100；操作栏 4 个功能项（缩小/重置/放大/刷新）
+-
+-## Constitution Check
+-
+-*GATE: Must pass before Phase 0 research. Re-check after Phase 1 design.*
+-
+-| 条款 | 本计划安排 |
+-| --- | --- |
+-| I. Test-First（TDD） | ✅ spec 已声明 `**TDD**: true`；tasks 含 Contract/Integration test（操作栏渲染、按钮行为、刷新调用） |
+-| II. Runtime-Verifiable DoD | ✅ 每个任务 `verify` 声明可运行时验证行为（单测断言 + playwright 真机断言） |
+-| III. Four-Field Task Format | ✅ tasks.md 全部任务含 file/function/calls/verify |
+-| IV. E2E Verification Gate | ✅ quickstart.md 生成 E2E 场景（四按钮/缩放/重置/刷新/UI 一致），implement 后逐条执行记录 |
+-| V. Phase Convergence | ✅ 每 Phase 末对照 spec 检查缺口 |
+-
+-**评估结果**：设计层面全部通过，无违规；进入 Phase 0。
+-
+-## Project Structure
+-
+-### Documentation (this feature)
+-
+-```text
+-specs/002-canvas-action-bar/
+-├── plan.md              # 本文件
+-├── research.md          # Phase 0 输出
+-├── data-model.md        # Phase 1 输出
+-├── quickstart.md        # Phase 1 输出（E2E 验证清单）
+-├── contracts/           # Phase 1 输出（操作栏契约）
+-└── tasks.md             # Phase 2 输出（$speckit-tasks）
+-```
+-
+-### Source Code (repository root)
+-
+-```text
+-packages/dsh-workspace-canvas/
+-├── src/client/canvas/
+-│   └── CanvasView.tsx           # 操作栏改造：TOOLBAR → ACTION_BAR（底部四按钮）+ handleRefresh
+-└── tests/
+-    └── action-bar.spec.ts       # 四按钮渲染/顺序、缩放/重置行为、刷新调用（Integration）
+-```
+-
+-**Structure Decision**: 改动集中在 `CanvasView.tsx`（操作栏 JSX + handlers）；刷新直接调
+-`ctx.workspaces.refresh()`（无新助手文件）；测试对齐既有 `tests/`。
+-
+-## Complexity Tracking
+-
+-> 无宪法违规（单一插件内增量，无新增工程/模式）。
+-
+-## Phase 0/1 输出（另见 research.md / data-model.md / contracts/ / quickstart.md）
+-
+-- **技术决策**：操作栏为画布内 absolute 浮层（bottom 居中）；四按钮顺序缩小→重置→放大→刷新（hundun-web 对齐）；
+-  刷新 = `(ctx.workspaces as any).refresh?.()`（IWorkspaces 接口未暴露 refresh，运行时 WorkspaceRuntime 有，
+-  可选链兜底失败安全降级）；feed 更新驱动画布自动重渲染
+-- **契约**：`contracts/action-bar.md` 定义操作栏 DOM 标记（`data-dsh-action-bar` /
+-  `data-dsh-action-zoom-out|reset|zoom-in|refresh`）与行为契约
+Index: specs/002-canvas-action-bar/quickstart.md
+===================================================================
+diff --git a/specs/002-canvas-action-bar/quickstart.md b/specs/002-canvas-action-bar/quickstart.md
+deleted file mode 100644
+--- a/specs/002-canvas-action-bar/quickstart.md	(revision 9d59e61ec4277ba0124a26520d4810abc052d63d)
++++ /dev/null	(revision 9d59e61ec4277ba0124a26520d4810abc052d63d)
+@@ -1,35 +0,0 @@
+-# Quickstart: 画布操作栏（Canvas Controls，对齐 hundun-web）端到端验证
+-
+-> **用途**：implement 完成后的端到端验证清单。场景来自 `spec.md` 验收场景与边界情况。
+-> **约束（章程 IV 条）**：场景 checkbox 与 tasks.md 任务 checkbox 同等约束力。
+-
+-**Feature**: [spec.md](./spec.md) | **Plan**: [plan.md](./plan.md) | **Data**: [data-model.md](./data-model.md) | **Contract**: [contracts/action-bar.md](./contracts/action-bar.md)
+-**验证环境**: DSH web profile（本机，`http://127.0.0.1:3080`，playwright 自动化）
+-**Created**: 2026-08-16（v2）
+-
+-## E2E 场景
+-
+-- [x] E2E-01 打开画布 → 底部操作栏按序出现四个**图标按钮**（缩小/重置/放大/刷新，无文字、悬停提示），右上角无独立缩放工具
+-- [x] E2E-02 点放大 → 缩放递增 10% 并夹取上限；点缩小同理下限（viewport transform 验证）
+-- [x] E2E-03 点「重置」→ 缩放回 100%、平移原点归位
+-- [x] E2E-04 点「刷新」→ 工作区基线重新拉取（无报错；feed 有变化时画布同步更新）
+-- [x] E2E-05 刷新失败/无刷新能力 → 安全降级，画布保持原数据，零控制台错误
+-- [x] E2E-06 拖拽卡片经过操作栏附近 → 操作栏不拦截，卡片正常落位
+-- [x] E2E-07 操作栏样式与系统一致：无硬编码颜色（静态检查不引入非 `--dsw-alias-*` 视觉值）
+-- [x] E2E-08 全程零控制台错误
+-
+-## 结果记录
+-
+-| 场景 | 结果（通过/失败） | 失败原因 | 关联任务 |
+-|------|-------------------|----------|----------|
+-| E2E-01 | ✅ 通过（playwright 真机） | 四图标按钮顺序 zoom-out→reset→zoom-in→refresh；4 个 svg、纯图标无文字；右上角无独立缩放工具 | T001 |
+-| E2E-02 | ✅ 通过（playwright 真机） | 放大 scale(1.1) → 缩小 scale(0.99)（1.1×0.9） | T002 |
+-| E2E-03 | ✅ 通过（playwright 真机） | 重置回 translate(0,0) scale(1) | T002 |
+-| E2E-04 | ✅ 通过（playwright 真机） | 刷新无报错、画布稳定（基线重拉由 workspaces 服务处理） | T003 |
+-| E2E-05 | ✅ 通过（单测覆盖） | refresh 缺失/失败可选链兜底，画布保持（action-bar.spec） | T003 |
+-| E2E-06 | ✅ 通过（playwright 真机） | 拖到操作栏区域正常落位（不拦截） | T001 |
+-| E2E-07 | ✅ 通过（playwright 真机 + 静态检查） | 图标颜色走 currentColor + var(--dsw-alias-*)，无硬编码颜色 | T001 |
+-| E2E-08 | ✅ 通过（playwright 真机） | 全程零 console 错误 | T004 |
+-
+-> **收尾**：全部场景通过 → 可宣告功能完成；存在失败 → 对应任务 `[X]` 回退 `[ ]`，
+-> 运行 `$speckit-converge` 追加 Convergence 任务。
+Index: specs/002-canvas-action-bar/research.md
+===================================================================
+diff --git a/specs/002-canvas-action-bar/research.md b/specs/002-canvas-action-bar/research.md
+deleted file mode 100644
+--- a/specs/002-canvas-action-bar/research.md	(revision 9d59e61ec4277ba0124a26520d4810abc052d63d)
++++ /dev/null	(revision 9d59e61ec4277ba0124a26520d4810abc052d63d)
+@@ -1,55 +0,0 @@
+-# Research: 画布操作栏（对齐 hundun-web）
+-
+-**Phase 0 输出（v2）**。用户澄清：操作按钮 = hundun-web `canvas-controls` 的四个功能项
+-（缩小/重置/放大/刷新）。本文件记录关键决策。
+-
+-## 决策记录
+-
+-### D1: 操作项来源 —— hundun-web `canvas-controls` 四按钮
+-
+-- **Decision**: 操作栏按序提供四按钮：**缩小 → 重置 → 放大 → 刷新**（对齐 hundun-web
+-  `src/App.tsx` L1375-1380：ZoomOut → LocateFixed(resetView) → ZoomIn → RefreshCw）
+-- **Rationale**: 用户明确「按照 hundun-web 画布的操作实现（缩小、放大、重置、刷新）」——功能项与顺序
+-  以 hundun-web 为准；刷新（RefreshCw）是用户点名的关键新增（重新拉取画布数据）
+-- **Alternatives considered**: ① 自动布局/聚焦按钮（v1 误读）——用户未要求，移除；② 百分比显示——
+-  hundun-web 无百分比文本（纯图标按钮），但保留百分比显示更直观且不冲突（spec FR-003 步进可感知）
+-
+-### D2: 操作栏形态 —— 画布内 absolute 浮层（底部居中）
+-
+-- **Decision**: `CanvasView` 内 absolute 浮层，`bottom` 定位、水平居中；替换现有右上角 `TOOLBAR_STYLE`
+-- **Rationale**: 既有右上角工具栏同构（absolute + zIndex 浮层），改造代价最小；「画布下方」= bottom 定位
+-- **Alternatives considered**: 独立组件/官方槽位——无必要，CanvasView 已持有 view 状态；槽位违反既有边界
+-
+-### D3: 缩放/重置 —— 复用既有 zoomBy/resetViewTransform，仅迁移位置
+-
+-- **Decision**: 保留既有缩放逻辑（`zoomAt` 锚点缩放、10% 步进、0.3–3 夹取）与 `resetView`（{0,0,1}），
+-  按钮迁移到底部操作栏；右上角不再渲染独立工具栏
+-- **Rationale**: hundun-web 缩放行为（0.9/1.1 步进）与既有实现一致；夹取范围沿用既有 0.3–3
+-  （hundun-web 为 0.65–1.8，DSH 采用更宽范围兼容既有体验，spec Assumptions 注明）
+-- **Alternatives considered**: 严格对齐 0.65–1.8——破坏既有测试与体验，无必要
+-
+-### D4: 刷新 —— 调用 workspaces 基线重新拉取
+-
+-- **Decision**: `handleRefresh` 调 `(ctx.workspaces as { refresh?: () => Promise<void> }).refresh?.()`；
+-  feed 更新后 CanvasView 经 `useSyncExternalStore` 自动重渲染；刷新失败（无 refresh/抛错）静默降级
+-- **Rationale**: hundun-web `refreshCanvas = setCanvasRevision+1 + onRefresh()`（重新拉取数据）；DSH 的
+-  workspaces 服务具体类 `WorkspaceRuntime` 提供 `refresh(): Promise<void>`（「Refresh the workspace
+-  baseline, reusing an in-flight pull」，L 确认）——语义完全对应；IWorkspaces 接口未暴露 refresh，
+-  用可选链调用运行时方法并兜底
+-- **Alternatives considered**: 本地 revision 强制重渲染（hundun-web setCanvasRevision）——feed 驱动已
+-  自动重渲染，无需额外 revision；本地重新同步 doc——workspaces 刷新后 runtime 的 feed 订阅自动重跑对账
+-
+-### D5: UI 一致性 —— 系统设计令牌
+-
+-- **Decision**: 操作栏样式全部用 `var(--dsw-alias-*)`（surface-raised / border-l2 / label-*），
+-  与既有画布/设置面板同源；按钮 30×30 图标风格对齐 hundun-web（width/height/border-radius/transparent/hover）
+-- **Rationale**: FR-006 复用系统令牌；hundun-web 按钮形态（30px 圆角 5px hover 高亮）作为布局参考，
+-  视觉值全部走系统令牌（SC-004）
+-- **Alternatives considered**: 自绘设计语言——违反 FR-006
+-
+-### D6: 测试策略
+-
+-- **Decision**: Integration test（action-bar.spec：四按钮渲染/顺序、缩放/重置行为、刷新调用 mock）+
+-  playwright E2E（quickstart 场景真机断言，含刷新后数据更新）
+-- **Rationale**: 章程 I/II 条——按钮行为与刷新调用可单测 mock；刷新数据更新与 UI 一致性需真机验证
+-- **Alternatives considered**: 仅单测——无法验证「右上角不再出现」与「刷新后画布随 feed 更新」
+Index: specs/002-canvas-action-bar/spec.md
+===================================================================
+diff --git a/specs/002-canvas-action-bar/spec.md b/specs/002-canvas-action-bar/spec.md
+deleted file mode 100644
+--- a/specs/002-canvas-action-bar/spec.md	(revision 9d59e61ec4277ba0124a26520d4810abc052d63d)
++++ /dev/null	(revision 9d59e61ec4277ba0124a26520d4810abc052d63d)
+@@ -1,91 +0,0 @@
+-# Feature Specification: 画布操作栏（Canvas Controls，对齐 hundun-web）
+-
+-**Feature Branch**: `002-canvas-action-bar`
+-
+-**Created**: 2026-08-16
+-
+-**Status**: Draft（v3：按用户澄清——操作栏为纯图标按钮，与 hundun-web 一致）
+-
+-**TDD**: true
+-<!-- MUST 为 true（项目章程 I 条）：声明后 $speckit-tasks 强制生成 Contract test 与 Integration test 任务。 -->
+-
+-**Input**: User description: "在画布下方增加操作按钮（参考hundun-web的功能点）；同时将右上角的缩放这个功能整合在一起；UI要和系统保持一致"
+-**修订（用户澄清）**: "按照hundun-web画布的操作实现（缩小、放大、重置、刷新）"；"要和hundun-web一样，以按钮图标的形式显示"
+-
+-## User Scenarios & Testing *(mandatory)*
+-
+-### User Story 1 - 画布操作栏（缩小 / 重置 / 放大 / 刷新，纯图标按钮，Priority: P1）
+-
+-画布打开时，底部显示操作栏，包含**四个图标按钮**，顺序与形态对齐 hundun-web 的 `canvas-controls`
+-工具栏：**缩小（ZoomOut 图标）→ 重置（LocateFixed 图标）→ 放大（ZoomIn 图标）→ 刷新（RefreshCw 图标）**。
+-按钮为 30×30 图标形式（无文字，悬停显示提示），右上角原有的独立缩放工具整合进该操作栏（不再重复出现）。
+-操作栏视觉与系统界面一致（图标颜色/悬停态走系统设计令牌）。
+-
+-**Why this priority**: 缩放与刷新是画布高频操作；当前缩放位于右上角浮层、无刷新入口；用户明确要求
+-按 hundun-web 的**图标按钮**形式实现，统一为画布控制入口。
+-
+-**Independent Test**: 打开画布 → 底部操作栏含四个图标按钮（缩小/重置/放大/刷新，顺序一致、图标与
+-hundun-web 相同、无文字）→ 右上角无独立缩放工具 → 缩小/放大以固定步进改变缩放 → 重置回 100% 与原点
+-→ 刷新重新拉取工作区数据 → 操作栏样式使用系统设计令牌。
+-
+-**Acceptance Scenarios**:
+-
+-1. **Given** 画布已打开, **When** 用户查看底部操作栏, **Then** 依次显示「缩小 / 重置 / 放大 / 刷新」四个**图标按钮**（无文字、悬停有提示），右上角不再有独立缩放工具
+-2. **Given** 画布已缩放（如 110%）, **When** 用户点「重置」, **Then** 视图回到 100% 缩放且原点归位
+-3. **Given** 画布处于任一缩放级别, **When** 用户点「缩小」或「放大」, **Then** 缩放以固定步进（10%）变化并夹取在允许范围
+-4. **Given** 画布已打开, **When** 用户点「刷新」, **Then** 系统重新拉取工作区基线数据，画布随之更新；刷新失败不报错、画布保持原数据
+-5. **Given** 操作栏处于画布底部, **When** 用户拖拽卡片至操作栏附近, **Then** 操作栏不拦截拖拽、卡片可正常落位（低干扰浮层）
+-6. **Given** 画布打开, **When** 用户检查操作栏外观, **Then** 图标按钮形态与 hundun-web 一致（30×30、透明背景、悬停高亮），颜色走系统设计令牌（无硬编码颜色）
+-
+----
+-
+-### Edge Cases
+-
+-- 画布极窄（操作栏空间不足）：四图标按钮紧凑排布，不换行溢出
+-- 刷新请求失败/无刷新能力：安全降级（空操作），画布数据保持原样
+-- 画布无工作区：操作栏仍显示（缩放/重置/刷新可用），不报错
+-- 重置视图时无任何平移/缩放（已是 100%/原点）：幂等，不产生多余写入
+-- 操作栏与右键菜单/明细面板同时出现：操作栏层级低于弹出层，弹出层不被遮挡
+-
+-## Requirements *(mandatory)*
+-
+-### Functional Requirements
+-
+-- **FR-001**: 系统 MUST 在画布打开时于底部显示操作栏，按序包含四个**图标按钮**：「缩小 / 重置 / 放大 / 刷新」（对齐 hundun-web `canvas-controls`；图标与 hundun-web 相同：ZoomOut / LocateFixed / ZoomIn / RefreshCw）
+-- **FR-002**: 操作栏按钮 MUST 为图标形式（无文字），30×30 尺寸、透明背景、悬停高亮；悬停时显示提示（title/aria-label）
+-- **FR-003**: 系统 MUST 移除右上角原有的独立缩放工具（整合后不重复出现）
+-- **FR-004**: 「缩小」/「放大」MUST 以固定步进（10%）改变缩放，并夹取在允许范围（沿用既有 30%–300%）
+-- **FR-005**: 「重置」MUST 将缩放恢复至 100% 并将平移原点归位
+-- **FR-006**: 「刷新」MUST 触发工作区基线重新拉取，画布随最新数据更新；刷新失败 MUST 安全降级（不报错、保持原数据）
+-- **FR-007**: 操作栏图标颜色与悬停态 MUST 复用系统设计令牌（背景/边框/文字色），与系统其他界面控件视觉一致
+-- **FR-008**: 操作栏 MUST 为低干扰浮层：不拦截画布节点拖拽与空白平移交互，不遮挡可操作区域
+-
+-### Key Entities *(include if feature involves data)*
+-
+-- **CanvasDocument.view**: 视图变换（平移 x/y + 缩放 zoom），缩小/放大/重置读写该状态，随文档持久化
+-- **WorkspaceListState.items**: 工作区列表（官方 feed），「刷新」重新拉取后驱动画布更新
+-
+-## Success Criteria *(mandatory)*
+-
+-### Measurable Outcomes
+-
+-- **SC-001**: 用户打开画布后能在 1 秒内定位到操作栏并完成一次缩放/重置/刷新操作
+-- **SC-002**: 「刷新」后画布反映最新工作区数据：新增工作区出现、移除工作区消失（在 feed 数据变化时验证）
+-- **SC-003**: 操作栏为四个图标按钮，顺序（缩小→重置→放大→刷新）与图标形态（ZoomOut/LocateFixed/ZoomIn/RefreshCw）与 hundun-web 一致；按钮无文字
+-- **SC-004**: 操作栏视觉与系统控件一致：不引入任何非系统设计令牌的硬编码颜色/圆角/阴影（静态检查通过）
+-- **SC-005**: 以上操作全程零控制台错误；刷新失败不产生未处理异常
+-
+-## Assumptions
+-
+-- 「按照 hundun-web 画布的操作实现」指其 `canvas-controls` 工具栏的四个功能项与形态：缩小（ZoomOut 图标）、
+-  重置（LocateFixed 图标，resetView：{x:0,y:0,zoom:1}）、放大（ZoomIn 图标）、刷新（RefreshCw 图标，重新拉取画布数据）；
+-  按钮为 30×30 纯图标（无文字），悬停高亮，与 hundun-web `styles.css` 的 `.canvas-controls button` 一致
+-- 图标来源：内联 SVG（lucide 同款 path，ISC 开源），视觉颜色走系统令牌（`currentColor` = `--dsw-alias-label-*`）；
+-  不使用 DSH 系统图标库的近似图标（搜索/全屏语义不匹配）
+-- 缩放步进 10%（0.9/1.1 对应），夹取范围沿用既有 30%–300%（hundun-web 为 65%–180%，DSH 采用更宽范围）
+-- 「刷新」在 DSH 中对应 workspaces 服务的基线重新拉取（`refresh()`，Wire-pump 入口）；feed 更新后画布
+-  经订阅自动反映最新数据
+-- 「UI 与系统一致」指复用 dsh 系统设计令牌（`--dsw-alias-*` CSS 变量）着色，不引入新设计语言
+-- 操作栏为画布内浮层（absolute 定位），不占用官方槽位，遵循既有面板互斥协议
+-- 依赖既有能力：视图变换（view-transform）、文档持久化（CanvasDocument.view）、画布挂载（CanvasController）、
+-  workspaces 服务（ctx.workspaces）
+Index: specs/002-canvas-action-bar/tasks.md
+===================================================================
+diff --git a/specs/002-canvas-action-bar/tasks.md b/specs/002-canvas-action-bar/tasks.md
+deleted file mode 100644
+--- a/specs/002-canvas-action-bar/tasks.md	(revision 9d59e61ec4277ba0124a26520d4810abc052d63d)
++++ /dev/null	(revision 9d59e61ec4277ba0124a26520d4810abc052d63d)
+@@ -1,47 +0,0 @@
+-# Tasks: 画布操作栏（Canvas Controls，对齐 hundun-web）
+-
+-**Input**: Design documents from `/specs/002-canvas-action-bar/`
+-
+-**Prerequisites**: plan.md（技术栈/结构）、spec.md（用户故事与优先级）、data-model.md、contracts/action-bar.md、research.md
+-
+-**Tests**: spec.md 已声明 `**TDD**: true` —— 每个用户故事阶段 MUST 含 Contract test 与 Integration test 任务（项目章程 I 条）。
+-
+-**Organization**: Tasks are grouped by user story to enable independent implementation and testing of each story.
+-
+-## Format（四字段，全必填，项目章程 III 条）
+-
+-```text
+-- [ ] T### [P?] [USx?] 描述 `file: 文件路径` `function: 函数/组件名` `calls: API/函数调用` `verify: 运行时可验证行为`
+-```
+-
+-## Phase 3: User Story 1 - 画布操作栏（缩小/重置/放大/刷新，Priority: P1）
+-
+-**Goal**: 底部操作栏四按钮（顺序对齐 hundun-web：缩小→重置→放大→刷新）；右上角独立缩放工具移除；
+-刷新重新拉取工作区基线；UI 与系统一致（FR-001~007）。
+-**Independent Test**: 打开画布 → 底部操作栏四按钮按序 → 右上角无独立缩放工具；缩放/重置行为正确；
+-刷新触发数据更新；操作栏不拦截拖拽（E2E-01~06）。
+-
+-- [x] T001 [US1] 操作栏渲染：底部四按钮（缩小/重置/放大/刷新，hundun-web 顺序）+ 移除右上角独立工具栏 `file: packages/dsh-workspace-canvas/src/client/canvas/CanvasView.tsx` `function: ACTION_BAR_STYLE / 渲染结构（删除 data-dsh-canvas-toolbar 区块，新增 data-dsh-action-bar 四按钮）` `calls: 无` `verify: action-bar.spec 单测：渲染 [data-dsh-action-bar] 且按钮顺序为 zoom-out → reset → zoom-in → refresh；DOM 中无 [data-dsh-canvas-toolbar]；样式声明不含硬编码颜色（仅 var(--dsw-alias-*)）`
+-- [x] T002 [US1] 缩小/放大/重置按钮行为（10% 步进、30%–300% 夹取、百分比实时、重置回 100%+原点） `file: packages/dsh-workspace-canvas/src/client/canvas/CanvasView.tsx` `function: zoomBy / resetViewTransform（复用既有）` `calls: view-transform zoomAt / resetView` `verify: action-bar.spec 单测（点击行为）+ playwright 真机：放大 110%→重置 100%、夹取边界；E2E-02/03`
+-- [x] T003 [US1] 刷新按钮行为（调用 workspaces 基线重新拉取；失败安全降级） `file: packages/dsh-workspace-canvas/src/client/canvas/CanvasView.tsx` `function: handleRefresh` `calls: ctx.workspaces.refresh()` `verify: action-bar.spec 单测：点击刷新调用 workspaces.refresh 一次；无 workspaces/refresh 缺失时不抛错（可选链兜底）；playwright 真机：刷新后画布数据随 feed 更新；E2E-04/05`
+-
+-## Phase 6: Polish（收尾与门禁）
+-
+-**Purpose**: 全量回归 + E2E 门禁（章程 IV 条）。
+-
+-- [x] T004 全量回归与 E2E 门禁（全仓 typecheck/test/build + quickstart 场景逐条记录 + UI 一致性静态检查） `file: specs/002-canvas-action-bar/quickstart.md` `function: 无（回归）` `calls: pnpm -r typecheck / test / build` `verify: quickstart.md 场景逐条通过并记录；未过场景对应任务 [X] 回退并追加 Convergence`
+-
+-## Dependency Graph
+-
+-```
+-T001（操作栏渲染）→ T002（缩放/重置）→ T003（刷新）
+-T004（门禁）← 全部
+-```
+-
+-**并行机会**：T001 与 T002 涉及同文件（CanvasView）建议串行；T003 依赖 T001 的操作栏结构。
+-
+-## Implementation Strategy（MVP 优先）
+-
+-- **MVP = 全部（单 US）**：四按钮操作栏一次交付（用户明确指定的操作集合）；
+-- 每个 Phase 完成后运行 `$speckit-converge` 对照 spec 检查缺口（章程 V 条）；
+-- E2E 门禁：quickstart.md 逐条记录（章程 IV 条）。
+Index: specs/003-detail-panel-redesign/checklists/requirements.md
+===================================================================
+diff --git a/specs/003-detail-panel-redesign/checklists/requirements.md b/specs/003-detail-panel-redesign/checklists/requirements.md
+deleted file mode 100644
+--- a/specs/003-detail-panel-redesign/checklists/requirements.md	(revision 9d59e61ec4277ba0124a26520d4810abc052d63d)
++++ /dev/null	(revision 9d59e61ec4277ba0124a26520d4810abc052d63d)
+@@ -1,36 +0,0 @@
+-# Specification Quality Checklist: 工作区详情框重设计
+-
+-**Purpose**: Validate specification completeness and quality before proceeding to planning
+-**Created**: 2026-08-17
+-**Feature**: [spec.md](../spec.md)
+-
+-## Content Quality
+-
+-- [x] No implementation details (languages, frameworks, APIs)
+-- [x] Focused on user value and business needs
+-- [x] Written for non-technical stakeholders
+-- [x] All mandatory sections completed
+-
+-## Requirement Completeness
+-
+-- [x] No [NEEDS CLARIFICATION] markers remain
+-- [x] Requirements are testable and unambiguous
+-- [x] Success criteria are measurable
+-- [x] Success criteria are technology-agnostic (no implementation details)
+-- [x] All acceptance scenarios are defined
+-- [x] Edge cases are identified
+-- [x] Scope is clearly bounded
+-- [x] Dependencies and assumptions identified
+-
+-## Feature Readiness
+-
+-- [x] All functional requirements have clear acceptance criteria
+-- [x] User scenarios cover primary flows
+-- [x] Feature meets measurable outcomes defined in Success Criteria
+-- [x] No implementation details leak into specification
+-
+-## Notes
+-
+-- 全部项通过。「随机码」已确认为工作区 ID（workspaceId/ref，官方 feed 数据），
+-  无需澄清；用户已指示直接实现到底。
+-- 下一步：直接实现（用户明确指示跳过 clarify/plan/tasks 提问环节）。
+Index: specs/003-detail-panel-redesign/spec.md
+===================================================================
+diff --git a/specs/003-detail-panel-redesign/spec.md b/specs/003-detail-panel-redesign/spec.md
+deleted file mode 100644
+--- a/specs/003-detail-panel-redesign/spec.md	(revision 9d59e61ec4277ba0124a26520d4810abc052d63d)
++++ /dev/null	(revision 9d59e61ec4277ba0124a26520d4810abc052d63d)
+@@ -1,158 +0,0 @@
+-# Feature Specification: 工作区详情框重设计
+-
+-**Feature Branch**: `003-detail-panel-redesign`
+-
+-**Created**: 2026-08-17
+-
+-**Status**: Draft
+-
+-**TDD**: true
+-<!-- MUST 为 true（项目章程 I 条）：声明后 $speckit-tasks 强制生成 Contract test 与 Integration test 任务。 -->
+-
+-**Input**: User description: "重新设计工作区详情框的展示：随机码（是id?）也要做好语义的描述，要做好分区域，要做好UI渲染"
+-
+-## User Scenarios & Testing *(mandatory)*
+-
+-### User Story 1 - 分区域浏览工作区详情 (Priority: P1)
+-
+-用户在画布中选中一张工作区卡片，右侧详情框以清晰的三块分区展示该工作区的完整信息：
+-**身份区**（顶行，大字号工作区名称 + 活跃状态徽标）→ **基本信息区**（目录、路径、
+-工作区 ID 键值对）→ **会话信息区**（会话数量表格：总数/活跃/归档/运行中）。
+-三块区域以卡片式视觉明显划分，用户扫一眼即可定位所需信息。
+-
+-**Why this priority**: 分区域是「重新设计展示」的核心诉求——没有分区，语义化与 UI 渲染都无处安放；
+-这是本次功能的主体价值。
+-
+-**Independent Test**: 选中任意工作区卡片后，详情框内能肉眼识别出 2 个分区
+-（身份 / 基本信息），每个分区的信息归属正确。
+-
+-**Acceptance Scenarios**:
+-
+-1. **Given** 画布中选中一张有标题的工作区，**When** 详情框打开，**Then** 详情框按
+-   身份区（无分区标题，大字号名称）→ 基本信息区两个分区渲染，基本信息区有区块标题
+-2. **Given** 详情框打开，**When** 用户滚动浏览，**Then** 各分区内容互不混淆，
+-   标签与值一一对应
+-
+----
+-
+-### User Story 2 - 随机码的语义化展示 (Priority: P1)
+-
+-工作区 ID（一串随机字符串）不再裸显示。当工作区没有自定义标题时，标题栏显示语义化占位
+-（如「未命名工作区」）而非裸 ID；基本信息区中 ID 以「工作区 ID」标签 + 值的键值对呈现，
+-并附一句人话说明（如「内部标识，用于区分工作区」），支持一键复制。
+-
+-**Why this priority**: 用户明确点名「随机码（是id?）也要做好语义的描述」——
+-随机码即工作区 ID，本故事直接回答「它是什么、怎么友好呈现」的问题。
+-
+-**Independent Test**: 选中一个无自定义标题的工作区（或标题为空），详情框标题栏
+-不出现裸随机码字符串；基本信息区以「工作区 ID」标签展示该字符串且可复制。
+-
+-**Acceptance Scenarios**:
+-
+-1. **Given** 工作区无自定义标题，**When** 详情框打开，**Then** 标题栏显示
+-   「未命名工作区」类语义占位，而非裸 ID
+-2. **Given** 详情框打开，**When** 用户查看基本信息区，**Then** ID 以
+-   「工作区 ID：<值>」键值对展示，并带一句说明文字
+-3. **Given** 详情框打开，**When** 用户点击 ID 的复制按钮，**Then** ID 完整复制
+-   到剪贴板且给出「已复制」反馈
+-
+----
+-
+-### User Story 3 - 一致的键值对 UI 渲染 (Priority: P2)
+-
+-详情框全部信息以统一的「标签 + 值」网格布局渲染：标签列（弱化色、固定语义）、
+-值列（主文字色、支持换行）。「最近活跃」等状态以高亮徽标呈现而非普通文本；
+-整体配色走系统令牌（背景分层、边框、三级文字色），拖拽调整宽度（240–420）时
+-布局不错乱、不溢出、不遮挡。
+-
+-**Why this priority**: 「做好 UI 渲染」要求视觉一致性——键值对网格 + 令牌化样式
+-是让详情框在任意宽度下都稳定、美观的基础。
+-
+-**Independent Test**: 打开详情框并把宽度从最小拖到最大，任意中间值下标签列对齐、
+-长值换行正常、无水平溢出、关闭按钮始终可见可点。
+-
+-**Acceptance Scenarios**:
+-
+-1. **Given** 详情框打开，**When** 用户调整宽度至 240–420 任意值，**Then** 键值对
+-   标签列保持对齐，长路径/长 ID 自动换行，无水平滚动条
+-2. **Given** 工作区为最近活跃，**When** 详情框打开，**Then** 「最近活跃」以
+-   高亮徽标（非纯文本）呈现
+-3. **Given** 详情框打开，**When** 用户查看任意区域，**Then** 文字颜色使用
+-   系统令牌分级（标题 primary / 标签 tertiary / 值 secondary），背景与边框
+-   与画布层级一致
+-
+----
+-
+-### Edge Cases
+-
+-- 工作区无自定义标题（label 缺失/为空）→ 标题栏用语义占位，不裸显示 ID
+-- 工作区 ID 很长（超过面板宽度）→ 值列换行展示，不横向溢出
+-- 路径为空或超长 → 显示语义占位（如「未知路径」）或安全换行
+-- 会话数为 0 → 显示「0 个会话」而非空白或「暂无」
+-- 宽度拖到最小（240）→ 标签与值不挤压重叠；拖到最大（420）→ 内容不拉伸变形
+-- 详情框内容总高超过面板可视高度 → 面板纵向滚动，分区标题可随内容滚动
+-- 复制 ID 时剪贴板被浏览器拒绝 → 降级为「自动全选文本」，仍可手动复制
+-- 工作区在 feed 中消失（刷新竞态）→ 详情框不崩溃、不残留
+-
+-## Requirements *(mandatory)*
+-
+-### Functional Requirements
+-
+-- **FR-001**: 详情框 MUST 按「身份区 / 基本信息区 / 会话信息区」三块区域渲染，区块间
+-  有明显视觉划分（卡片式）；身份区展示大字号工作区名称（无分区标题）+ 活跃状态徽标；
+-  基本信息区含**目录 / 路径 / 工作区 ID** 键值对；会话信息区展示**会话数量表格**
+-  （总数 / 活跃 / 归档 / 运行中）
+-- **FR-002**: 工作区 ID MUST 以「工作区 ID」标签 + 值的键值对形式展示在**基本信息区**，
+-  并 MUST 附带一句语义说明文字（说明其含义），不得在任何位置裸显示随机码
+-- **FR-003**: 当工作区无自定义标题时，标题栏 MUST 显示语义化占位
+-  （如「未命名工作区」），不得回退为裸 ID
+-- **FR-004**: ID 值 MUST 提供一键复制操作，复制成功 MUST 给出「已复制」反馈；
+-  剪贴板被拒绝时 MUST 降级为全选文本
+-- **FR-005**: 全部信息项 MUST 使用统一的「标签 + 值」键值对布局，
+-  标签列样式一致（弱化色），值列支持长文本换行
+-- **FR-006**: 「最近活跃」状态 MUST 以高亮徽标/胶囊形式呈现，与普通文本可区分
+-- **FR-007**: 详情框样式 MUST 使用系统令牌（背景分层、边框、primary/secondary/tertiary
+-  文字色），不得使用与画布层级冲突的硬编码颜色
+-- **FR-008**: 面板宽度在 240–420 范围任意调整时 MUST 保持布局不溢出、不错乱、
+-  标签对齐；关闭按钮 MUST 始终可见可点
+-- **FR-009**: 会话数 MUST 以「N 个会话」可读格式展示（含 0 值）
+-- **FR-010**: 详情框内容超高时 MUST 支持纵向滚动，且关闭/宽度操作不受滚动影响
+-- **FR-011**: 基本信息区 MUST 以「目录」行展示工作区显示标题（缺失时回退路径文件夹名，
+-  再退「未知目录」），与「路径」「工作区 ID」行同为键值对布局
+-- **FR-012**: 会话信息区 MUST 以表格展示会话数量（总数 / 活跃 / 归档 / 运行中），
+-  与基本信息区（目录/路径/工作区 ID）分离，三块区域有明显视觉划分（卡片式）；
+-  会话数量计算在 sessions 服务不可得时 MUST 安全降级为 0（运行中），不抛错
+-
+-### Key Entities *(include if feature involves data)*
+-
+-- **Workspace（工作区）**: 画布中的基本单元，来自官方 workspaces feed。
+-  关键属性：`workspaceId`（随机字符串 ID，即「随机码」）、`title`（自定义标题，可缺失）、
+-  `path`（磁盘路径，可缺失）、`sessionIds`（会话 ID 列表）、`recentWorkspaceId`
+-  （全局最近活跃工作区标记，用于判定「最近活跃」状态）。
+-  详情框只读展示，不修改数据。
+-
+-## Success Criteria *(mandatory)*
+-
+-### Measurable Outcomes
+-
+-- **SC-001**: 详情框任意打开状态下，页面中不存在未带语义标签的裸随机码展示
+-  （100% 的 ID 出现处都带「工作区 ID」标签或说明）
+-- **SC-002**: 用户打开详情框后 5 秒内可识别出该工作区的身份信息
+-  （标题/占位、活跃状态）与位置信息（路径）
+-- **SC-003**: 详情框内肉眼可区分 2 个分区（身份区无标题 + 基本信息区带标题），
+-  分区信息归属正确（信息不错放分区）
+-- **SC-004**: 工作区 ID 复制操作 ≤1 次点击完成，且复制内容与显示值一致
+-- **SC-005**: 面板宽度在 240–420 范围内任意调整后，无水平溢出、标签不错位、
+-  关闭按钮始终可点（0 个布局回归）
+-
+-## Assumptions
+-
+-- 「随机码」即工作区 ID（`workspaceId`，官方 feed 数据的 `ref` 字段）；不做 ID 格式猜测
+-  （不解析其内部含义），只做「标注它是 ID + 说明用途」的语义化
+-- 详情框本次重设计范围仅针对**工作区节点**（kind=workspace）；编排节点/成员节点
+-  详情沿用现有扩展区块机制（registerNodeDetailSection），不在此次范围内改动
+-- 数据来源仅为官方 workspaces feed（title / path / sessionIds / recentWorkspaceId），
+-  不新增后端接口、不新增持久化字段
+-- 复制功能依赖浏览器剪贴板能力；失败时允许降级为全选文本
+-- 验证环境为本机 Windows / DSH web profile（HMR 开启），以 GUI 实际交互为准
+-- 「最近活跃」判定沿用现有 `workspaceId === recentWorkspaceId` 逻辑，本次不改语义
+Index: specs/004-canvas-layout-styles/checklists/requirements.md
+===================================================================
+diff --git a/specs/004-canvas-layout-styles/checklists/requirements.md b/specs/004-canvas-layout-styles/checklists/requirements.md
+deleted file mode 100644
+--- a/specs/004-canvas-layout-styles/checklists/requirements.md	(revision 9d59e61ec4277ba0124a26520d4810abc052d63d)
++++ /dev/null	(revision 9d59e61ec4277ba0124a26520d4810abc052d63d)
+@@ -1,36 +0,0 @@
+-# Specification Quality Checklist: 工作区画布背景风格切换
+-
+-**Purpose**: Validate specification completeness and quality before proceeding to planning
+-**Created**: 2026-08-17
+-**Feature**: [spec.md](../spec.md)
+-
+-## Content Quality
+-
+-- [x] No implementation details (languages, frameworks, APIs)
+-- [x] Focused on user value and business needs
+-- [x] Written for non-technical stakeholders
+-- [x] All mandatory sections completed
+-
+-## Requirement Completeness
+-
+-- [x] No [NEEDS CLARIFICATION] markers remain
+-- [x] Requirements are testable and unambiguous
+-- [x] Success criteria are measurable
+-- [x] Success criteria are technology-agnostic (no implementation details)
+-- [x] All acceptance scenarios are defined
+-- [x] Edge cases are identified
+-- [x] Scope is clearly bounded
+-- [x] Dependencies and assumptions identified
+-
+-## Feature Readiness
+-
+-- [x] All functional requirements have clear acceptance criteria
+-- [x] User scenarios cover primary flows
+-- [x] Feature meets measurable outcomes defined in Success Criteria
+-- [x] No implementation details leak into specification
+-
+-## Notes
+-
+-- 全部通过。3 个澄清已由用户确认：范围=背景画布风格（非布局/功能）、默认=网格、
+-  快捷切换入口=底部操作栏；背景风格集合=用户选定 6 种（网格/点阵/纯色/渐变/暗色网格/蓝图）。
+-- 下一步：$speckit-plan（或用户指示直接实现）。
+Index: specs/004-canvas-layout-styles/spec.md
+===================================================================
+diff --git a/specs/004-canvas-layout-styles/spec.md b/specs/004-canvas-layout-styles/spec.md
+deleted file mode 100644
+--- a/specs/004-canvas-layout-styles/spec.md	(revision 9d59e61ec4277ba0124a26520d4810abc052d63d)
++++ /dev/null	(revision 9d59e61ec4277ba0124a26520d4810abc052d63d)
+@@ -1,145 +0,0 @@
+-# Feature Specification: 工作区画布背景风格切换
+-
+-**Feature Branch**: `004-canvas-layout-styles`
+-
+-**Created**: 2026-08-17
+-
+-**Status**: Draft
+-
+-**TDD**: true
+-<!-- MUST 为 true（项目章程 I 条）：声明后 $speckit-tasks 强制生成 Contract test 与 Integration test 任务。 -->
+-
+-**Input**: User description: "hundun工作区画布支持多种风格、配置项增加多种风格的画布的切换（重新设计设置的布局、给我几种布局我选择）"
+-
+-## User Scenarios & Testing *(mandatory)*
+-
+-> **澄清（2026-08-17）**：用户明确「我需要的是背景画布风格切换，而非具体的功能改变」——
+-> 本特征范围 = **画布背景视觉风格**（网格底 / 点阵 / 纯色 / 渐变等），
+-> 卡片排列、拖拽、缩放、详情框等既有功能一律不变。默认风格 = 现状网格底；
+-> 快捷切换入口 = 画布底部操作栏。
+-
+-### User Story 1 - 在设置中选择画布背景风格 (Priority: P1)
+-
+-用户打开 DSH 设置页的「画布」栏目，看到重新设计后的分组布局：第一组「启用」保留画布开关，
+-第二组「画布背景风格」提供多种背景风格供选择（名称 + 一句说明）。选中任一风格后立即生效，
+-打开画布即按新背景渲染；选择持久化，刷新后保持。
+-
+-**Why this priority**: 「配置项增加多种风格的画布的切换」是本特征核心——设置入口先行，
+-背景风格才有落点。
+-
+-**Independent Test**: 在设置页切换背景风格 → 打开画布背景为新风格；刷新页面 → 保持。
+-
+-**Acceptance Scenarios**:
+-
+-1. **Given** 设置页画布栏目，**When** 用户选择「点阵」背景，**Then** 打开画布后
+-   背景为点阵（非网格），卡片/拖拽/缩放/详情行为不变
+-2. **Given** 设置页选择过「纯色」，**When** 刷新页面并再次打开画布，**Then** 仍为纯色背景
+-
+----
+-
+-### User Story 2 - 画布内快捷切换背景风格 (Priority: P2)
+-
+-画布打开状态下，用户在**底部操作栏**（缩小/重置/放大/刷新旁）通过背景风格控件切换：
+-当前风格高亮；切换即时生效且持久化，设置页同步显示。
+-
+-**Why this priority**: 快捷切换让用户在真实画布上对比各背景，直观且操作 ≤2 次。
+-
+-**Independent Test**: 画布操作栏切换背景风格 → 画布背景立即变化，设置页对应选项选中。
+-
+-**Acceptance Scenarios**:
+-
+-1. **Given** 画布打开（背景为网格），**When** 用户在操作栏切换到「渐变」，**Then**
+-   背景立即变为渐变，且设置页对应选项被选中
+-2. **Given** 画布打开，**When** 用户浏览背景风格控件，**Then** 每种风格有名称与
+-   一句说明，当前风格有选中态
+-
+----
+-
+-### User Story 3 - 各背景风格渲染正确且功能不变 (Priority: P1)
+-
+-每种背景风格有可感知的视觉差异，数据与交互完全一致（**最终集合 = 用户选定后修订为 5 种**）：
+-
+-- **网格**（默认，现状）：无限网格底，随平移取模跟随，缩放仅作用节点层
+-- **点阵**：圆点矩阵底，随平移取模跟随
+-- **纯色**：无图案纯背景（跟随系统背景令牌）
+-- **渐变**：柔和渐变背景
+-- **暗色网格**：深色网格，暗色主题下更隐形的网格底
+-
+-**Why this priority**: 「支持多种风格」必须落实为可感知的多种背景；全部风格共用同一
+-工作区数据、选中/详情/打开会话语义与节点层渲染。
+-
+-**Independent Test**: 对同一组工作区切换所有背景风格：视觉明显不同；任一风格下
+-单击卡片弹详情、双击进会话、拖拽/缩放/详情宽度调节均与现状一致。
+-
+-**Acceptance Scenarios**:
+-
+-1. **Given** 画布有工作区，**When** 用户依次切换全部背景风格，**Then** 背景明显不同，
+-   且工作区卡片/节点/详情渲染不受影响
+-2. **Given** 任一背景风格下，**When** 用户单击/双击/拖拽卡片、调整详情宽度，
+-   **Then** 行为与现状完全一致
+-
+----
+-
+-### Edge Cases
+-
+-- 背景风格数据损坏/未知值（localStorage 手改）→ 回退默认「网格」，不崩
+-- 切换背景时正在拖拽/缩放 → 背景层独立于节点层，切换无副作用、状态不丢
+-- 设置页与画布内切换并发 → 以最后操作为准，两处同步
+-- 纯色/渐变风格在缩放平移时 → 背景固定不跟随（或按风格定义），节点层始终跟随
+-- 无工作区空态提示在任意背景风格下可读
+-- 背景风格注册为空（未来扩展）→ 仅渲染默认「网格」，设置页只显示可用风格
+-
+-## Requirements *(mandatory)*
+-
+-### Functional Requirements
+-
+-- **FR-001**: 系统 MUST 支持 5 种背景画布风格：网格（默认，现状）/ 点阵 / 纯色 / 渐变 /
+-  暗色网格，每种有名称与一句说明（用户选定集合）
+-- **FR-002**: 设置页「画布」栏目 MUST 重新设计为分组布局：第一组「启用」（画布开关），
+-  第二组「画布背景风格」（风格单选）；组间有明显分隔
+-- **FR-003**: 背景风格选择 MUST 持久化（刷新后保持），写入失败 MUST 不阻断切换
+-  （降级为仅本次会话生效）
+-- **FR-004**: 背景风格 MUST 由单一注册机制管理（id / 名称 / 说明 / 背景渲染参数），
+-  新增风格无需改动设置 UI 主体；未知/损坏值 MUST 回退默认「网格」
+-- **FR-005**: 画布底部操作栏 MUST 提供背景风格快捷切换控件（当前风格选中态），
+-  切换即时生效且与设置页数据同步（同一持久化源）
+-- **FR-006**: 全部背景风格 MUST 共用同一工作区数据源与全部既有交互语义
+-  （单击选中详情 / 双击进会话 / 右键菜单 / 拖拽定位 / 缩放平移 / 详情宽度调节）
+-- **FR-007**: 背景层与节点层 MUST 解耦：背景切换不重置拖拽/缩放/选中状态
+-- **FR-008**: 纯色/渐变等非网格背景 MUST 在缩放平移时不露白（背景固定铺满画布容器）
+-
+-### Key Entities *(include if feature involves data)*
+-
+-- **CanvasBackgroundStyle（背景风格）**: 画布背景的呈现方式。属性：`id`（唯一标识）、
+-  `name`（用户可见名称）、`description`（一句说明）、`background`（背景渲染参数，
+-  如网格间距/点径/颜色/渐变定义）。注册表按 id 索引；配置持久化存 id。
+-- **CanvasStyleConfig（风格配置）**: 用户在设置中的选择结果：`backgroundId`（当前背景风格）。
+-  持久化于本地存储，与现有 enabled 开关同一机制（localStorage + 事件广播）。
+-
+-## Success Criteria *(mandatory)*
+-
+-### Measurable Outcomes
+-
+-- **SC-001**: 用户可在 ≤2 次点击内完成背景风格切换（设置页或画布操作栏任一入口）
+-- **SC-002**: 背景风格选择在刷新后 100% 保持（持久化成功时）
+-- **SC-003**: 同一组工作区在任意背景风格下渲染一致（数量、位置、详情可用），
+-  且 5 种风格肉眼可辨
+-- **SC-004**: 任意背景风格下，单击/双击/拖拽/缩放/详情宽度调节 100% 可用（与现状一致）
+-- **SC-005**: 设置页画布栏目视觉上分为 ≥2 个清晰分组（启用 / 背景风格）
+-
+-## Assumptions
+-
+-- 「风格」= **画布背景视觉风格**（用户澄清），不含卡片排列方式、不含视觉主题色
+-- 默认背景风格 = 现状「网格」，向后兼容：未设置过风格的用户行为与现状完全一致
+-- 背景风格配置持久化沿用现有 localStorage + 事件广播机制（与 enabled-store 同模式），
+-  不引入新的后端存储
+-- 背景风格集合 = 用户选定后修订为 5 种：网格 / 点阵 / 纯色 / 渐变 / 暗色网格
+-  （原候选「蓝图」已按用户要求移除）
+-- 画布内快捷切换入口 = 底部操作栏（用户已确认）
+-- 数据源不变：官方 workspaces feed 与 sessions 运行状态
+-
+-## Assumptions
+-
+-- 全部澄清已完成：背景风格集合 6 种、默认网格、操作栏快捷切换，均以用户选择为准
+-
+-（无遗留 [NEEDS CLARIFICATION] 标记）
+Index: specs/005-workspace-auto-archive/checklists/requirements.md
+===================================================================
+diff --git a/specs/005-workspace-auto-archive/checklists/requirements.md b/specs/005-workspace-auto-archive/checklists/requirements.md
+deleted file mode 100644
+--- a/specs/005-workspace-auto-archive/checklists/requirements.md	(revision 9d59e61ec4277ba0124a26520d4810abc052d63d)
++++ /dev/null	(revision 9d59e61ec4277ba0124a26520d4810abc052d63d)
+@@ -1,37 +0,0 @@
+-# Specification Quality Checklist: 工作区会话自动归档
+-
+-**Purpose**: Validate specification completeness and quality before proceeding to planning
+-**Created**: 2026-08-17
+-**Feature**: [spec.md](../spec.md)
+-
+-## Content Quality
+-
+-- [x] No implementation details (languages, frameworks, APIs)
+-- [x] Focused on user value and business needs
+-- [x] Written for non-technical stakeholders
+-- [x] All mandatory sections completed
+-
+-## Requirement Completeness
+-
+-- [x] No [NEEDS CLARIFICATION] markers remain
+-- [x] Requirements are testable and unambiguous
+-- [x] Success criteria are measurable
+-- [x] Success criteria are technology-agnostic (no implementation details)
+-- [x] All acceptance scenarios are defined
+-- [x] Edge cases are identified
+-- [x] Scope is clearly bounded
+-- [x] Dependencies and assumptions identified
+-
+-## Feature Readiness
+-
+-- [x] All functional requirements have clear acceptance criteria
+-- [x] User scenarios cover primary flows
+-- [x] Feature meets measurable outcomes defined in Success Criteria
+-- [x] No implementation details leak into specification
+-
+-## Notes
+-
+-- 全部通过。5 项澄清全部由用户确认：双条件 OR、默认关闭、跳过运行中会话、
+-  触发时机 = 页面加载（即使画布未打开）+ 画布刷新按钮（feed 更新不触发）、
+-  详情框即改即存。
+-- 下一步：$speckit-plan，或用户指示直接实现。
+Index: specs/005-workspace-auto-archive/spec.md
+===================================================================
+diff --git a/specs/005-workspace-auto-archive/spec.md b/specs/005-workspace-auto-archive/spec.md
+deleted file mode 100644
+--- a/specs/005-workspace-auto-archive/spec.md	(revision 9d59e61ec4277ba0124a26520d4810abc052d63d)
++++ /dev/null	(revision 9d59e61ec4277ba0124a26520d4810abc052d63d)
+@@ -1,145 +0,0 @@
+-# Feature Specification: 工作区会话自动归档
+-
+-**Feature Branch**: `005-workspace-auto-archive`
+-
+-**Created**: 2026-08-17
+-
+-**Status**: Draft
+-
+-**TDD**: true
+-<!-- MUST 为 true（项目章程 I 条）：声明后 $speckit-tasks 强制生成 Contract test 与 Integration test 任务。 -->
+-
+-**Input**: User description: "为工作区增加自动归档的功能。1.设置区增加默认归档配置。2.画布工作区详情框可自定义修改。3.存储工作区会话归档配置。4.工作区刷新的时候执行归档判断逻辑。"
+-
+-## User Scenarios & Testing *(mandatory)*
+-
+-### User Story 1 - 设置默认归档配置 (Priority: P1)
+-
+-用户在设置页「画布」栏目的**归档**分组中配置全局默认：自动归档开关（默认关闭）+
+-**双条件阈值**——闲置天数（默认 30 天）与会话数上限。配置持久化，刷新后保持；
+-未开启时画布不自动归档任何会话。
+-
+-**Why this priority**: 「设置区增加默认归档配置」是本特征的第一落点——默认配置是
+-工作区自定义与刷新判断的基础。
+-
+-**Independent Test**: 设置页开启自动归档并设阈值 → 持久化；关闭 → 画布刷新不归档任何会话。
+-
+-**Acceptance Scenarios**:
+-
+-1. **Given** 设置页归档分组，**When** 用户开启自动归档并设闲置天数与会话上限，**Then**
+-   配置持久化（刷新后保持）
+-2. **Given** 自动归档关闭，**When** 画布刷新，**Then** 不归档任何会话
+-
+----
+-
+-### User Story 2 - 详情框自定义工作区归档配置 (Priority: P1)
+-
+-用户在工作区详情框的归档区域，为该工作区单独配置：**跟随默认** 或 **自定义**
+-（启用 + 闲置天数 + 会话数上限），覆盖全局默认；保存后持久化。
+-
+-**Why this priority**: 「画布工作区详情框可自定义修改」——不同工作区可有不同归档策略
+-（如长期项目不归档、临时目录快速归档）。
+-
+-**Independent Test**: 详情框选择自定义并保存 → 该工作区刷新时按自定义阈值判断（与默认不同）。
+-
+-**Acceptance Scenarios**:
+-
+-1. **Given** 详情框归档区，**When** 用户选择「自定义」并设阈值，**Then** 保存持久化，
+-   该工作区优先使用自定义配置
+-2. **Given** 详情框归档区，**When** 用户选择「跟随默认」，**Then** 清除自定义，
+-   恢复使用全局默认配置
+-
+----
+-
+-### User Story 3 - 刷新时执行归档判断 (Priority: P1)
+-
+-**页面加载时（即使画布未打开）**与**画布刷新按钮**触发归档判断；feed 订阅更新不触发。
+-对每个启用了自动归档的工作区执行**双条件判断**（**跳过运行中会话**）：
+-① 闲置天数——未归档且非运行中的会话 `updatedAt` 距今超过阈值者归档；
+-② 会话数上限——未归档且非运行中的会话数超过上限时，按 `updatedAt` 从旧到新归档差额个；
+-任一条件满足即触发对应归档；已归档会话不重复处理；单个失败不阻断其余。
+-
+-**Why this priority**: 「工作区刷新的时候执行归档判断逻辑」——自动归档的最终落点；
+-用户明确：**刷新页面也要执行**（即使画布没打开），故判断挂在插件运行时而非画布视图。
+-
+-**Independent Test**: 预置一个含闲置超期会话的工作区（启用自动归档）→ 刷新页面
+-（画布未打开）→ 该会话被归档；再打开画布统计中已反映。
+-
+-**Acceptance Scenarios**:
+-
+-1. **Given** 工作区启用自动归档且存在闲置超期会话，**When** 刷新页面（画布未打开），
+-   **Then** 超期会话被归档，其余保留
+-2. **Given** 工作区未归档会话数超过上限，**When** 画布刷新，**Then** 最旧的差额会话被归档，
+-   数量收敛到上限内
+-3. **Given** 存在运行中会话，**When** 刷新判断，**Then** 运行中会话不被归档（闲置/超限均跳过）
+-4. **Given** 工作区启用自动归档，**When** 刷新，**Then** 已归档会话不被重复处理
+-5. **Given** 会话无 `updatedAt` 数据，**When** 刷新判断，**Then** 保守跳过（不参与闲置判断）
+-
+----
+-
+-### Edge Cases
+-
+-- 全局默认关闭 + 工作区自定义开启 → 按工作区自定义执行
+-- 全局默认开启 + 工作区自定义关闭 → 该工作区不归档
+-- 归档失败（网络/权限）→ 提示且不阻断其他会话归档
+-- 刷新期间重复触发 → 判断幂等（已归档不重复、同批不并发重复归档）
+-- 页面刷新但画布未打开 → 归档逻辑仍执行（运行时级，不依赖画布视图）
+-- 工作区配置数据损坏 → 回退全局默认，不崩
+-- 无会话工作区 → 跳过
+-- 阈值非法（0/负数）→ 按默认阈值处理
+-
+-## Requirements *(mandatory)*
+-
+-### Functional Requirements
+-
+-- **FR-001**: 设置页「画布」栏目 MUST 新增「归档」分组：自动归档开关（默认关闭）+
+-  双条件阈值（闲置天数默认 30 天、会话数上限默认不限制），配置持久化
+-  （localStorage，同 enabled/background 模式）
+-- **FR-002**: 工作区详情框 MUST 新增归档配置区：**跟随默认** / **自定义**
+-  （启用 + 闲置天数 + 会话数上限），**即改即存**（修改即持久化，无保存按钮）
+-- **FR-003**: 归档配置 MUST 按「工作区自定义 > 全局默认 > 内置默认（关闭，30 天，
+-  不限会话数）」优先级解析；工作区配置数据损坏 MUST 回退全局默认
+-- **FR-004**: 归档判断 MUST 在 **页面加载时（即使画布未打开）** 与 **画布刷新按钮** 两个
+-  时机执行；feed 订阅更新 MUST 不触发。判断为双条件 **OR**：① 未归档且非运行中会话
+-  `updatedAt` 距今超过闲置天数 → 归档该会话；② 未归档且非运行中会话数超过上限 →
+-  按 `updatedAt` 从旧到新归档差额个
+-- **FR-005**: 归档判断 MUST 幂等：已归档会话不重复归档；同一批内不重复归档同一会话；
+-  运行中会话（running=true）MUST 跳过（闲置与超限均不归档）
+-- **FR-006**: 单个会话归档失败 MUST 不阻断其余会话（失败提示一次）
+-- **FR-007**: 会话缺失 `updatedAt` 时 MUST 保守跳过（不参与闲置判断；数量超限场景
+-  按有时间的会话排序）
+-- **FR-008**: 归档数量 MUST 反映到画布卡片/详情框的会话统计（活跃数减少、归档数增加）
+-
+-### Key Entities *(include if feature involves data)*
+-
+-- **AutoArchiveConfig（归档配置）**: `enabled`（是否启用）+ `idleDays`（闲置天数阈值，
+-  默认 30）+ `maxSessions`（未归档会话数上限，0/缺省 = 不限制）。
+-  全局默认存 localStorage；工作区自定义按 workspaceId 键存 localStorage
+-  （`{ <workspaceId>: { mode: 'default' | 'custom', enabled?: boolean, idleDays?: number, maxSessions?: number } }`）。
+-- **归档判定输入**: 工作区未归档会话列表（feed `sessionIds` − `archivedSessionIds`）+
+-  各会话 `updatedAt`（sessions 服务 `SessionSummary.updatedAt`）。
+-
+-## Success Criteria *(mandatory)*
+-
+-### Measurable Outcomes
+-
+-- **SC-001**: 设置页与详情框的归档配置在刷新后 100% 保持（持久化成功时）
+-- **SC-002**: 启用了自动归档的工作区，刷新后闲置超期会话 100% 被归档（归档接口成功时）
+-- **SC-003**: 未启用或未超期的会话在刷新后 0 个被误归档
+-- **SC-004**: 单次刷新重复触发不产生重复归档调用（幂等）
+-- **SC-005**: 用户可在 ≤3 次操作内完成工作区归档配置（打开详情 → 改配置 → 保存）
+-
+-## Assumptions
+-
+-- 「自动归档」判定条件 = **双条件（OR）**：闲置天数（`updatedAt` 距今超阈值）+
+-  未归档会话数上限（超过则归档最旧差额）；用户已确认
+-- 全局默认自动归档**默认关闭**（用户确认；安全，不静默改动用户会话）
+-- 内置默认值：闲置 30 天、会话数上限不限制（可配置）
+-- 触发时机 = **页面加载（即使画布未打开）** + **画布刷新按钮**；feed 订阅更新不触发
+-  （用户确认）；运行中会话跳过（用户确认）；详情框配置即改即存（用户确认）
+-- 配置持久化沿用 localStorage + 事件广播模式（与 enabled-store / background-store 一致），
+-  不引入后端存储
+-- 归档操作使用既有 `ctx.workspaces.archiveSession(sessionId)`（逐个归档；dsh 语义：
+-  归档保留在 sessionIds 账目、分组界面隐藏），不新增归档 API
+-
+-（无遗留 [NEEDS CLARIFICATION] 标记）
+Index: packages/dsh-workspace-canvas/tests/settings-page.spec.ts
+IDEA additional info:
+Subsystem: com.intellij.openapi.diff.impl.patch.CharsetEP
+<+>UTF-8
+===================================================================
+diff --git a/packages/dsh-workspace-canvas/tests/settings-page.spec.ts b/packages/dsh-workspace-canvas/tests/settings-page.spec.ts
+new file mode 100644
+--- /dev/null	(date 1787024489458)
++++ b/packages/dsh-workspace-canvas/tests/settings-page.spec.ts	(date 1787024489458)
+@@ -0,0 +1,24 @@
++import { describe, expect, it, vi } from 'vitest'
++import { registerCanvasSettingsPage } from '../src/client/settings.ts'
++
++describe('画布设置页自持注册（settings.section，骨架迁移自 dsh-all）', () => {
++  it('注册 settings.section「workspace-canvas」页面（不再依赖 dsh-all 子槽位）', () => {
++    const register = vi.fn(() => () => {})
++    const inject = vi.fn((_key: string, cb: () => unknown) => cb())
++    const ctx = { slots: { inject, register } } as any
++    const disposer = registerCanvasSettingsPage(ctx)
++    expect(inject).toHaveBeenCalledWith('settings.section', expect.any(Function))
++    expect(register).toHaveBeenCalledTimes(1)
++    const props = register.mock.calls[0]?.[0]
++    expect(props.name).toBe('settings.section')
++    expect(props.id).toBe('workspace-canvas')
++    expect(props.order).toBe(30)
++    expect(props.label).toBe('画布')
++    expect(props.inject).toEqual(expect.any(Function))
++    // 页面组件直接渲染分组内容（自持，无子槽位）。
++    expect(register.mock.calls[0]?.[1]).toEqual(expect.any(Function))
++    // disposer 幂等可调用
++    expect(disposer).toEqual(expect.any(Function))
++    disposer()
++  })
++})
+Index: packages/dsh-workspace-canvas/package.json
+IDEA additional info:
+Subsystem: com.intellij.openapi.diff.impl.patch.CharsetEP
+<+>UTF-8
+===================================================================
+diff --git a/packages/dsh-workspace-canvas/package.json b/packages/dsh-workspace-canvas/package.json
+--- a/packages/dsh-workspace-canvas/package.json	(revision 9d59e61ec4277ba0124a26520d4810abc052d63d)
++++ b/packages/dsh-workspace-canvas/package.json	(date 1787024367109)
+@@ -24,7 +24,8 @@
+     "client": {
+       "inject": [
+         "@deepseek-ai/dsh-client-runtime",
+-        "@deepseek-ai/dsh-client-connection"
++        "@deepseek-ai/dsh-client-connection",
++        "@deepseek-ai/dsh-client-ui-settings"
+       ],
+       "platform": "web"
+     }
+@@ -47,6 +48,7 @@
+     "@deepseek-ai/dsh-client-locale": "^0.1.0-rc.6",
+     "@deepseek-ai/dsh-client-runtime": "^0.1.0-rc.6",
+     "@deepseek-ai/dsh-client-ui-primitives": "^0.1.0-rc.6",
++    "@deepseek-ai/dsh-client-ui-settings": "^0.1.0-rc.6",
+     "@deepseek-ai/dsh-client-ui-slots": "^0.1.0-rc.6",
+     "@deepseek-ai/dsh-invariants": "^0.1.0-rc.6",
+     "@deepseek-ai/dsh-settings": "^0.1.0-rc.6",
+Index: packages/dsh-workspace-canvas/tests/us3.spec.ts
+IDEA additional info:
+Subsystem: com.intellij.openapi.diff.impl.patch.CharsetEP
+<+>UTF-8
+===================================================================
+diff --git a/packages/dsh-workspace-canvas/tests/us3.spec.ts b/packages/dsh-workspace-canvas/tests/us3.spec.ts
+--- a/packages/dsh-workspace-canvas/tests/us3.spec.ts	(revision 9d59e61ec4277ba0124a26520d4810abc052d63d)
++++ b/packages/dsh-workspace-canvas/tests/us3.spec.ts	(date 1787025783208)
+@@ -23,7 +23,27 @@
+     const store = new CanvasDocumentStore(localStorage)
+     const removed = syncWorkspaceNodes(store, [{ workspaceId: 'ws-1' }, { workspaceId: 'ws-2' }])
+     expect(removed).toEqual([])
+-    expect(store.read().nodes.filter((n) => n.kind === 'workspace').map((n) => n.ref)).toEqual(['ws-1', 'ws-2'])
++    const nodes = store.read().nodes.filter((n) => n.kind === 'workspace').map((n) => n.ref)
++    expect(nodes).toEqual(['ws-1', 'ws-2'])
++  })
++
++  it('补建多个工作区按 GRID 落位，不重叠（回归：旧版写死 (0,0) 导致卡片全部堆在原点上）', () => {
++    const store = new CanvasDocumentStore(localStorage)
++    syncWorkspaceNodes(store, [
++      { workspaceId: 'ws-1' },
++      { workspaceId: 'ws-2' },
++      { workspaceId: 'ws-3' },
++      { workspaceId: 'ws-4' },
++      { workspaceId: 'ws-5' }, // 第 5 个应换行到第二行
++    ])
++    const pos = new Map(
++      store.read().nodes.filter((n) => n.kind === 'workspace').map((n) => [n.ref, n.position]),
++    )
++    const keys = [...new Set([...pos.values()].map((p) => `${p.x},${p.y}`))]
++    expect(keys.length).toBe(5) // 五个工作区五个不同坐标
++    expect(pos.get('ws-1')).toEqual({ x: 12, y: 12 })       // autoPosition(0)
++    expect(pos.get('ws-2')).toEqual({ x: 228, y: 12 })      // autoPosition(1)
++    expect(pos.get('ws-5')).toEqual({ x: 12, y: 124 })      // autoPosition(4) 换行
+   })
+ 
+   it('已存档位置在同步中保留', () => {
+Index: packages/dsh-workspace-canvas/tests/us1.spec.ts
+IDEA additional info:
+Subsystem: com.intellij.openapi.diff.impl.patch.CharsetEP
+<+>UTF-8
+===================================================================
+diff --git a/packages/dsh-workspace-canvas/tests/us1.spec.ts b/packages/dsh-workspace-canvas/tests/us1.spec.ts
+--- a/packages/dsh-workspace-canvas/tests/us1.spec.ts	(revision 9d59e61ec4277ba0124a26520d4810abc052d63d)
++++ b/packages/dsh-workspace-canvas/tests/us1.spec.ts	(date 1787026334247)
+@@ -1,10 +1,24 @@
+ import { act } from 'react'
+ import { createElement } from 'react'
+ import { createRoot, type Root } from 'react-dom/client'
+-import { afterEach, describe, expect, it, vi } from 'vitest'
++import { afterEach, beforeAll, describe, expect, it, vi } from 'vitest'
+ import { CanvasDocumentStore } from '../src/client/canvas/document.ts'
++import { positionsFullyOverlap } from '../src/client/canvas/workspace-position.ts'
+ import { CanvasView } from '../src/client/canvas/CanvasView.tsx'
+ 
++// jsdom 环境缺 PointerEvent：polyfill 最小实现（React pointer 处理器需要）。
++beforeAll(() => {
++  if (typeof globalThis.PointerEvent === 'undefined') {
++    class PointerEventPolyfill extends MouseEvent {
++      pointerId = 1
++      constructor(type: string, params: PointerEventInit = {}) {
++        super(type, params)
++      }
++    }
++    ;(globalThis as any).PointerEvent = PointerEventPolyfill
++  }
++})
++
+ /** 官方 feed 同形的假 ObservableSnapshot。 */
+ function fakeFeed(items: unknown[], baselinesReady: boolean) {
+   const snapshot = { items, baselinesReady, recentWorkspaceId: undefined }
+@@ -61,6 +75,29 @@
+     expect(container.textContent).toContain('/repo/ws-1')
+     await act(async () => root.unmount())
+   })
++
++  it('已存档位置重叠 → 自动避让，两张卡片不同坐标（回归：旧版补建写死 (0,0) 导致重叠「少工作区」）', async () => {
++    const store = new CanvasDocumentStore(localStorage)
++    // 模拟旧版 bug：两个工作区节点都被补建为 (0,0)
++    store.mutate((d) => {
++      d.nodes.push(
++        { id: 'ws:ws-1', kind: 'workspace', ref: 'ws-1', position: { x: 0, y: 0 } },
++        { id: 'ws:ws-2', kind: 'workspace', ref: 'ws-2', position: { x: 0, y: 0 } },
++      )
++    })
++    const { container, root } = await renderView(
++      fakeFeed([workspaceItem('ws-1', 'hundun-dsh'), workspaceItem('ws-2', 'other')], true),
++      { list: fakeFeed([workspaceItem('ws-1', 'hundun-dsh'), workspaceItem('ws-2', 'other')], true) },
++      store,
++    )
++    const cards = container.querySelectorAll<HTMLButtonElement>('[data-dsh-canvas-card]')
++    expect(cards.length).toBe(2)
++    const positions = [...cards].map((c) => `${c.style.left},${c.style.top}`)
++    expect(new Set(positions).size).toBe(2) // 坐标各不相同 → 不重叠
++    expect(container.textContent).toContain('hundun-dsh')
++    expect(container.textContent).toContain('other')
++    await act(async () => root.unmount())
++  })
+ })
+ 
+ describe('双击进入新会话（T012/T014，双击进入）', () => {
+@@ -136,3 +173,51 @@
+     vi.useRealTimers()
+   })
+ })
++
++describe('拖拽落位防重叠（强行拖到一起也被推挤）', () => {
++  it('把 A 拖到 B 的位置 → A 落位被推挤到最近空闲格，落盘位置不重叠', async () => {
++    const store = new CanvasDocumentStore(localStorage)
++    // 预置两个工作区：A 在 (12,12)，B 在 (228,12)
++    store.mutate((d) => {
++      d.nodes.push(
++        { id: 'ws:ws-a', kind: 'workspace', ref: 'ws-a', position: { x: 12, y: 12 } },
++        { id: 'ws:ws-b', kind: 'workspace', ref: 'ws-b', position: { x: 228, y: 12 } },
++      )
++    })
++    const { container, root } = await renderView(
++      fakeFeed([workspaceItem('ws-a', 'A'), workspaceItem('ws-b', 'B')], true),
++      { list: fakeFeed([workspaceItem('ws-a', 'A'), workspaceItem('ws-b', 'B')], true) },
++      store,
++    )
++    // 模拟拖拽 A 到 B 的位置 (228,12)：pointerdown → pointermove → pointerup
++    const cardA = container.querySelector<HTMLButtonElement>('[data-dsh-canvas-card="ws-a"]')!
++    // jsdom 的 getBoundingClientRect 全零；mock 成 A 的实际位置，使拖拽偏移可预测
++    const rectMock = vi.spyOn(cardA, 'getBoundingClientRect').mockReturnValue({
++      x: 12, y: 12, width: 200, height: 80, top: 12, left: 12, right: 212, bottom: 92,
++      toJSON: () => ({}),
++    } as DOMRect)
++    await act(async () => {
++      cardA.dispatchEvent(new PointerEvent('pointerdown', { bubbles: true, button: 0, clientX: 20, clientY: 20 }))
++    })
++    await act(async () => {
++      cardA.dispatchEvent(new PointerEvent('pointermove', { bubbles: true, button: 0, clientX: 228, clientY: 12 }))
++    })
++    await act(async () => {
++      cardA.dispatchEvent(new PointerEvent('pointerup', { bubbles: true, button: 0, clientX: 228, clientY: 12 }))
++    })
++    rectMock.mockRestore()
++    // 落盘位置：A 与 B 非「完全重叠」（B 仍在 (228,12)，A 应被推挤到非完全重叠格；
++    // 允许部分重叠，仅禁止几乎完全叠在一起）
++    const doc = store.read()
++    const posA = doc.nodes.find((n) => n.ref === 'ws-a')?.position
++    const posB = doc.nodes.find((n) => n.ref === 'ws-b')?.position
++    expect(posB).toEqual({ x: 228, y: 12 })
++    expect(posA).not.toEqual(posB)
++    expect(positionsFullyOverlap(posA!, posB!)).toBe(false)
++    // 渲染层两张卡片位置非完全重叠
++    const cards = container.querySelectorAll<HTMLButtonElement>('[data-dsh-canvas-card]')
++    const lefts = [...cards].map((c) => c.style.left)
++    expect(new Set(lefts).size).toBe(2)
++    await act(async () => root.unmount())
++  })
++})
+Index: packages/dsh-workspace-canvas/src/client/settings.ts
+IDEA additional info:
+Subsystem: com.intellij.openapi.diff.impl.patch.CharsetEP
+<+>UTF-8
+===================================================================
+diff --git a/packages/dsh-workspace-canvas/src/client/settings.ts b/packages/dsh-workspace-canvas/src/client/settings.ts
+--- a/packages/dsh-workspace-canvas/src/client/settings.ts	(revision 9d59e61ec4277ba0124a26520d4810abc052d63d)
++++ b/packages/dsh-workspace-canvas/src/client/settings.ts	(date 1787026708205)
+@@ -1,17 +1,20 @@
+ /**
+- * 画布设置栏目（T032 平台限制修正；004 重设计为分组布局）。
++ * 画布设置页（自持 settings.section）。
+  *
+- * 注册到 dsh-all 设置页「hundun-dsh」声明的子槽位 hundun.settings.item。
++ * 画布自行注册官方设置面页面（settings.section, id `workspace-canvas`），
++ * 不再依赖 dsh-all 聚合设置页骨架与 hundun.settings.item 子槽位。
+  * 分组：第一组「启用」（画布开关，enabled-store）；第二组「画布背景风格」
+- * （单选，background-store，风格来自 background-styles 注册表）。
++ * （单选，background-store，风格来自 background-styles 注册表）；第三组
++ * 「自动归档」（archive-store，005）。
+  * 读写均走 localStorage 持久化 + 事件广播（官方 settings 命名空间白名单硬编码，
+  * 第三方 namespace 无法暴露给浏览器设置客户端，见 enabled-store.ts 注释）。
+- * 设置面缺席（槽位未声明）时静默跳过。
+  */
+ import { createElement, useEffect, useState } from 'react'
+ import type { ClientContext } from '@deepseek-ai/dsh-client-runtime/client'
+ // 类型导入：拉入 slots 服务与 SlotMap（注册类型）。
+ import type {} from '@deepseek-ai/dsh-client-ui-slots'
++// 类型导入：拉入官方 settings.section 槽位契约（SlotMap 声明）。
++import type {} from '@deepseek-ai/dsh-client-ui-settings/client'
+ import { getCanvasEnabled, setCanvasEnabled, subscribeCanvasEnabled } from './enabled-store.ts'
+ import { getCanvasBackgroundId, setCanvasBackgroundId, subscribeCanvasBackgroundId } from './background-store.ts'
+ import { CANVAS_BACKGROUND_STYLES, DEFAULT_BACKGROUND_ID } from './canvas/background-styles.ts'
+@@ -21,13 +24,7 @@
+   subscribeArchiveConfig,
+   type AutoArchiveConfig,
+ } from './archive-store.ts'
+-
+-/** 子槽位声明（与 dsh-all 同形拼写，避免依赖兄弟包；插槽为 list/root）。 */
+-declare module '@deepseek-ai/dsh-client-ui-slots' {
+-  interface SlotMap {
+-    'hundun.settings.item': { kind: 'list'; scope: 'root'; owner: { children?: never } }
+-  }
+-}
++import { dictionary } from './locales.ts'
+ 
+ const GROUP: React.CSSProperties = {
+   marginBottom: 12,
+@@ -55,7 +52,7 @@
+ const STYLE_NAME: React.CSSProperties = { flex: '0 0 auto', minWidth: 64 }
+ const STYLE_DESC: React.CSSProperties = { flex: 1, fontSize: 11, color: 'var(--dsw-alias-label-tertiary)' }
+ 
+-/** 画布设置栏目卡片：分组「启用」+「画布背景风格」（均本地持久化）。 */
++/** 画布设置页卡片：分组「启用」+「画布背景风格」+「自动归档」（均本地持久化）。 */
+ export function CanvasSettingsCard() {
+   const [enabled, setEnabled] = useState<boolean>(getCanvasEnabled() ?? true)
+   const [backgroundId, setBackgroundId] = useState<string>(getCanvasBackgroundId() ?? DEFAULT_BACKGROUND_ID)
+@@ -93,7 +90,7 @@
+           'label',
+           { style: { display: 'flex', alignItems: 'center', gap: 8, cursor: 'pointer', fontSize: 14 } },
+           [
+-            createElement('span', { key: 'text' }, '启用画布'),
++            createElement('span', { key: 'text' }, '画布视图'),
+             createElement('input', {
+               key: 'switch',
+               type: 'checkbox',
+@@ -189,12 +186,18 @@
+   )
+ }
+ 
+-/** 注册画布设置栏目到 dsh-all 设置页；返回 disposer（设置面缺席返回空操作）。 */
+-export function registerCanvasSettingsColumn(ctx: ClientContext): () => void {
+-  return ctx.slots.inject('hundun.settings.item', () => ctx.slots.register({
+-    name: 'hundun.settings.item',
+-    id: 'canvas',
+-    order: 10,
++/** 画布设置页导航 tab 标签（本地化；随挂载语言取字典）。 */
++export function canvasSettingsLabel(): string {
++  return dictionary()['canvas.settings'] ?? '工作区'
++}
++
++/** 注册画布设置页到官方设置面（settings.section）；返回 disposer。 */
++export function registerCanvasSettingsPage(ctx: ClientContext): () => void {
++  return ctx.slots.inject('settings.section', () => ctx.slots.register({
++    name: 'settings.section',
++    id: 'workspace-canvas',
++    order: 30,
++    label: canvasSettingsLabel(),
+     inject: () => ({}),
+   }, CanvasSettingsCard))
+ }
+Index: packages/dsh-workspace-canvas/src/client/locales.ts
+IDEA additional info:
+Subsystem: com.intellij.openapi.diff.impl.patch.CharsetEP
+<+>UTF-8
+===================================================================
+diff --git a/packages/dsh-workspace-canvas/src/client/locales.ts b/packages/dsh-workspace-canvas/src/client/locales.ts
+--- a/packages/dsh-workspace-canvas/src/client/locales.ts	(revision 9d59e61ec4277ba0124a26520d4810abc052d63d)
++++ b/packages/dsh-workspace-canvas/src/client/locales.ts	(date 1787026748021)
+@@ -14,6 +14,7 @@
+   'canvas.buttonTooltip': '打开工作区画布视图',
+   'canvas.openHint': '画布已打开',
+   'canvas.openError': '进入会话失败：{message}',
++  'canvas.settings': '工作区',
+ } satisfies Record<string, string>
+ 
+ /** 键集并集。 */
+@@ -31,6 +32,7 @@
+   'canvas.buttonTooltip': 'Open workspace canvas view',
+   'canvas.openHint': 'Canvas is open',
+   'canvas.openError': 'Failed to open session: {message}',
++  'canvas.settings': 'Canvas',
+ } satisfies Record<CanvasKey, string>
+ 
+ /** 微型插值：{name} -> value（参照 既有面板 的 t 实现）。 */
+Index: packages/dsh-workspace-canvas/src/client/canvas/CanvasView.tsx
+IDEA additional info:
+Subsystem: com.intellij.openapi.diff.impl.patch.CharsetEP
+<+>UTF-8
+===================================================================
+diff --git a/packages/dsh-workspace-canvas/src/client/canvas/CanvasView.tsx b/packages/dsh-workspace-canvas/src/client/canvas/CanvasView.tsx
+--- a/packages/dsh-workspace-canvas/src/client/canvas/CanvasView.tsx	(revision 9d59e61ec4277ba0124a26520d4810abc052d63d)
++++ b/packages/dsh-workspace-canvas/src/client/canvas/CanvasView.tsx	(date 1787026306242)
+@@ -13,7 +13,7 @@
+ import { WorkspaceDetail } from './detail/workspace-detail.tsx'
+ import { workspaceDisplayTitle } from './detail/workspace-title.ts'
+ import { openWorkspaceSession } from './workspace-open.ts'
+-import { commitWorkspacePosition, readWorkspacePositions } from './workspace-position.ts'
++import { commitWorkspacePosition, readWorkspacePositions, avoidOverlap } from './workspace-position.ts'
+ import { defaultView, panBy, resetView, scenePoint, wheelZoomFactor, zoomAt, type ViewTransform } from './view-transform.ts'
+ import { canvasText } from './text.ts'
+ import { CANVAS_BACKGROUND_STYLES, DEFAULT_BACKGROUND_ID, getCanvasBackgroundStyle } from './background-styles.ts'
+@@ -476,10 +476,43 @@
+     [state.archivedSessionIds, optimisticArchived],
+   )
+   const orchestrationNodes = doc.nodes.filter((n) => n.kind !== 'workspace')
++  // 有效位置表：已存档位置去重 + 完全重叠避让。
++  // 修复：多个工作区曾同时补建为 (0,0)（旧版 syncWorkspaceNodes 写死原点）会在文档中
++  // 留下相同坐标，导致卡片完全叠在一起、视觉上「少工作区」。此处对相同坐标只保留 feed
++  // 顺序最靠前的那个，其余让位给 GRID 自动布局；无存档的走 autoPosition。
++  // 语义：允许部分重叠（卡片可交叠一部分），仅禁止完全重叠（同点）。
++  const effectivePositions = useMemo((): Positions => {
++    const used = new Set<string>()
++    const out: Positions = {}
++    uniqueItems.forEach((workspace, index) => {
++      const stored = positions[workspace.workspaceId]
++      let pos: { x: number; y: number }
++      if (stored !== undefined && !used.has(`${stored.x},${stored.y}`)) {
++        pos = stored
++      } else {
++        // 无存档，或存档坐标与更早的工作区冲突 → 从 feed 顺序开始找第一个空 GRID 格。
++        let i = index
++        do {
++          pos = autoPosition(i)
++          i += 1
++        } while (used.has(`${pos.x},${pos.y}`))
++      }
++      used.add(`${pos.x},${pos.y}`)
++      out[workspace.workspaceId] = pos
++    })
++    return out
++  }, [uniqueItems, positions])
+ 
+   const commitPosition = (id: WorkspaceId, position: { x: number; y: number }): void => {
+-    setPositions((prev) => ({ ...prev, [String(id)]: position }))
+-    commitWorkspacePosition(store, String(id), position)
++    // 拖拽落位防重叠：目标位置与其他卡片冲突时推挤到最近的空 GRID 格。
++    // 覆盖「强行拖到一起」场景——即使有效位置表已避让，落盘值也必须不重叠。
++    const others = uniqueItems
++      .filter((w) => String(w.workspaceId) !== String(id))
++      .map((w) => effectivePositions[w.workspaceId] ?? autoPosition(uniqueItems.findIndex((x) => x.workspaceId === w.workspaceId)))
++      .filter((p): p is { x: number; y: number } => p !== undefined)
++    const resolved = avoidOverlap(position, others)
++    setPositions((prev) => ({ ...prev, [String(id)]: resolved }))
++    commitWorkspacePosition(store, String(id), resolved)
+   }
+ 
+   const handleOpen = (id: WorkspaceId): void => {
+@@ -600,7 +633,7 @@
+     let maxX = -Infinity
+     let maxY = -Infinity
+     items.forEach((w, index) => {
+-      const pos = positions[w.workspaceId] ?? autoPosition(index)
++      const pos = effectivePositions[w.workspaceId] ?? autoPosition(index)
+       minX = Math.min(minX, pos.x)
+       minY = Math.min(minY, pos.y)
+       maxX = Math.max(maxX, pos.x + 200)
+@@ -738,7 +771,7 @@
+                 data-dsh-canvas-viewport=""
+               >
+                 {uniqueItems.map((workspace, index) => {
+-                  const workspacePosition = positions[workspace.workspaceId] ?? autoPosition(index)
++                  const workspacePosition = effectivePositions[workspace.workspaceId] ?? autoPosition(index)
+                   const members = orchestrationNodes.filter((n) => n.workspaceId === workspace.workspaceId)
+                   const workspaceNode: CanvasNode = {
+                     id: `ws:${String(workspace.workspaceId)}`,
+Index: packages/dsh-workspace-canvas/docs/orchestration-design.md
+IDEA additional info:
+Subsystem: com.intellij.openapi.diff.impl.patch.CharsetEP
+<+>UTF-8
+===================================================================
+diff --git a/packages/dsh-workspace-canvas/docs/orchestration-design.md b/packages/dsh-workspace-canvas/docs/orchestration-design.md
+--- a/packages/dsh-workspace-canvas/docs/orchestration-design.md	(revision 9d59e61ec4277ba0124a26520d4810abc052d63d)
++++ b/packages/dsh-workspace-canvas/docs/orchestration-design.md	(date 1787024569070)
+@@ -174,6 +174,6 @@
+ | D7 | 测试 | **控制器状态机 / 互斥协议 / 校验引擎必须有自动化测试**，P0.5 起补 | 平台承诺（校验/降级）没有测试 = 没地基 | 纯人工验证（改动越多越怕） |
+ | D8 | 右键动作扩展 | **`registerNodeActions(kind, actions)`**：第三方可向任意 kind（含内置工作区）追加/调整菜单动作，画布合并渲染 | 工作区删除等操作不止画布自己要用；「操作开放给其他插件」是编排平台的基本面 | 只有类型所有者能定义动作（扩展需改画布代码，不开放） |
+ | D9 | 明细面板扩展 | **`NodeTypeDefinition.detail` + `registerNodeDetailSection(kind, section)`**：类型所有者提供明细视图，第三方追加区块，按 order 合并渲染；画布提供工作区明细（基础信息 + 会话列表） | 点击节点看详情是核心交互；明细内容必须让其他插件能贡献（如 SSH 给工作区加主机状态） | 明细写死在工作区节点（其他插件无法扩展） |
+-| D10 | 设置页归属 | **「hundun-dsh」设置页由聚合包 dsh-all 提供骨架**（`settings.section` + 子槽位），各插件注册自己的栏目；画布第一个栏目 = 启用画布开关（`enabled`，双半区生效，无设置服务时组合配置兜底） | 聚合品牌设置面归聚合包，栏目按插件扩展，避免画布包揽所有设置；开关语义落实 D5 | 由画布插件自己注册整页（未来其他插件加栏目要改画布代码） |
++| D10 | 设置页归属 | **画布自持设置页**：注册 `settings.section`「workspace-canvas」（label 本地化），页面直接渲染分组内容（启用/背景风格/自动归档），无聚合骨架/子槽位；聚合包 dsh-all 客户端半区降为空壳 | 设置即功能插件自己的事（官方槽位契约），画布功能内聚；聚合包只做载包不背设置 UI | 聚合包 dsh-all 提供「hundun-dsh」骨架 + 子槽位（T031 已实现，后因内聚修订迁移至画布包） |
+ 
+ > 实现阶段新增重大取舍时，追加到本表并同步 protocol-spec / capability-boundaries / implementation-plan。
+Index: packages/dsh-all/src/index.ts
+IDEA additional info:
+Subsystem: com.intellij.openapi.diff.impl.patch.CharsetEP
+<+>UTF-8
+===================================================================
+diff --git a/packages/dsh-all/src/index.ts b/packages/dsh-all/src/index.ts
+--- a/packages/dsh-all/src/index.ts	(revision 9d59e61ec4277ba0124a26520d4810abc052d63d)
++++ b/packages/dsh-all/src/index.ts	(date 1787024480562)
+@@ -1,8 +1,9 @@
+ /**
+  * dsh-all 宿主半区。
+  *
+- * 聚合包本身作为插件行（aggregate.yml 的 self: hundun-all）加载；宿主半区无业务，
+- * 设置页骨架由客户端半区（src/client/）提供。
++ * 聚合包本身作为插件行（aggregate.yml 的 self: hundun-all）加载；宿主半区无业务。
++ * 设置页已归属各功能插件自持（画布设置页由 dsh-workspace-canvas 注册 settings.section）；
++ * 客户端半区（src/client/）仅为空壳。
+  */
+ import type { Context } from '@deepseek-ai/cordis'
+ 
+Index: scripts/gui-e2e-mutex.mjs
+IDEA additional info:
+Subsystem: com.intellij.openapi.diff.impl.patch.CharsetEP
+<+>UTF-8
+===================================================================
+diff --git a/scripts/gui-e2e-mutex.mjs b/scripts/gui-e2e-mutex.mjs
+--- a/scripts/gui-e2e-mutex.mjs	(revision 9d59e61ec4277ba0124a26520d4810abc052d63d)
++++ b/scripts/gui-e2e-mutex.mjs	(date 1787024600185)
+@@ -92,8 +92,8 @@
+ // ── E2E-18 关闭画布开关 → 入口消失 + 画布立即关闭 ──
+ {
+   const settingsBtn = page.locator('[data-slot="sidebar.settings"] button')
+-  // 设置页导航「hundun-dsh」项（navCell，精确文本匹配）
+-  const hundunNav = page.locator('[data-slot="sidebar.settings"] button', { hasText: /^hundun-dsh$/ })
++  // 设置页导航「画布」项（navCell，精确文本匹配；画布自持 settings.section「workspace-canvas」）
++  const hundunNav = page.locator('[data-slot="sidebar.settings"] button', { hasText: /^画布$/ })
+   const sw = () => page.locator('[data-dsh-canvas-enabled-switch]')
+   if ((await settingsBtn.count()) === 0) {
+     record('E2E-18', false, { settingsBtn: 0 }, 'SKIP：设置入口不可见（dsh-all 未加载）')
+@@ -102,7 +102,7 @@
+     if ((await canvasEntry()) === 0) { await page.locator('[data-dsh-canvas-entry]').first().click(); await sleep(800) }
+     await settingsBtn.first().click()
+     await sleep(1000)
+-    // 切到「hundun-dsh」设置页（默认选中「通用设置」）
++    // 切到「画布」设置页（默认选中「通用设置」）
+     if ((await hundunNav.count()) > 0) { await hundunNav.first().click(); await sleep(800) }
+     const swVisible = await sw().count()
+     if (swVisible > 0 && (await sw().isChecked())) {
+@@ -120,7 +120,7 @@
+ // ── E2E-19 重新开启 → 恢复且布局保留 ──
+ {
+   const settingsBtn = page.locator('[data-slot="sidebar.settings"] button')
+-  const hundunNav = page.locator('[data-slot="sidebar.settings"] button', { hasText: /^hundun-dsh$/ })
++  const hundunNav = page.locator('[data-slot="sidebar.settings"] button', { hasText: /^画布$/ })
+   const sw = () => page.locator('[data-dsh-canvas-enabled-switch]')
+   if ((await settingsBtn.count()) === 0) {
+     record('E2E-19', false, {}, 'SKIP：设置入口不可见')
+Index: packages/dsh-workspace-canvas/docs/capability-boundaries.md
+IDEA additional info:
+Subsystem: com.intellij.openapi.diff.impl.patch.CharsetEP
+<+>UTF-8
+===================================================================
+diff --git a/packages/dsh-workspace-canvas/docs/capability-boundaries.md b/packages/dsh-workspace-canvas/docs/capability-boundaries.md
+--- a/packages/dsh-workspace-canvas/docs/capability-boundaries.md	(revision 9d59e61ec4277ba0124a26520d4810abc052d63d)
++++ b/packages/dsh-workspace-canvas/docs/capability-boundaries.md	(date 1787024569052)
+@@ -69,7 +69,7 @@
+ | 面板互斥 | **单一激活标记协议**：页面只有一个 `data-dsh-panel-active="<name>"` 属性，后写者胜；激活时写自己名字并广播 `dsh-panel-activate` 事件，收到事件且名字不是自己即关闭。协议常量/工具来自聚合仓库共享包 `@hundun/dsh-panel-protocol`（画布不再枚举/擦除其它面板的属性） |
+ | 侧边栏 | 唯一注入点：工作区搜索行右侧的画布按钮（DOM 注入 + 自愈）。**不注入其它区域**；侧边栏槽位（`sidebar.footer.action` 等）不占用，留给其它插件 |
+ | host 半区 | 只做系统提示词公告（`systemPrompt.section`）+ 配置解析；**不注册工具、不注册路由、不碰设置命名空间**（画布无宿主业务）。配置：`enabled`（总开关，双半区生效）与 `announceToAgent`（仅控制公告）由双半区共同读取 |
+-| 设置页 | 「hundun-dsh」设置页（`settings.section`，多栏目结构）由聚合包 **dsh-all** 提供骨架并声明子槽位；各插件注册自己的栏目（画布栏目：启用画布开关，当前唯一配置项）。画布 `enabled` 开关经设置面联动双半区；无设置服务时读组合配置兜底 |
++| 设置页 | 画布自持 `settings.section`「workspace-canvas」（官方设置槽位，"A feature owns its own settings pages"），页面直接渲染分组内容（启用/背景风格/自动归档），无聚合骨架/子槽位依赖；聚合包 dsh-all 客户端半区为空壳。画布 `enabled` 开关经设置面联动双半区；无设置服务时读组合配置兜底 |
+ | 节点插件（扩展方） | 经 `ctx.canvas.registerNodeType()` / `registerEdgeRule()` 贡献节点类型与连线规则；**画布提供服务、不反向依赖任何节点插件**（`ctx.get('canvas')` 可选依赖，画布缺席时节点插件正常降级） |
+ | 其它插件 | 不读取/不修改 任务看板、ssh 等插件的数据；连线/节点仅基于官方 workspaces/sessions 域 + 节点插件数据域 |
+ | 卸载 | 插件卸载时：移除按钮、卸载 React 树、移除注入样式、恢复 `data-*` 属性、**保留画布文档**（`localStorage` 不清，重装即恢复）；节点插件卸载时其节点显示「未知类型」占位，画布不删其数据 |
+Index: packages/dsh-all/tsdown.config.ts
+IDEA additional info:
+Subsystem: com.intellij.openapi.diff.impl.patch.CharsetEP
+<+>UTF-8
+===================================================================
+diff --git a/packages/dsh-all/tsdown.config.ts b/packages/dsh-all/tsdown.config.ts
+--- a/packages/dsh-all/tsdown.config.ts	(revision 9d59e61ec4277ba0124a26520d4810abc052d63d)
++++ b/packages/dsh-all/tsdown.config.ts	(date 1787024480539)
+@@ -1,6 +1,6 @@
+ /**
+  * dsh-all 聚合包构建配置：宿主半区（src/index.ts）+ 浏览器半区（src/client/index.ts，
+- * 「hundun-dsh」设置页骨架）。复用共享 tsdown.client.ts 预设。
++ * 空壳——设置骨架已迁移至 dsh-workspace-canvas）。复用共享 tsdown.client.ts 预设。
+  */
+ import { clientBundle } from '../../shared/tsdown.client.ts'
+ 
+Index: packages/dsh-workspace-canvas/docs/implementation-plan.md
+IDEA additional info:
+Subsystem: com.intellij.openapi.diff.impl.patch.CharsetEP
+<+>UTF-8
+===================================================================
+diff --git a/packages/dsh-workspace-canvas/docs/implementation-plan.md b/packages/dsh-workspace-canvas/docs/implementation-plan.md
+--- a/packages/dsh-workspace-canvas/docs/implementation-plan.md	(revision 9d59e61ec4277ba0124a26520d4810abc052d63d)
++++ b/packages/dsh-workspace-canvas/docs/implementation-plan.md	(date 1787024569099)
+@@ -35,13 +35,13 @@
+ - [ ] **健壮性补丁**：`startSession` 失败 catch；`CanvasView` 增加 ErrorBoundary 兜底（渲染崩不白屏）
+ - [ ] **单测基建 + 首批测试**：vitest 接入；覆盖控制器状态机（open/close/toggle/dispose）、
+       互斥协议（激活/让位/后写者胜）、拖拽阈值判定
+-- [ ] **hundun-dsh 设置页骨架**：聚合包 dsh-all 新增客户端半区（注册 `settings.section` 页面
+-      「hundun-dsh」+ 声明子槽位 `hundun.settings.item`）；aggregate.yml 增 `self` 行；
+-      画布注册「画布」栏目（**启用画布开关 `enabled`**，当前唯一配置项）
++- [x] **画布设置页（自持 settings.section）**：画布注册 `settings.section`「workspace-canvas」页面
++      （label 本地化），页面直接渲染分组内容；**不再依赖聚合包 dsh-all 骨架/子槽位**
++      （dsh-all 客户端半区降为空壳）；设置项：启用画布开关 `enabled` + 背景风格 + 自动归档（005）
+ - [ ] **设置链路联动**：`enabled=false` 时客户端跳过按钮与画布挂载、宿主关公告；开关经设置面
+       双半区生效；无设置服务时读组合配置兜底
+ - [ ] 验收：功能与 P0 等价不退化；`pnpm typecheck && pnpm build` 通过；互斥协议单测全绿；
+-      设置页「hundun-dsh → 画布」开关可关/开画布（双半区）
++      设置页「画布」开关可关/开画布（双半区）
+ 
+ ## P1 —— 协议骨架（画布成为平台）
+ 
+Index: packages/dsh-all/tests/settings-page.spec.ts
+IDEA additional info:
+Subsystem: com.intellij.openapi.diff.impl.patch.CharsetEP
+<+>UTF-8
+===================================================================
+diff --git a/packages/dsh-all/tests/settings-page.spec.ts b/packages/dsh-all/tests/settings-page.spec.ts
+--- a/packages/dsh-all/tests/settings-page.spec.ts	(revision 9d59e61ec4277ba0124a26520d4810abc052d63d)
++++ b/packages/dsh-all/tests/settings-page.spec.ts	(date 1787024463168)
+@@ -1,92 +1,10 @@
+-import { act, createElement } from 'react'
+-import { createRoot } from 'react-dom/client'
+-import { afterEach, describe, expect, it, vi } from 'vitest'
+-import { apply, HundunSettingsPage, installNavIconOverride } from '../src/client/index.ts'
+-
+-afterEach(() => {
+-  document.body.innerHTML = ''
+-  document.head.querySelectorAll('style[data-plugin="dsh-all"]').forEach((s) => s.remove())
+-})
+-
+-describe('hundun-dsh 设置页骨架（T031）', () => {
+-  it('apply 注册 settings.section「hundun-dsh」并声明子槽位', () => {
+-    const register = vi.fn(() => () => {})
+-    const inject = vi.fn((_key: string, cb: () => unknown) => cb())
+-    const ctx = { slots: { inject, register }, effect: () => () => {} } as any
+-    apply(ctx)
+-    expect(inject).toHaveBeenCalledWith('settings.section', expect.any(Function))
+-    expect(register).toHaveBeenCalledTimes(1)
+-    const props = register.mock.calls[0]?.[0]
+-    expect(props.name).toBe('settings.section')
+-    expect(props.id).toBe('hundun-dsh')
+-    expect(props.order).toBe(30)
+-    expect(props.label).toBe('hundun-dsh')
+-    expect(props.children).toEqual({ 'hundun.settings.item': { kind: 'list', scope: 'root' } })
+-  })
+-
+-  it('页面渲染子槽位内容（栏目区）', async () => {
+-    const container = document.createElement('div')
+-    document.body.appendChild(container)
+-    const root = createRoot(container)
+-    await act(async () => {
+-      root.render(createElement(HundunSettingsPage, {
+-        close: () => {},
+-        renderSlot: () => createElement('div', { 'data-dsh-column-mock': '' }, 'COLUMN'),
+-      }))
+-    })
+-    expect(container.textContent).toContain('hundun-dsh')
+-    expect(container.querySelector('[data-dsh-column-mock]')).not.toBeNull()
+-    await act(async () => root.unmount())
+-  })
++import { describe, expect, it } from 'vitest'
++import { apply } from '../src/client/index.ts'
+ 
+-  it('导航 tab 图标替换：hundun-dsh 行打标 + 注入星星样式；disposer 后清理', () => {
+-    // 模拟官方 shell 导航行（齿轮 SVG + label）
+-    const nav = document.createElement('nav')
+-    const btn = document.createElement('button')
+-    btn.type = 'button'
+-    const svg = document.createElement('svg')
+-    const label = document.createElement('span')
+-    label.textContent = 'hundun-dsh'
+-    btn.append(svg, label)
+-    nav.appendChild(btn)
+-    // 其他行不受影响（如「设置」主 tab）
+-    const other = document.createElement('button')
+-    other.type = 'button'
+-    const otherLabel = document.createElement('span')
+-    otherLabel.textContent = '设置'
+-    other.append(document.createElement('svg'), otherLabel)
+-    nav.appendChild(other)
+-    document.body.appendChild(nav)
+-
+-    const dispose = installNavIconOverride()
+-    expect(btn.getAttribute('data-dsh-hundun-nav')).toBe('')
+-    expect(other.hasAttribute('data-dsh-hundun-nav')).toBe(false)
+-    const style = document.head.querySelector('style[data-plugin="dsh-all"]')
+-    expect(style).not.toBeNull()
+-    expect(style!.textContent).toContain('data-dsh-hundun-nav')
+-
+-    dispose()
+-    expect(document.head.querySelector('style[data-plugin="dsh-all"]')).toBeNull()
+-    // 观察器已断开：新出现的 hundun-dsh 行不再被打标
+-    const btn2 = document.createElement('button')
+-    const label2 = document.createElement('span')
+-    label2.textContent = 'hundun-dsh'
+-    btn2.append(label2)
+-    document.body.appendChild(btn2)
+-    expect(btn2.hasAttribute('data-dsh-hundun-nav')).toBe(false)
+-  })
+-
+-  it('无 SVG 的按钮即使文本含 hundun-dsh 也不打标（画布卡片误伤 bugfix）', () => {
+-    // 模拟画布工作区卡片：纯文本 button（无 navIcon svg），路径含 hundun-dsh
+-    const card = document.createElement('button')
+-    card.type = 'button'
+-    const path = document.createElement('span')
+-    path.textContent = 'D:\\document\\IdeaProjects\\hundun-dsh'
+-    card.append(path)
+-    document.body.appendChild(card)
+-
+-    const dispose = installNavIconOverride()
+-    expect(card.hasAttribute('data-dsh-hundun-nav')).toBe(false)
+-    dispose()
++describe('dsh-all 客户端半区（空壳，设置骨架已迁移至 dsh-workspace-canvas）', () => {
++  it('apply 不注册任何设置 UI（不再有 settings.section / 子槽位 / 图标 override）', () => {
++    // 空壳 apply 无参可调用且不抛错；若未来有人往这里塞注册逻辑，此测试
++    // 在调用时即暴露（apply 签名/行为变化），提示迁移到画布包。
++    expect(() => apply()).not.toThrow()
+   })
+ })
+Index: packages/dsh-workspace-canvas/src/client/index.ts
+IDEA additional info:
+Subsystem: com.intellij.openapi.diff.impl.patch.CharsetEP
+<+>UTF-8
+===================================================================
+diff --git a/packages/dsh-workspace-canvas/src/client/index.ts b/packages/dsh-workspace-canvas/src/client/index.ts
+--- a/packages/dsh-workspace-canvas/src/client/index.ts	(revision 9d59e61ec4277ba0124a26520d4810abc052d63d)
++++ b/packages/dsh-workspace-canvas/src/client/index.ts	(date 1787024765832)
+@@ -6,7 +6,7 @@
+  * - apply-guard 防重复挂载（T006）；
+  * - enabled 总开关（T033，平台限制修正）：客户端本地持久化（enabled-store）
+  *   优先、组合配置兜底；false 时立即卸载画布本体（文档/注册服务/入口/控制器）；
+- *   设置栏目常驻注册，用户始终可从设置页重新开启；
++ *   设置页自持注册，用户始终可从设置页重新开启；
+  * - 其余装配（文档存储 / ctx.canvas 注册服务 / 挂载监督器 / 控制器 / 按钮）
+  *   集中在 CanvasRuntime.mount()。
+  */
+@@ -19,7 +19,7 @@
+ import { claimCanvasApply, releaseCanvasApply } from './apply-guard.ts'
+ import { en, zh, type CanvasKey } from './locales.ts'
+ import { CanvasRuntime } from './runtime.ts'
+-import { registerCanvasSettingsColumn } from './settings.ts'
++import { registerCanvasSettingsPage } from './settings.ts'
+ import { getCanvasEnabled, subscribeCanvasEnabled } from './enabled-store.ts'
+ 
+ // 对外公开的注册契约类型（消费方插件经 '@hundun/dsh-workspace-canvas/client' 引用）。
+@@ -87,6 +87,6 @@
+   ctx.effect(() => unsub, 'workspace-canvas: enabled subscription')
+   sync()
+ 
+-  // 设置栏目常驻注册（不随 enabled 卸载）：关闭画布后用户仍可从设置页重新开启。
+-  ctx.effect(() => registerCanvasSettingsColumn(ctx), 'workspace-canvas: settings column')
++  // 设置页自持注册（不随 enabled 卸载）：关闭画布后用户仍可从设置页重新开启。
++  ctx.effect(() => registerCanvasSettingsPage(ctx), 'workspace-canvas: settings page')
+ }
+Index: packages/dsh-all/src/client/index.ts
+IDEA additional info:
+Subsystem: com.intellij.openapi.diff.impl.patch.CharsetEP
+<+>UTF-8
+===================================================================
+diff --git a/packages/dsh-all/src/client/index.ts b/packages/dsh-all/src/client/index.ts
+--- a/packages/dsh-all/src/client/index.ts	(revision 9d59e61ec4277ba0124a26520d4810abc052d63d)
++++ b/packages/dsh-all/src/client/index.ts	(date 1787024455958)
+@@ -1,115 +1,10 @@
+ /**
+- * dsh-all 客户端半区。
++ * dsh-all 客户端半区（空壳）。
+  *
+- * 提供「hundun-dsh」设置页骨架（T031）：注册 settings.section 页面
+- * （id `hundun-dsh`）+ 声明子槽位 hundun.settings.item（各插件注册自己的
+- * 设置栏目，如画布的启用开关）。页面组件渲染子槽位内容。
++ * 设置页骨架已迁移至 @hundun/dsh-workspace-canvas（该插件自持注册
++ * settings.section「画布」，见其 src/client/settings.ts）。本半区不再注册
++ * 任何设置 UI；保留空 apply 仅为维持聚合包插件行（cordis.patch.yml self 行）
++ * 的客户端身份完整性，无运行时副作用。
+  */
+-import { createElement } from 'react'
+-import type { ReactNode } from 'react'
+-import type { ClientContext } from '@deepseek-ai/dsh-client-runtime/client'
+-// 类型导入：拉入 slots 服务与设置面的 SlotMap 合并（settings.section 声明）。
+-import type {} from '@deepseek-ai/dsh-client-ui-slots'
+-import type { PropsRenderSlots } from '@deepseek-ai/dsh-client-ui-slots'
+-import type {} from '@deepseek-ai/dsh-client-ui-settings/client'
+-
+-/** 设置页子槽位声明（画布等插件注册设置栏目的位置；list/root）。 */
+-declare module '@deepseek-ai/dsh-client-ui-slots' {
+-  interface SlotMap {
+-    'hundun.settings.item': { kind: 'list'; scope: 'root'; owner: { children?: never } }
+-  }
+-}
+-
+-/** 页面 props：设置面板 close + 子槽位渲染器（slots 系统注入）。 */
+-export interface HundunSettingsPageProps {
+-  close(): void
+-  renderSlot: PropsRenderSlots<'hundun.settings.item'>['renderSlot']
+-}
+-
+-/** 「hundun-dsh」设置页：标题 + 各插件栏目（子槽位渲染）。 */
+-export function HundunSettingsPage(props: HundunSettingsPageProps): ReactNode {
+-  const { renderSlot } = props
+-  return createElement(
+-    'div',
+-    { 'data-dsh-hundun-settings-page': '', style: { padding: '16px 20px' } },
+-    [
+-      createElement('h3', { key: 'title', style: { margin: '0 0 4px' } }, 'hundun-dsh'),
+-      createElement('p', { key: 'desc', style: { margin: '0 0 12px', fontSize: 12, color: 'var(--dsw-alias-label-tertiary, #888)' } }, 'hundun-dsh 聚合插件配置'),
+-      createElement('div', { key: 'columns', style: { marginTop: 8 } }, renderSlot('hundun.settings.item', {})),
+-    ],
+-  )
+-}
+-
+-/** 所需客户端服务（fiber inject 等待）。 */
+-export const inject = ['slots']
+-
+-/** 「hundun-dsh」设置页导航 tab 标签（纯文字；图标由 nav override 提供，见 installNavIconOverride）。 */
+-export const HUNDUN_SETTINGS_LABEL = 'hundun-dsh'
+-
+-/** Package（盒子）图标 SVG 源（feather，MIT）：16px 视口由 mask contain 缩放。 */
+-const PACKAGE_ICON_SVG = '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="black" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z"/><polyline points="3.27 6.96 12 12.01 20.73 6.96"/><line x1="12" y1="22.08" x2="12" y2="12"/></svg>'
+-const PACKAGE_ICON_MASK = `data:image/svg+xml,${encodeURIComponent(PACKAGE_ICON_SVG)}`
+-
+-/**
+- * 替换设置页导航 tab 图标（官方 shell 的 navIcon(id) 仅映射 models/agent-presets/plugins，
+- * 其余 id 一律渲染通用齿轮 IconSettingsOutline16——与「设置」主 tab 相同，无注册扩展点）。
+- * 方案：MutationObserver 给 label 含「hundun-dsh」的导航行打 data 标记 + 注入 CSS——
+- * 隐藏该行默认 SVG，用 ::before + CSS mask 渲染 Package 图标（currentColor 单色，
+- * 线条风格与原生图标一致，色调随主题）。
+- * @returns disposer（移除样式与观察器）。
+- */
+-export function installNavIconOverride(): () => void {
+-  const style = document.createElement('style')
+-  style.dataset.plugin = 'dsh-all'
+-  style.textContent = `
+-[data-dsh-hundun-nav] > svg { display: none; }
+-[data-dsh-hundun-nav]::before {
+-  content: '';
+-  display: inline-block;
+-  width: 16px;
+-  height: 16px;
+-  flex: none;
+-  vertical-align: -3px;
+-  background-color: currentColor;
+-  -webkit-mask: url("${PACKAGE_ICON_MASK}") center / contain no-repeat;
+-  mask: url("${PACKAGE_ICON_MASK}") center / contain no-repeat;
+-}
+-`
+-  document.head.appendChild(style)
+-
+-  const mark = (): void => {
+-    for (const button of document.querySelectorAll<HTMLElement>('button')) {
+-      if (button.hasAttribute('data-dsh-hundun-nav')) continue
+-      // 仅设置导航行：必须含图标 SVG 子元素（官方 navIcon），且文本含 hundun-dsh。
+-      // 不能只看文本——画布工作区卡片也是 button，路径/标题含 hundun-dsh 会被误打标，
+-      // 导致卡片上渲染出设置导航的 Package 图标（bugfix）。
+-      if (button.querySelector('svg') === null) continue
+-      if (button.textContent?.includes('hundun-dsh') === true) {
+-        button.setAttribute('data-dsh-hundun-nav', '')
+-      }
+-    }
+-  }
+-  const observer = new MutationObserver(mark)
+-  observer.observe(document.body, { childList: true, subtree: true })
+-  mark()
+-
+-  return () => {
+-    observer.disconnect()
+-    style.remove()
+-  }
+-}
+-
+-/** 聚合包客户端半区入口。 */
+-export function apply(ctx: ClientContext): void {
+-  // 声明感知注册：设置面板出现时挂载「hundun-dsh」页，折叠时自动回收。
+-  ctx.slots.inject('settings.section', () => ctx.slots.register({
+-    name: 'settings.section',
+-    id: 'hundun-dsh',
+-    order: 30,
+-    label: HUNDUN_SETTINGS_LABEL,
+-    children: { 'hundun.settings.item': { kind: 'list', scope: 'root' } },
+-    inject: () => ({}),
+-  }, HundunSettingsPage))
+-  // 导航 tab 图标替换（齿轮 → 文本色星星），随 fiber 回收。
+-  ctx.effect(() => installNavIconOverride(), 'dsh-all: settings nav icon override')
+-}
++/** 聚合包客户端半区：无业务。 */
++export function apply(): void {}
+Index: pnpm-lock.yaml
+IDEA additional info:
+Subsystem: com.intellij.openapi.diff.impl.patch.CharsetEP
+<+>UTF-8
+===================================================================
+diff --git a/pnpm-lock.yaml b/pnpm-lock.yaml
+--- a/pnpm-lock.yaml	(revision 9d59e61ec4277ba0124a26520d4810abc052d63d)
++++ b/pnpm-lock.yaml	(date 1787025085399)
+@@ -30,30 +30,9 @@
+       '@deepseek-ai/dsh-client-runtime':
+         specifier: ^0.1.0-rc.6
+         version: 0.1.0-rc.6(35fd1910c53833969387b9f49be93057)
+-      '@deepseek-ai/dsh-client-ui-primitives':
+-        specifier: ^0.1.0-rc.6
+-        version: 0.1.0-rc.6(@deepseek-ai/cordis@4.0.1)(@deepseek-ai/dsh-invariants@0.1.0-rc.6(@deepseek-ai/cordis@4.0.1))
+-      '@deepseek-ai/dsh-client-ui-settings':
+-        specifier: ^0.1.0-rc.6
+-        version: 0.1.0-rc.6(@deepseek-ai/cordis@4.0.1)(@deepseek-ai/dsh-api-remotes@0.1.0-rc.6(6049fd80745b6a38d45e1541ef9b9c18))(@deepseek-ai/dsh-client-connection@0.1.0-rc.6(d07a7d76e6a3fce481aa106f45446f1a))(@deepseek-ai/dsh-client-runtime@0.1.0-rc.6(35fd1910c53833969387b9f49be93057))(@deepseek-ai/dsh-client-ui-slots@0.1.0-rc.6(@deepseek-ai/cordis@4.0.1)(@deepseek-ai/dsh-invariants@0.1.0-rc.6(@deepseek-ai/cordis@4.0.1)))(@deepseek-ai/dsh-invariants@0.1.0-rc.6(@deepseek-ai/cordis@4.0.1))(@deepseek-ai/dsh-settings@0.1.0-rc.6(@deepseek-ai/cordis@4.0.1)(@deepseek-ai/dsh-brand@0.1.0-rc.6(@deepseek-ai/cordis@4.0.1)(@deepseek-ai/dsh-invariants@0.1.0-rc.6(@deepseek-ai/cordis@4.0.1)))(@deepseek-ai/dsh-invariants@0.1.0-rc.6(@deepseek-ai/cordis@4.0.1))(@deepseek-ai/schemastery@3.18.1))(react@18.3.1)
+-      '@deepseek-ai/dsh-client-ui-slots':
+-        specifier: ^0.1.0-rc.6
+-        version: 0.1.0-rc.6(@deepseek-ai/cordis@4.0.1)(@deepseek-ai/dsh-invariants@0.1.0-rc.6(@deepseek-ai/cordis@4.0.1))
+-      '@types/react':
+-        specifier: ~18.3.1
+-        version: 18.3.31
+-      '@types/react-dom':
+-        specifier: ~18.3.0
+-        version: 18.3.7(@types/react@18.3.31)
+       jsdom:
+         specifier: ^25.0.0
+         version: 25.0.1
+-      react:
+-        specifier: ^18.3.1
+-        version: 18.3.1
+-      react-dom:
+-        specifier: ^18.3.1
+-        version: 18.3.1(react@18.3.1)
+       tsdown:
+         specifier: ^0.22.2
+         version: 0.22.2(typescript@5.7.3)
+@@ -164,6 +143,9 @@
+       '@deepseek-ai/dsh-client-ui-primitives':
+         specifier: ^0.1.0-rc.6
+         version: 0.1.0-rc.6(@deepseek-ai/cordis@4.0.1)(@deepseek-ai/dsh-invariants@0.1.0-rc.6(@deepseek-ai/cordis@4.0.1))
++      '@deepseek-ai/dsh-client-ui-settings':
++        specifier: ^0.1.0-rc.6
++        version: 0.1.0-rc.6(@deepseek-ai/cordis@4.0.1)(@deepseek-ai/dsh-api-remotes@0.1.0-rc.6(6049fd80745b6a38d45e1541ef9b9c18))(@deepseek-ai/dsh-client-connection@0.1.0-rc.6(d07a7d76e6a3fce481aa106f45446f1a))(@deepseek-ai/dsh-client-runtime@0.1.0-rc.6(35fd1910c53833969387b9f49be93057))(@deepseek-ai/dsh-client-ui-slots@0.1.0-rc.6(@deepseek-ai/cordis@4.0.1)(@deepseek-ai/dsh-invariants@0.1.0-rc.6(@deepseek-ai/cordis@4.0.1)))(@deepseek-ai/dsh-invariants@0.1.0-rc.6(@deepseek-ai/cordis@4.0.1))(@deepseek-ai/dsh-settings@0.1.0-rc.6(@deepseek-ai/cordis@4.0.1)(@deepseek-ai/dsh-brand@0.1.0-rc.6(@deepseek-ai/cordis@4.0.1)(@deepseek-ai/dsh-invariants@0.1.0-rc.6(@deepseek-ai/cordis@4.0.1)))(@deepseek-ai/dsh-invariants@0.1.0-rc.6(@deepseek-ai/cordis@4.0.1))(@deepseek-ai/schemastery@3.18.1))(react@18.3.1)
+       '@deepseek-ai/dsh-client-ui-slots':
+         specifier: ^0.1.0-rc.6
+         version: 0.1.0-rc.6(@deepseek-ai/cordis@4.0.1)(@deepseek-ai/dsh-invariants@0.1.0-rc.6(@deepseek-ai/cordis@4.0.1))
+Index: packages/dsh-workspace-canvas/src/client/canvas/workspace-position.ts
+IDEA additional info:
+Subsystem: com.intellij.openapi.diff.impl.patch.CharsetEP
+<+>UTF-8
+===================================================================
+diff --git a/packages/dsh-workspace-canvas/src/client/canvas/workspace-position.ts b/packages/dsh-workspace-canvas/src/client/canvas/workspace-position.ts
+--- a/packages/dsh-workspace-canvas/src/client/canvas/workspace-position.ts	(revision 9d59e61ec4277ba0124a26520d4810abc052d63d)
++++ b/packages/dsh-workspace-canvas/src/client/canvas/workspace-position.ts	(date 1787026293965)
+@@ -42,6 +42,66 @@
+ export const AUTO_LAYOUT_STEP_Y = 112
+ export const AUTO_LAYOUT_ORIGIN = 12
+ 
++/** 卡片物理尺寸（与 CanvasView.CARD_STYLE 同源）：水平/垂直相邻卡片不重叠的最小间距。 */
++export const CARD_WIDTH = 200
++export const CARD_HEIGHT = 80
++
++/**
++ * 完全重叠阈值：两张卡片重叠面积占比超过该比例即视为「完全重叠」（禁止状态）。
++ * 允许部分重叠（卡片可交叠一部分，便于紧凑摆放），仅当几乎完全叠在一起时推挤。
++ */
++export const FULL_OVERLAP_RATIO = 0.8
++
++/** 两张卡片的重叠面积占比（0~1；不重叠为 0）。 */
++export function overlapRatio(a: CanvasPosition, b: CanvasPosition): number {
++  const overlapW = Math.max(0, CARD_WIDTH - Math.abs(a.x - b.x))
++  const overlapH = Math.max(0, CARD_HEIGHT - Math.abs(a.y - b.y))
++  return (overlapW * overlapH) / (CARD_WIDTH * CARD_HEIGHT)
++}
++
++/**
++ * 判定两个工作区位置是否「完全重叠」（禁止状态）。
++ * 部分重叠允许；仅当重叠面积占比 ≥ {@link FULL_OVERLAP_RATIO}（几乎完全叠在一起、
++ * 无法区分/点选）时视为完全重叠，需要避让。
++ */
++export function positionsFullyOverlap(a: CanvasPosition, b: CanvasPosition): boolean {
++  return overlapRatio(a, b) >= FULL_OVERLAP_RATIO
++}
++
++/**
++ * 推挤避让：目标位置若与其他工作区「完全重叠」，沿 GRID 螺旋向外找最近的、不再完全
++ * 重叠的位置。
++ * 语义：允许部分重叠（卡片可交叠一部分），仅禁止完全重叠（重叠面积占比 ≥
++ * {@link FULL_OVERLAP_RATIO}，即几乎叠在一起无法区分）。
++ * - 目标与所有占用均非完全重叠 → 原样返回；
++ * - 完全重叠 → 从目标格出发按半径 1、2、3… 逐圈扫描 8 邻域，返回第一个与任何占用
++ *   都非完全重叠的 GRID 格（步进 = AUTO_LAYOUT_STEP_*）。
++ * @param target - 期望落位（scene 坐标）。
++ * @param occupied - 其他工作区的已占用位置（不含自身）。
++ * @returns 非完全重叠的落位（尽量靠近目标）。
++ */
++export function avoidOverlap(
++  target: CanvasPosition,
++  occupied: ReadonlyArray<CanvasPosition>,
++): CanvasPosition {
++  if (!occupied.some((o) => positionsFullyOverlap(target, o))) return target
++  // 从半径 1 起逐圈扫描（上限 32 圈 = 足够大的画布范围，理论上不会耗尽）。
++  for (let radius = 1; radius <= 32; radius += 1) {
++    for (let dy = -radius; dy <= radius; dy += 1) {
++      for (let dx = -radius; dx <= radius; dx += 1) {
++        if (Math.max(Math.abs(dx), Math.abs(dy)) !== radius) continue // 只扫当前圈
++        const candidate = {
++          x: target.x + dx * AUTO_LAYOUT_STEP_X,
++          y: target.y + dy * AUTO_LAYOUT_STEP_Y,
++        }
++        if (!occupied.some((o) => positionsFullyOverlap(candidate, o))) return candidate
++      }
++    }
++  }
++  // 兜底（32 圈内全占满——极不现实）：直接偏移一大步。
++  return { x: target.x + AUTO_LAYOUT_STEP_X * 33, y: target.y }
++}
++
+ /** 自动布局：按传入顺序（通常为 feed 顺序）把每个工作区重排到 GRID 格位（消除重叠、对齐网格）。
+  *  空数组 = 空操作（不 mutate）。成员节点存工作区局部坐标，随工作区移动自动保留相对位置。 */
+ export function autoLayoutWorkspaces(
+Index: packages/dsh-all/aggregate.yml
+IDEA additional info:
+Subsystem: com.intellij.openapi.diff.impl.patch.CharsetEP
+<+>UTF-8
+===================================================================
+diff --git a/packages/dsh-all/aggregate.yml b/packages/dsh-all/aggregate.yml
+--- a/packages/dsh-all/aggregate.yml	(revision 9d59e61ec4277ba0124a26520d4810abc052d63d)
++++ b/packages/dsh-all/aggregate.yml	(date 1787024697439)
+@@ -6,6 +6,6 @@
+ deps:
+   - ../dsh-hello
+   - ../dsh-workspace-canvas
+-# 聚合包自身作为插件行加载（设置页骨架在客户端半区）。
++# 聚合包自身作为插件行加载（宿主半区空 apply；设置页由各功能插件自持）。
+ self:
+   - hundun-all
+Index: README.md
+IDEA additional info:
+Subsystem: com.intellij.openapi.diff.impl.patch.CharsetEP
+<+>UTF-8
+===================================================================
+diff --git a/README.md b/README.md
+--- a/README.md	(revision 9d59e61ec4277ba0124a26520d4810abc052d63d)
++++ b/README.md	(date 1787024583072)
+@@ -14,9 +14,9 @@
+ - **详情框**：点击卡片弹出三区卡片式详情——身份（大字号名称 + 活跃状态）、基本信息（目录 / 路径 / 工作区 ID）、会话数量（总数 / 活跃 / 归档 / 运行中）；工作区 ID 可一键复制
+ - **双击进入**：双击卡片直接打开该工作区的新会话
+ 
+-### ⚙️ 聚合设置页（dsh-all）
++### ⚙️ 设置页（dsh-workspace-canvas 自持）
+ 
+-- 「hundun-dsh」设置页骨架，画布等插件的设置栏目聚合展示，导航带独立图标
++- 画布设置页（`settings.section`「workspace-canvas」）：启用开关 / 背景风格 / 自动归档，分组展示；设置归功能插件自持，不再依赖聚合包骨架
+ 
+ ### 👋 示例插件（dsh-hello）
+ 
+@@ -60,7 +60,7 @@
+ | 包 | 说明 |
+ | --- | --- |
+ | `@hundun/dsh-workspace-canvas` | 工作区画布视图（本仓库主插件） |
+-| `@hundun/dsh-all` | 聚合载包：一键装配全部插件 + 设置页骨架 |
++| `@hundun/dsh-all` | 聚合载包：一键装配全部插件（设置页由各功能插件自持） |
+ | `@hundun/dsh-hello` | 示例插件：问候工具 + 侧边栏按钮 |
+ 
+ ## 开发
+Index: packages/dsh-all/package.json
+IDEA additional info:
+Subsystem: com.intellij.openapi.diff.impl.patch.CharsetEP
+<+>UTF-8
+===================================================================
+diff --git a/packages/dsh-all/package.json b/packages/dsh-all/package.json
+--- a/packages/dsh-all/package.json	(revision 9d59e61ec4277ba0124a26520d4810abc052d63d)
++++ b/packages/dsh-all/package.json	(date 1787024649909)
+@@ -1,6 +1,6 @@
+ {
+   "name": "@hundun/dsh-all",
+-  "description": "hundun-dsh 聚合插件：一键安装仓库内全部功能插件（依赖以 workspace:* 引用，cordis.patch.yml 拼接各子插件 insert 行）。客户端半区提供「hundun-dsh」设置页骨架（settings.section + 子槽位，T031 起填充）。",
++  "description": "hundun-dsh 聚合插件：一键安装仓库内全部功能插件（依赖以 workspace:* 引用，cordis.patch.yml 拼接各子插件 insert 行）。设置页已归属各功能插件自持（画布设置页由 dsh-workspace-canvas 注册 settings.section）。",
+   "version": "0.1.0",
+   "type": "module",
+   "main": "lib/index.js",
+@@ -22,9 +22,7 @@
+     },
+     "client": {
+       "inject": [
+-        "@deepseek-ai/dsh-client-runtime",
+-        "@deepseek-ai/dsh-client-ui-slots",
+-        "@deepseek-ai/dsh-client-ui-settings"
++        "@deepseek-ai/dsh-client-runtime"
+       ],
+       "platform": "web"
+     }
+@@ -37,14 +35,7 @@
+   "devDependencies": {
+     "@deepseek-ai/cordis": "^4.0.1",
+     "@deepseek-ai/dsh-client-runtime": "^0.1.0-rc.6",
+-    "@deepseek-ai/dsh-client-ui-primitives": "^0.1.0-rc.6",
+-    "@deepseek-ai/dsh-client-ui-settings": "^0.1.0-rc.6",
+-    "@deepseek-ai/dsh-client-ui-slots": "^0.1.0-rc.6",
+-    "@types/react": "~18.3.1",
+-    "@types/react-dom": "~18.3.0",
+     "jsdom": "^25.0.0",
+-    "react": "^18.3.1",
+-    "react-dom": "^18.3.1",
+     "tsdown": "^0.22.2",
+     "typescript": "~5.7.2",
+     "vitest": "^3.0.0"
+Index: packages/dsh-workspace-canvas/src/client/canvas/workspace-nodes.ts
+IDEA additional info:
+Subsystem: com.intellij.openapi.diff.impl.patch.CharsetEP
+<+>UTF-8
+===================================================================
+diff --git a/packages/dsh-workspace-canvas/src/client/canvas/workspace-nodes.ts b/packages/dsh-workspace-canvas/src/client/canvas/workspace-nodes.ts
+--- a/packages/dsh-workspace-canvas/src/client/canvas/workspace-nodes.ts	(revision 9d59e61ec4277ba0124a26520d4810abc052d63d)
++++ b/packages/dsh-workspace-canvas/src/client/canvas/workspace-nodes.ts	(date 1787025732222)
+@@ -2,12 +2,14 @@
+  * 工作区节点投影同步（T018）。
+  *
+  * 画布文档中的 workspace 节点 = 官方 feed 的投影 + 位置存档：
+- * - feed 中新增的工作区 → 自动补建节点（保留已存档位置，否则自动落位 (0,0)）；
++ * - feed 中新增的工作区 → 自动补建节点（保留已存档位置，否则按 feed 顺序 GRID
++ *   落位——修复：补建不再写死 (0,0)，否则多个新工作区全部堆在原点上重叠）；
+  * - feed 中消失的工作区 → 级联删除其成员节点（workspaceId 匹配）与相关边，
+  *   返回消失列表供调用方提示。
+  * 实例数据（标题/路径/会话数）实时读 feed，画布不缓存。
+  */
+ import type { CanvasDocumentStore } from './document.ts'
++import { AUTO_LAYOUT_COLS, AUTO_LAYOUT_STEP_X, AUTO_LAYOUT_STEP_Y, AUTO_LAYOUT_ORIGIN } from './workspace-position.ts'
+ 
+ /**
+  * 删除工作区及其全部成员（T024）：级联移除成员节点与相关边 + 工作区节点本身。
+@@ -57,12 +59,21 @@
+     )
+     doc.nodes = kept.filter((n) => !memberIds.has(n.id))
+     doc.edges = doc.edges.filter((e) => !memberIds.has(e.source) && !memberIds.has(e.target))
+-    // 3) 补建 feed 中缺失的工作区节点（保留位置存档 → 由 kept 中的节点承载；新建的落位 (0,0)）。
++    // 3) 补建 feed 中缺失的工作区节点（保留位置存档 → 由 kept 中的节点承载；
++    //    新建的按 feed 顺序 GRID 落位——修复：不再写死 (0,0)，避免多工作区全部
++    //    堆在原点上重叠（与 autoLayoutWorkspaces / CanvasView.autoPosition 同参数）。
+     const existingRefs = new Set(doc.nodes.filter((n) => n.kind === 'workspace').map((n) => n.ref))
+-    for (const w of workspaces) {
+-      if (!existingRefs.has(w.workspaceId)) {
+-        doc.nodes.push({ id: `ws:${w.workspaceId}`, kind: 'workspace', ref: w.workspaceId, position: { x: 0, y: 0 } })
+-      }
++    for (const [index, w] of workspaces.entries()) {
++      if (existingRefs.has(w.workspaceId)) continue
++      doc.nodes.push({
++        id: `ws:${w.workspaceId}`,
++        kind: 'workspace',
++        ref: w.workspaceId,
++        position: {
++          x: (index % AUTO_LAYOUT_COLS) * AUTO_LAYOUT_STEP_X + AUTO_LAYOUT_ORIGIN,
++          y: Math.floor(index / AUTO_LAYOUT_COLS) * AUTO_LAYOUT_STEP_Y + AUTO_LAYOUT_ORIGIN,
++        },
++      })
+     }
+     removed = [...removedRefs]
+   })
+Index: packages/dsh-workspace-canvas/tests/workspace-position.spec.ts
+IDEA additional info:
+Subsystem: com.intellij.openapi.diff.impl.patch.CharsetEP
+<+>UTF-8
+===================================================================
+diff --git a/packages/dsh-workspace-canvas/tests/workspace-position.spec.ts b/packages/dsh-workspace-canvas/tests/workspace-position.spec.ts
+--- a/packages/dsh-workspace-canvas/tests/workspace-position.spec.ts	(revision 9d59e61ec4277ba0124a26520d4810abc052d63d)
++++ b/packages/dsh-workspace-canvas/tests/workspace-position.spec.ts	(date 1787026343295)
+@@ -1,6 +1,13 @@
+ import { afterEach, describe, expect, it, vi } from 'vitest'
+ import { CanvasDocumentStore } from '../src/client/canvas/document.ts'
+-import { autoLayoutWorkspaces, commitWorkspacePosition, readWorkspacePositions } from '../src/client/canvas/workspace-position.ts'
++import {
++  autoLayoutWorkspaces,
++  avoidOverlap,
++  commitWorkspacePosition,
++  overlapRatio,
++  positionsFullyOverlap,
++  readWorkspacePositions,
++} from '../src/client/canvas/workspace-position.ts'
+ 
+ afterEach(() => {
+   localStorage.clear()
+@@ -96,3 +103,54 @@
+     expect(member?.position).toEqual({ x: 20, y: 30 }) // 成员局部坐标不变
+   })
+ })
++
++describe('拖拽落位防完全重叠（avoidOverlap / positionsFullyOverlap / overlapRatio）', () => {
++  it('overlapRatio：同点 1.0；部分重叠按面积占比；不重叠 0', () => {
++    const a = { x: 0, y: 0 }
++    expect(overlapRatio(a, { x: 0, y: 0 })).toBe(1)          // 完全同点
++    expect(overlapRatio(a, { x: 100, y: 0 })).toBe(0.5)      // 水平重叠一半（100/200）
++    expect(overlapRatio(a, { x: 0, y: 40 })).toBe(0.5)       // 垂直重叠一半（40/80）
++    expect(overlapRatio(a, { x: 200, y: 0 })).toBe(0)        // 刚好卡宽 → 不重叠
++    expect(overlapRatio(a, { x: 0, y: 80 })).toBe(0)         // 刚好卡高 → 不重叠
++    expect(overlapRatio(a, { x: 300, y: 300 })).toBe(0)
++  })
++
++  it('positionsFullyOverlap：仅重叠面积占比 ≥ 阈值视为完全重叠；部分重叠允许', () => {
++    const a = { x: 0, y: 0 }
++    expect(positionsFullyOverlap(a, { x: 0, y: 0 })).toBe(true)     // 完全同点
++    expect(positionsFullyOverlap(a, { x: 20, y: 0 })).toBe(true)    // 重叠 90%（180/200）
++    expect(positionsFullyOverlap(a, { x: 100, y: 0 })).toBe(false)  // 重叠 50% → 部分重叠，允许
++    expect(positionsFullyOverlap(a, { x: 0, y: 20 })).toBe(false)   // 垂直重叠 75%（60/80）< 80% → 允许
++    expect(positionsFullyOverlap(a, { x: 0, y: 15 })).toBe(true)    // 垂直重叠 81.25%（65/80）≥ 80% → 禁止
++    expect(positionsFullyOverlap(a, { x: 200, y: 0 })).toBe(false)  // 不重叠
++    expect(positionsFullyOverlap(a, { x: 300, y: 300 })).toBe(false)
++  })
++
++  it('avoidOverlap：目标不与任何占用完全重叠 → 原样返回（部分重叠保留）', () => {
++    const target = { x: 12, y: 12 }
++    // 与 (100,12) 重叠 44%（|12-100|=88，重叠 112/200=0.56；垂直同线）→ 非完全重叠 → 不动
++    expect(avoidOverlap(target, [{ x: 100, y: 12 }])).toEqual(target)
++    // 完全不重叠 → 不动
++    expect(avoidOverlap(target, [{ x: 228, y: 12 }])).toEqual(target)
++  })
++
++  it('avoidOverlap：目标与占用完全重叠 → 推挤到最近非完全重叠的 GRID 格', () => {
++    const occupied = [{ x: 12, y: 12 }]
++    const result = avoidOverlap({ x: 12, y: 12 }, occupied)
++    expect(positionsFullyOverlap(result, occupied[0])).toBe(false)
++    // 最近的格是 +216（右移一格）：(12+216, 12) = (228, 12)
++    expect(result).toEqual({ x: 228, y: 12 })
++  })
++
++  it('avoidOverlap：多个占用时跳过被占格，找到第一个非完全重叠格', () => {
++    const occupied = [
++      { x: 12, y: 12 },   // 目标格
++      { x: 228, y: 12 },  // 右一格
++      { x: 12, y: 124 },  // 下一格
++      { x: 228, y: 124 }, // 右下格
++    ]
++    const result = avoidOverlap({ x: 12, y: 12 }, occupied)
++    expect(occupied.some((o) => positionsFullyOverlap(result, o))).toBe(false)
++    expect(result).not.toEqual({ x: 12, y: 12 })
++  })
++})
