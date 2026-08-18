@@ -19,7 +19,7 @@ import type {} from '@deepseek-ai/dsh-client-runtime/client'
 import { claimCanvasApply, releaseCanvasApply } from './apply-guard.ts'
 import { en, zh, type CanvasKey } from './locales.ts'
 import { CanvasRuntime } from './runtime.ts'
-import { registerCanvasSettingsPage } from './settings.ts'
+import { installCanvasNavIconOverride, registerCanvasSettingsPage } from './settings.ts'
 import { getCanvasEnabled, subscribeCanvasEnabled } from './enabled-store.ts'
 
 // 对外公开的注册契约类型（消费方插件经 '@hundun/dsh-workspace-canvas/client' 引用）。
@@ -89,4 +89,5 @@ export function apply(ctx: ClientContext, config?: CanvasClientConfig): void {
 
   // 设置页自持注册（不随 enabled 卸载）：关闭画布后用户仍可从设置页重新开启。
   ctx.effect(() => registerCanvasSettingsPage(ctx), 'workspace-canvas: settings page')
+  ctx.effect(() => installCanvasNavIconOverride(), 'workspace-canvas: settings nav icon')
 }

@@ -2,7 +2,7 @@ import { act, createElement } from 'react'
 import { createRoot } from 'react-dom/client'
 import { afterEach, describe, expect, it, vi } from 'vitest'
 import { CanvasDocumentStore, type CanvasDocument, type CanvasNode } from '../src/client/canvas/document.ts'
-import { DetailPanel } from '../src/client/canvas/detail/panel.tsx'
+import { DETAIL_WIDTH_DEFAULT, DetailPanel } from '../src/client/canvas/detail/panel.tsx'
 import { WorkspaceDetail } from '../src/client/canvas/detail/workspace-detail.tsx'
 import { CanvasRegistryImpl } from '../src/client/canvas/registry.ts'
 
@@ -59,6 +59,8 @@ describe('DetailPanel（T026）', () => {
       onClose,
     }))
     expect(container.querySelector('[data-dsh-canvas-detail]')).not.toBeNull()
+    expect((container.querySelector<HTMLElement>('[data-dsh-canvas-detail]')?.style.width)).toBe(`${DETAIL_WIDTH_DEFAULT}px`)
+    expect(container.querySelector<HTMLElement>('[data-dsh-canvas-detail]')?.style.cursor).toBe('default')
     const closeBtn = container.querySelector<HTMLButtonElement>('[data-dsh-detail-close]')
     await act(async () => { closeBtn!.click() })
     expect(onClose).toHaveBeenCalled()

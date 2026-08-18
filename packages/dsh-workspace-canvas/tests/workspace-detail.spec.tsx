@@ -12,7 +12,7 @@
 import { createElement } from 'react'
 import { act } from 'react'
 import { createRoot } from 'react-dom/client'
-import { afterEach, beforeEach, describe, expect, it } from 'vitest'
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { WorkspaceDetail } from '../src/client/canvas/detail/workspace-detail.tsx'
 
 function renderDetail(props: {
@@ -62,7 +62,7 @@ describe('WorkspaceDetail（工作区详情框重设计）', () => {
     expect(titleEl?.textContent).toBe('my-proj')
     expect(titleEl?.textContent ?? '').not.toContain('ws_secret123')
     // 基本信息区仍以语义化形式包含 ID（「工作区 ID」标签 + 值）
-    expect(text).toContain('工作区 ID')
+    expect(text).toContain('工作区ID：')
     expect(text).toContain('ws_secret123')
   })
 
@@ -94,15 +94,18 @@ describe('WorkspaceDetail（工作区详情框重设计）', () => {
     expect(rendered.container.querySelector('[data-dsh-ws-section="sessions"] [data-dsh-ws-sessions]')).not.toBeNull()
   })
 
-  it('工作区 ID 语义化：标签 + 值 + 复制按钮（FR-002 / FR-004）', () => {
+  it('工作区 ID 语义化：两行标签 + 值；移除独立复制按钮和底部说明', () => {
     rendered = renderDetail({ workspaceId: 'ws_xyz789' })
     const text = rendered.container.textContent ?? ''
-    expect(text).toContain('工作区 ID')
+    expect(text).toContain('工作区ID：')
+    expect(text).toContain('目录名：')
+    expect(text).toContain('绝对路径：')
     expect(text).toContain('ws_xyz789')
-    expect(text).toContain('内部标识') // 语义说明
-    const copyBtn = rendered.container.querySelector('[data-dsh-ws-copy]')
-    expect(copyBtn).not.toBeNull()
-    expect(copyBtn?.textContent).toBe('复制')
+    expect(text).not.toContain('（内部标识）')
+    expect(text).not.toContain('用于唯一区分工作区')
+    expect(rendered.container.querySelector('[data-dsh-ws-copy]')).toBeNull()
+    expect(rendered.container.querySelector('[data-dsh-ws-copy-row="workspace-id"]')).not.toBeNull()
+    expect(rendered.container.querySelector('code[data-dsh-ws-id]')).toBeNull()
   })
 
   it('最近活跃以徽标呈现，非最近则不显示（FR-006）', () => {
@@ -155,16 +158,27 @@ describe('WorkspaceDetail（工作区详情框重设计）', () => {
     expect(rendered.container.textContent ?? '').toContain('未知目录')
   })
 
-  it('复制按钮在剪贴板不可用时点击不抛错（降级路径，FR-004）', () => {
-    rendered = renderDetail({ workspaceId: 'ws_fallback' })
-    const copyBtn = rendered.container.querySelector<HTMLButtonElement>('[data-dsh-ws-copy]')
-    expect(copyBtn).not.toBeNull()
-    expect(() => {
-      act(() => { copyBtn?.click() })
-    }).not.toThrow()
+  it('目录、路径、工作区 ID 点击整行复制并显示已复制', async () => {
+    rendered = renderDetail({ workspaceId: 'ws_copy', path: '/repo/copy-me' })
+    const writeText = vi.fn().mockResolvedValue(undefined)
+    const originalClipboard = navigator.clipboard
+    Object.defineProperty(navigator, 'clipboard', { configurable: true, value: { writeText } })
+    try {
+      for (const field of ['directory', 'path', 'workspace-id']) {
+        await act(async () => {
+          rendered!.container.querySelector<HTMLButtonElement>(`[data-dsh-ws-copy-row="${field}"]`)!.click()
+        })
+      }
+      expect(writeText).toHaveBeenNthCalledWith(1, 'copy-me')
+      expect(writeText).toHaveBeenNthCalledWith(2, '/repo/copy-me')
+      expect(writeText).toHaveBeenNthCalledWith(3, 'ws_copy')
+      expect(rendered.container.textContent).toContain('已复制')
+    } finally {
+      Object.defineProperty(navigator, 'clipboard', { configurable: true, value: originalClipboard })
+    }
   })
 
-  it('自动归档区：默认跟随默认；切自定义即改即存（005）', () => {
+  it('自动归档区：默认跟随默认；切自定义即改即存（005）', async () => {
     rendered = renderDetail({ workspaceId: 'ws_arch' })
     const section = rendered.container.querySelector('[data-dsh-ws-section="archive"]')
     expect(section).not.toBeNull()
@@ -175,11 +189,18 @@ describe('WorkspaceDetail（工作区详情框重设计）', () => {
     expect(radios.length).toBe(2)
     act(() => { radios[1]!.click() })
     expect(rendered.container.querySelector('[data-dsh-ws-archive-custom]')).not.toBeNull()
-    expect(localStorage.getItem('dsh.workspaceCanvas.archive.workspaces')).toContain('"mode":"custom"')
-    // 启用开关即改即存
-    act(() => {
-      rendered!.container.querySelector<HTMLInputElement>('[data-dsh-ws-archive-enabled]')!.click()
+    expect(rendered.container.querySelector('[data-dsh-ws-archive-policy-fields]')).toBeNull()
+    await act(async () => {
+      rendered!.container.querySelector<HTMLButtonElement>('[data-dsh-ws-archive-enabled-on]')!.click()
     })
+    expect(rendered.container.querySelector('[data-dsh-ws-archive-policy-fields]')).not.toBeNull()
+    expect(rendered.container.querySelector<HTMLInputElement>('[data-dsh-ws-archive-max-sessions]')?.value).toBe('30')
+    await act(async () => {
+      rendered!.container.querySelector<HTMLButtonElement>('[data-dsh-ws-archive-max-sessions-unlimited]')!.click()
+    })
+    expect(rendered.container.querySelector('[data-dsh-ws-archive-max-sessions-mode="unlimited"]')).not.toBeNull()
+    expect(localStorage.getItem('dsh.workspaceCanvas.archive.workspaces')).toContain('"maxSessions":0')
+    expect(localStorage.getItem('dsh.workspaceCanvas.archive.workspaces')).toContain('"mode":"custom"')
     expect(localStorage.getItem('dsh.workspaceCanvas.archive.workspaces')).toContain('"enabled":true')
   })
 

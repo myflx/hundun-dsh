@@ -47,10 +47,11 @@ export const CARD_WIDTH = 200
 export const CARD_HEIGHT = 80
 
 /**
- * 完全重叠阈值：两张卡片重叠面积占比超过该比例即视为「完全重叠」（禁止状态）。
- * 允许部分重叠（卡片可交叠一部分，便于紧凑摆放），仅当几乎完全叠在一起时推挤。
+ * 完全重叠阈值：两张卡片重叠面积达到 80% 即需要避让。
+ * 拖动过程允许重叠，松开时才以 12px 夹角微移避让，避免大幅跳动。
  */
 export const FULL_OVERLAP_RATIO = 0.8
+export const OVERLAP_NUDGE = 12
 
 /** 两张卡片的重叠面积占比（0~1；不重叠为 0）。 */
 export function overlapRatio(a: CanvasPosition, b: CanvasPosition): number {
@@ -60,22 +61,18 @@ export function overlapRatio(a: CanvasPosition, b: CanvasPosition): number {
 }
 
 /**
- * 判定两个工作区位置是否「完全重叠」（禁止状态）。
- * 部分重叠允许；仅当重叠面积占比 ≥ {@link FULL_OVERLAP_RATIO}（几乎完全叠在一起、
- * 无法区分/点选）时视为完全重叠，需要避让。
+ * 判定两个工作区位置是否达到「完全重叠」阈值。
+ * 面积重叠达到 80% 才需要避让，低于阈值的部分重叠保持原位。
  */
 export function positionsFullyOverlap(a: CanvasPosition, b: CanvasPosition): boolean {
   return overlapRatio(a, b) >= FULL_OVERLAP_RATIO
 }
 
 /**
- * 推挤避让：目标位置若与其他工作区「完全重叠」，沿 GRID 螺旋向外找最近的、不再完全
- * 重叠的位置。
- * 语义：允许部分重叠（卡片可交叠一部分），仅禁止完全重叠（重叠面积占比 ≥
- * {@link FULL_OVERLAP_RATIO}，即几乎叠在一起无法区分）。
+ * 微移避让：目标位置若与其他工作区完全同点，按 12px 螺旋找最近的不重合位置。
+ * 不再使用画布 GRID 步进，避免松开鼠标时出现大幅跳动。
  * - 目标与所有占用均非完全重叠 → 原样返回；
- * - 完全重叠 → 从目标格出发按半径 1、2、3… 逐圈扫描 8 邻域，返回第一个与任何占用
- *   都非完全重叠的 GRID 格（步进 = AUTO_LAYOUT_STEP_*）。
+ * - 完全重叠 → 从目标点出发按 12px 半径逐圈扫描，返回第一个不重合的位置。
  * @param target - 期望落位（scene 坐标）。
  * @param occupied - 其他工作区的已占用位置（不含自身）。
  * @returns 非完全重叠的落位（尽量靠近目标）。
@@ -85,21 +82,42 @@ export function avoidOverlap(
   occupied: ReadonlyArray<CanvasPosition>,
 ): CanvasPosition {
   if (!occupied.some((o) => positionsFullyOverlap(target, o))) return target
-  // 从半径 1 起逐圈扫描（上限 32 圈 = 足够大的画布范围，理论上不会耗尽）。
+  // 从半径 1 起逐圈扫描；拖动只在 pointerup 调用，微移不会造成过程中的跳动。
   for (let radius = 1; radius <= 32; radius += 1) {
+    const distance = radius * OVERLAP_NUDGE
+    // 固定优先向右下角微移，避免避让方向在上下左右之间来回变化。
+    const diagonal = [
+      { x: target.x + distance, y: target.y + distance },
+      { x: target.x + distance, y: target.y - distance },
+      { x: target.x - distance, y: target.y + distance },
+      { x: target.x - distance, y: target.y - distance },
+    ]
+    const freeDiagonal = diagonal.find((candidate) => !occupied.some((o) => positionsFullyOverlap(candidate, o)))
+    if (freeDiagonal !== undefined) return freeDiagonal
+
+    const cardinal = [
+      { x: target.x + distance, y: target.y },
+      { x: target.x - distance, y: target.y },
+      { x: target.x, y: target.y + distance },
+      { x: target.x, y: target.y - distance },
+    ]
+    const freeCardinal = cardinal.find((candidate) => !occupied.some((o) => positionsFullyOverlap(candidate, o)))
+    if (freeCardinal !== undefined) return freeCardinal
+
     for (let dy = -radius; dy <= radius; dy += 1) {
       for (let dx = -radius; dx <= radius; dx += 1) {
+        if (dx === 0 || dy === 0) continue // 上下左右已优先检查
         if (Math.max(Math.abs(dx), Math.abs(dy)) !== radius) continue // 只扫当前圈
         const candidate = {
-          x: target.x + dx * AUTO_LAYOUT_STEP_X,
-          y: target.y + dy * AUTO_LAYOUT_STEP_Y,
+          x: target.x + dx * distance,
+          y: target.y + dy * distance,
         }
         if (!occupied.some((o) => positionsFullyOverlap(candidate, o))) return candidate
       }
     }
   }
   // 兜底（32 圈内全占满——极不现实）：直接偏移一大步。
-  return { x: target.x + AUTO_LAYOUT_STEP_X * 33, y: target.y }
+  return { x: target.x + OVERLAP_NUDGE * 33, y: target.y }
 }
 
 /** 自动布局：按传入顺序（通常为 feed 顺序）把每个工作区重排到 GRID 格位（消除重叠、对齐网格）。

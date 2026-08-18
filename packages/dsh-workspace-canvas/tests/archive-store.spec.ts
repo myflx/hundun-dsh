@@ -22,7 +22,7 @@ afterEach(() => {
 })
 
 describe('归档配置持久化（005）', () => {
-  it('未设置 → 内置默认（关闭 / 30 天 / 不限会话数）', () => {
+  it('未设置 → 内置默认（关闭 / 30 天 / 最多 30 个会话）', () => {
     expect(getGlobalArchiveConfig()).toEqual(ARCHIVE_DEFAULT)
   })
 
@@ -35,7 +35,7 @@ describe('归档配置持久化（005）', () => {
     setGlobalArchiveConfig({ enabled: true, idleDays: 0, maxSessions: -1 })
     const config = getGlobalArchiveConfig()
     expect(config.idleDays).toBe(30)
-    expect(config.maxSessions).toBe(0)
+    expect(config.maxSessions).toBe(30)
     expect(config.enabled).toBe(true)
   })
 

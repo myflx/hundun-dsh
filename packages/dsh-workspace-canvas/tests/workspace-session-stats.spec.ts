@@ -29,6 +29,27 @@ describe('workspaceSessionStats（会话统计计算）', () => {
     expect(stats).toEqual({ total: 4, active: 3, archived: 1, running: 1 })
   })
 
+  it('不统计 DSH 用于新会话复用的空白会话', () => {
+    const stats = workspaceSessionStats(
+      ['blank', 's1', 's2'],
+      new Set(['s2']),
+      {
+        sessions: {
+          list: {
+            getSnapshot: () => ({
+              byId: {
+                blank: { blank: true, running: false },
+                s1: { blank: false, running: true },
+                s2: { blank: false, running: false },
+              },
+            }),
+          },
+        },
+      },
+    )
+    expect(stats).toEqual({ total: 2, active: 1, archived: 1, running: 1 })
+  })
+
   it('运行中的会话即使归档也计入运行中', () => {
     const stats = workspaceSessionStats(
       ['s1', 's2'],

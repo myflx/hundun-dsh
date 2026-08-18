@@ -48,6 +48,8 @@ const GRID = 24
 const AUTO_COLS = 4
 const CARD_STEP_X = 216
 const CARD_STEP_Y = 112
+const EMPTY_SESSION_STATE = { byId: {} as Record<string, { running?: boolean; blank?: boolean }> }
+const EMPTY_SESSION_SUBSCRIBE = (): (() => void) => () => {}
 /** 拖拽超过该距离视为拖动（否则算点击进入）。 */
 const DRAG_THRESHOLD = 5
 
@@ -281,12 +283,13 @@ function autoPosition(index: number): { x: number; y: number } {
 
 /** 会话运行状态查询面（ctx.sessions 可能缺省——测试/无服务时安全降级为无运行中）。 */
 interface SessionRunningLookup {
-  sessions?: { list?: { getSnapshot?: () => { byId?: Record<string, { running?: boolean }> } } }
+  sessions?: { list?: { getSnapshot?: () => { byId?: Record<string, { running?: boolean; blank?: boolean }> } } }
 }
 
 /**
  * 计算一个工作区的会话统计：总数 / 活跃（未归档）/ 归档 / 运行中。
- * 归档来自 workspaces feed 的 archivedSessionIds；运行中来自 sessions 服务的 running 位。
+ * 可见会话来自 sessions 服务的 blank 位；归档来自 workspaces feed 的 archivedSessionIds；
+ * 运行中来自 sessions 服务的 running 位。
  * 双保险：inject 已声明 sessions（真机）；此处 try/catch 兜底——Cordis ctx 是 Proxy，
  * 未注入时属性 getter 直接抛错（可选链无法捕获），捕获后按服务不可得降级为 0。
  */
@@ -295,16 +298,18 @@ export function workspaceSessionStats(
   archived: ReadonlySet<string>,
   ctx: unknown,
 ): { total: number; active: number; archived: number; running: number } {
-  let byId: Record<string, { running?: boolean }> | undefined
+  let byId: Record<string, { running?: boolean; blank?: boolean }> | undefined
   try {
     byId = (ctx as SessionRunningLookup | undefined)?.sessions?.list?.getSnapshot?.().byId
   } catch {
     byId = undefined
   }
-  const total = sessionIds.length
+  // DSH 的 session.list 保留空白会话用于“新会话”复用，但侧边栏和工作区视图都不展示它。
+  const visibleSessionIds = sessionIds.filter((id) => byId?.[String(id)]?.blank !== true)
+  const total = visibleSessionIds.length
   let archivedCount = 0
   let runningCount = 0
-  for (const id of sessionIds) {
+  for (const id of visibleSessionIds) {
     const key = String(id)
     if (archived.has(key)) archivedCount += 1
     if (byId?.[key]?.running === true) runningCount += 1
@@ -313,12 +318,15 @@ export function workspaceSessionStats(
 }
 
 /** 一张可拖拽的工作区卡片。 */
-function WorkspaceCard({ workspace, selected, position, onCommit, onOpen, onSelect, onContextMenu, zoom, toScene, archivedSessionIds }: {
+function WorkspaceCard({ workspace, selected, dragging, position, onCommit, onDragMove, onDragState, onOpen, onSelect, onContextMenu, zoom, toScene, sessionStats }: {
   workspace: WorkspaceView
   /** 是否选中（单击选中 → 蓝框）。 */
   selected: boolean
+  dragging: boolean
   position: { x: number; y: number }
   onCommit: (id: WorkspaceId, position: { x: number; y: number }) => void
+  onDragMove: (id: WorkspaceId, position: { x: number; y: number }) => void
+  onDragState: (id: WorkspaceId, dragging: boolean) => void
   onOpen: (id: WorkspaceId) => void
   /** 单击选中（弹详情）。 */
   onSelect: (id: WorkspaceId) => void
@@ -327,19 +335,20 @@ function WorkspaceCard({ workspace, selected, position, onCommit, onOpen, onSele
   zoom: number
   /** 屏幕坐标 → scene 坐标（P2 view 变换）。 */
   toScene: (clientX: number, clientY: number) => { x: number; y: number }
-  /** 全局已归档会话集合（分组界面隐藏；卡片计数按未归档显示）。 */
-  archivedSessionIds?: ReadonlySet<string>
+  /** 从同一份 sessions 快照计算的可见/归档会话统计。 */
+  sessionStats: { total: number; active: number; archived: number; running: number }
 }) {
-  const dragRef = useRef<{ id: WorkspaceId; x0: number; y0: number; dx: number; dy: number; moved: boolean } | null>(null)
+  const dragRef = useRef<{ id: WorkspaceId; x0: number; y0: number; dx: number; dy: number; moved: boolean; position: { x: number; y: number } } | null>(null)
   const justDraggedRef = useRef(false)
-  // 未归档会话数（dsh 语义：归档保留在 sessionIds 账目，分组界面隐藏——卡片计数与侧边栏一致）
-  const activeCount = workspace.sessionIds.filter((id) => !archivedSessionIds?.has(String(id))).length
-  const totalCount = workspace.sessionIds.length
+  const activeCount = sessionStats.active
+  const archivedCount = sessionStats.archived
 
   const onPointerDown = (event: ReactPointerEvent<HTMLButtonElement>): void => {
     event.preventDefault()
     const rect = event.currentTarget.getBoundingClientRect()
-    event.currentTarget.setPointerCapture(event.pointerId)
+    if (typeof event.currentTarget.setPointerCapture === 'function') {
+      event.currentTarget.setPointerCapture(event.pointerId)
+    }
     dragRef.current = {
       id: workspace.workspaceId,
       x0: event.clientX,
@@ -347,7 +356,9 @@ function WorkspaceCard({ workspace, selected, position, onCommit, onOpen, onSele
       dx: event.clientX - rect.left,
       dy: event.clientY - rect.top,
       moved: false,
+      position,
     }
+    onDragState(workspace.workspaceId, true)
   }
 
   const onPointerMove = (event: ReactPointerEvent<HTMLButtonElement>): void => {
@@ -359,14 +370,20 @@ function WorkspaceCard({ workspace, selected, position, onCommit, onOpen, onSele
     if (!drag.moved) return
     // P2：视口带 view 变换，拖拽落点须换算回 scene 坐标（按下偏移按 zoom 缩放）。
     const scene = toScene(event.clientX, event.clientY)
-    onCommit(drag.id, {
+    const nextPosition = {
       x: scene.x - drag.dx / zoom,
       y: scene.y - drag.dy / zoom,
-    })
+    }
+    drag.position = nextPosition
+    // 拖动过程中只更新临时位置，不判断碰撞、不落盘。
+    onDragMove(drag.id, nextPosition)
   }
 
   const onPointerUp = (): void => {
-    justDraggedRef.current = dragRef.current?.moved ?? false
+    const drag = dragRef.current
+    justDraggedRef.current = drag?.moved ?? false
+    if (drag?.moved === true) onCommit(drag.id, drag.position)
+    if (drag !== null) onDragState(drag.id, false)
     dragRef.current = null
   }
 
@@ -408,7 +425,7 @@ function WorkspaceCard({ workspace, selected, position, onCommit, onOpen, onSele
         top: position.y,
         // 选中态：蓝色边框（单击选中；点空白取消）
         borderColor: selected ? 'var(--dsw-alias-state-business-primary)' : undefined,
-        zIndex: selected ? 2 : 1,
+        zIndex: selected || dragging ? 10 : 1,
       }}
       onPointerDown={onPointerDown}
       onPointerMove={onPointerMove}
@@ -416,13 +433,13 @@ function WorkspaceCard({ workspace, selected, position, onCommit, onOpen, onSele
       onClick={onClick}
       onDoubleClick={onDoubleClick}
       onContextMenu={onContextMenu}
-      title={`${workspace.path}（${canvasText('canvas.sessions', { n: activeCount })}${totalCount > activeCount ? `，${totalCount - activeCount} 个已归档` : ''}）`}
+      title={`${workspace.path}（${canvasText('canvas.sessions', { n: activeCount })}${archivedCount > 0 ? `，${archivedCount} 个已归档` : ''}）`}
     >
       <span style={CARD_TITLE_STYLE}>{workspace.title}</span>
       <span style={CARD_PATH_STYLE}>{workspace.path}</span>
       <span style={CARD_META_STYLE}>
         {canvasText('canvas.sessions', { n: activeCount })}
-        {totalCount > activeCount ? ` · ${totalCount - activeCount} 归档` : ''}
+        {archivedCount > 0 ? ` · ${archivedCount} 归档` : ''}
       </span>
     </button>
   )
@@ -436,6 +453,13 @@ export const CanvasView = memo(function CanvasView({ workspaces, store, onClose,
   const state: WorkspaceListState = useSyncExternalStore(
     (fn) => list.subscribe(fn),
     () => list.getSnapshot(),
+  )
+  // 工作区 feed 负责成员关系，sessions feed 负责 blank/running 等会话事实。
+  // 订阅后，空白会话被创建/复用以及运行状态变化都会刷新画布统计。
+  const sessionList = ctx?.sessions?.list
+  useSyncExternalStore(
+    sessionList !== undefined ? (fn) => sessionList.subscribe(fn) : EMPTY_SESSION_SUBSCRIBE,
+    sessionList !== undefined ? () => sessionList.getSnapshot() : () => EMPTY_SESSION_STATE,
   )
   // 画布文档（编排节点数据源；布局持久化见 T015/T016）。
   const doc = useSyncExternalStore(
@@ -475,6 +499,7 @@ export const CanvasView = memo(function CanvasView({ workspaces, store, onClose,
     () => new Set([...(state.archivedSessionIds ?? []).map(String), ...optimisticArchived]),
     [state.archivedSessionIds, optimisticArchived],
   )
+  const statsForWorkspace = (workspace: WorkspaceView) => workspaceSessionStats(workspace.sessionIds, archivedSessionIds, ctx)
   const orchestrationNodes = doc.nodes.filter((n) => n.kind !== 'workspace')
   // 有效位置表：已存档位置去重 + 完全重叠避让。
   // 修复：多个工作区曾同时补建为 (0,0)（旧版 syncWorkspaceNodes 写死原点）会在文档中
@@ -526,6 +551,12 @@ export const CanvasView = memo(function CanvasView({ workspaces, store, onClose,
   // 右键菜单与选中明细状态（T023-T027）。
   const [menu, setMenu] = useState<{ x: number; y: number; node: CanvasNode; view?: { sessionIds: ReadonlyArray<string> } } | undefined>()
   const [selectedId, setSelectedId] = useState<string | undefined>()
+  const [draggingId, setDraggingId] = useState<string | undefined>()
+
+  const updateDragPosition = (id: WorkspaceId, position: { x: number; y: number }): void => {
+    // 拖动预览只改内存位置，碰撞判断和持久化统一延迟到 pointerup。
+    setPositions((prev) => ({ ...prev, [String(id)]: position }))
+  }
 
   // ── P2 视图（缩放/平移/持久化）────────────────────────────────────────
   const areaRef = useRef<HTMLDivElement | null>(null)
@@ -784,14 +815,17 @@ export const CanvasView = memo(function CanvasView({ workspaces, store, onClose,
                       <WorkspaceCard
                         workspace={workspace}
                         selected={selectedId === `ws:${String(workspace.workspaceId)}`}
+                        dragging={draggingId === String(workspace.workspaceId)}
                         position={workspacePosition}
                         onCommit={commitPosition}
+                        onDragMove={updateDragPosition}
+                        onDragState={(id, active) => setDraggingId(active ? String(id) : undefined)}
                         onOpen={handleOpen}
                         onSelect={(id) => setSelectedId(`ws:${String(id)}`)}
                         onContextMenu={(event) => openMenu(event, workspaceNode, { sessionIds: workspace.sessionIds })}
                         zoom={view.zoom}
                         toScene={toScene}
-                        archivedSessionIds={archivedSessionIds}
+                        sessionStats={statsForWorkspace(workspace)}
                       />
                       {members.map((member) => renderMember(member, workspacePosition))}
                     </Fragment>
@@ -806,7 +840,7 @@ export const CanvasView = memo(function CanvasView({ workspaces, store, onClose,
                 <Button variant="toolbar" size="sm" data-dsh-action-reset onClick={resetViewTransform} aria-label="重置视图" title="重置视图"><IconLocateFixed /></Button>
                 <Button variant="toolbar" size="sm" data-dsh-action-zoom-in onClick={() => zoomBy(1.1)} aria-label="放大" title="放大"><IconZoomIn /></Button>
                 <Button variant="toolbar" size="sm" data-dsh-action-refresh onClick={handleRefresh} aria-label="刷新" title="刷新"><IconRefreshAction /></Button>
-                <Button variant="toolbar" size="sm" data-dsh-action-background onClick={() => setBackgroundPanelOpen((open) => !open)} aria-label="背景风格" title="背景风格" style={{ color: 'var(--dsw-alias-label-primary)' }}><IconPersonalizationOutline16 /></Button>
+                <Button variant="toolbar" size="sm" data-dsh-action-background onClick={() => setBackgroundPanelOpen((open) => !open)} aria-label="背景风格" title="背景风格"><IconPersonalizationOutline16 /></Button>
                 {backgroundPanelOpen && (
                   <div style={BACKGROUND_PANEL_STYLE} data-dsh-background-panel="">
                     {CANVAS_BACKGROUND_STYLES.map((style) => (
@@ -814,7 +848,12 @@ export const CanvasView = memo(function CanvasView({ workspaces, store, onClose,
                         key={style.id}
                         type="button"
                         data-dsh-background-option={style.id}
-                        onClick={() => { setCanvasBackgroundId(style.id); setBackgroundPanelOpen(false) }}
+                        onPointerDown={(event) => event.stopPropagation()}
+                        onClick={(event) => {
+                          event.stopPropagation()
+                          setBackgroundPanelOpen(false)
+                          setCanvasBackgroundId(style.id)
+                        }}
                         style={{
                           ...BACKGROUND_OPTION_STYLE,
                           color: style.id === backgroundId ? 'var(--dsw-alias-state-business-primary)' : 'var(--dsw-alias-label-secondary)',
@@ -848,7 +887,7 @@ export const CanvasView = memo(function CanvasView({ workspaces, store, onClose,
                         <WorkspaceDetail
                           view={{ title: wsView.title, path: wsView.path, sessionIds: wsView.sessionIds, workspaceId: String(wsView.workspaceId) }}
                           recent={wsView.workspaceId === state.recentWorkspaceId}
-                          sessionStats={workspaceSessionStats(wsView.sessionIds, archivedSessionIds, ctx)}
+                          sessionStats={statsForWorkspace(wsView)}
                         />
                       )}
                     />

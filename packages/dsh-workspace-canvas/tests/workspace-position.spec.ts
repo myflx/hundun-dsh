@@ -115,13 +115,13 @@ describe('拖拽落位防完全重叠（avoidOverlap / positionsFullyOverlap / o
     expect(overlapRatio(a, { x: 300, y: 300 })).toBe(0)
   })
 
-  it('positionsFullyOverlap：仅重叠面积占比 ≥ 阈值视为完全重叠；部分重叠允许', () => {
+  it('positionsFullyOverlap：重叠面积达到 80% 才视为完全重叠', () => {
     const a = { x: 0, y: 0 }
     expect(positionsFullyOverlap(a, { x: 0, y: 0 })).toBe(true)     // 完全同点
-    expect(positionsFullyOverlap(a, { x: 20, y: 0 })).toBe(true)    // 重叠 90%（180/200）
-    expect(positionsFullyOverlap(a, { x: 100, y: 0 })).toBe(false)  // 重叠 50% → 部分重叠，允许
-    expect(positionsFullyOverlap(a, { x: 0, y: 20 })).toBe(false)   // 垂直重叠 75%（60/80）< 80% → 允许
-    expect(positionsFullyOverlap(a, { x: 0, y: 15 })).toBe(true)    // 垂直重叠 81.25%（65/80）≥ 80% → 禁止
+    expect(positionsFullyOverlap(a, { x: 20, y: 0 })).toBe(true)    // 重叠 90% → 避让
+    expect(positionsFullyOverlap(a, { x: 100, y: 0 })).toBe(false)  // 重叠 50% → 允许
+    expect(positionsFullyOverlap(a, { x: 0, y: 20 })).toBe(false)   // 垂直重叠但不完全同点 → 允许
+    expect(positionsFullyOverlap(a, { x: 0, y: 15 })).toBe(true)    // 垂直重叠 81.25% → 避让
     expect(positionsFullyOverlap(a, { x: 200, y: 0 })).toBe(false)  // 不重叠
     expect(positionsFullyOverlap(a, { x: 300, y: 300 })).toBe(false)
   })
@@ -134,12 +134,18 @@ describe('拖拽落位防完全重叠（avoidOverlap / positionsFullyOverlap / o
     expect(avoidOverlap(target, [{ x: 228, y: 12 }])).toEqual(target)
   })
 
-  it('avoidOverlap：目标与占用完全重叠 → 推挤到最近非完全重叠的 GRID 格', () => {
+  it('avoidOverlap：目标与占用完全重叠 → 优先向右下角微移 12px', () => {
     const occupied = [{ x: 12, y: 12 }]
     const result = avoidOverlap({ x: 12, y: 12 }, occupied)
     expect(positionsFullyOverlap(result, occupied[0])).toBe(false)
-    // 最近的格是 +216（右移一格）：(12+216, 12) = (228, 12)
-    expect(result).toEqual({ x: 228, y: 12 })
+    expect(result).toEqual({ x: 24, y: 24 })
+  })
+
+  it('avoidOverlap：重叠超过 80% 但不完全同点 → 仍然微移到阈值以下', () => {
+    const occupied = [{ x: 20, y: 0 }]
+    const result = avoidOverlap({ x: 0, y: 0 }, occupied)
+    expect(positionsFullyOverlap(result, occupied[0])).toBe(false)
+    expect(Math.abs(result.x) <= 24 && Math.abs(result.y) <= 24).toBe(true)
   })
 
   it('avoidOverlap：多个占用时跳过被占格，找到第一个非完全重叠格', () => {
@@ -152,5 +158,6 @@ describe('拖拽落位防完全重叠（avoidOverlap / positionsFullyOverlap / o
     const result = avoidOverlap({ x: 12, y: 12 }, occupied)
     expect(occupied.some((o) => positionsFullyOverlap(result, o))).toBe(false)
     expect(result).not.toEqual({ x: 12, y: 12 })
+    expect(Math.abs(result.x - 12) <= 12 || Math.abs(result.y - 12) <= 12).toBe(true)
   })
 })

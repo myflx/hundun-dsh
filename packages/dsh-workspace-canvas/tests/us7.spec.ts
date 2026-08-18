@@ -43,7 +43,7 @@ describe('画布设置栏目（T032，本地持久化）', () => {
     await act(async () => root.unmount())
   })
 
-  it('分组布局：启用组 + 背景风格组 + 自动归档组（005）', async () => {
+  it('分组布局：视图组（含启用与背景）+ 自动归档组（005）', async () => {
     const container = document.createElement('div')
     document.body.appendChild(container)
     const root = createRoot(container)
@@ -51,15 +51,32 @@ describe('画布设置栏目（T032，本地持久化）', () => {
       root.render(createElement(CanvasSettingsCard))
     })
     const groups = container.querySelectorAll('[data-dsh-settings-group]')
-    expect(groups.length).toBe(3)
-    expect(groups[0].getAttribute('data-dsh-settings-group')).toBe('enabled')
-    expect(groups[1].getAttribute('data-dsh-settings-group')).toBe('background')
-    expect(groups[2].getAttribute('data-dsh-settings-group')).toBe('archive')
-    // 归档默认：关闭 / 30 天 / 不限；即改即存
+    expect(groups.length).toBe(2)
+    expect(groups[0].getAttribute('data-dsh-settings-group')).toBe('view')
+    expect(groups[1].getAttribute('data-dsh-settings-group')).toBe('archive')
+    // 归档默认：关闭 / 30 天 / 最多 30 个会话；即改即存
     const archiveEnabled = container.querySelector<HTMLInputElement>('[data-dsh-archive-enabled]')
     expect(archiveEnabled!.checked).toBe(false)
+    expect(container.querySelector('[data-dsh-archive-policy-fields]')).toBeNull()
     await act(async () => { archiveEnabled!.click() })
+    expect(container.querySelector('[data-dsh-archive-policy-fields]')).not.toBeNull()
+    expect(container.querySelector<HTMLInputElement>('[data-dsh-archive-max-sessions]')?.value).toBe('30')
+    expect(container.querySelector('[data-dsh-archive-max-sessions-mode="limited"]')).not.toBeNull()
+    await act(async () => {
+      container.querySelector<HTMLButtonElement>('[data-dsh-archive-max-sessions-unlimited]')!.click()
+    })
+    expect(container.querySelector('[data-dsh-archive-max-sessions-mode="unlimited"]')).not.toBeNull()
+    expect(container.querySelector('[data-dsh-archive-max-sessions]')).toBeNull()
+    expect(localStorage.getItem(CANVAS_ARCHIVE_KEY)).toContain('"maxSessions":0')
+    await act(async () => {
+      container.querySelector<HTMLButtonElement>('[data-dsh-archive-max-sessions-limited]')!.click()
+    })
+    expect(container.querySelector<HTMLInputElement>('[data-dsh-archive-max-sessions]')?.value).toBe('30')
     expect(localStorage.getItem(CANVAS_ARCHIVE_KEY)).toContain('"enabled":true')
+    // 未启用画布视图时隐藏背景风格；重新启用后恢复（003）
+    await act(async () => { container.querySelector<HTMLInputElement>('[data-dsh-canvas-enabled-switch]')!.click() })
+    expect(container.querySelector('[data-dsh-background-setting]')).toBeNull()
+    await act(async () => { container.querySelector<HTMLInputElement>('[data-dsh-canvas-enabled-switch]')!.click() })
     // 背景风格选项仍为 5 个（003）
     const options = container.querySelectorAll('[data-dsh-background-setting]')
     expect(options.length).toBe(5)

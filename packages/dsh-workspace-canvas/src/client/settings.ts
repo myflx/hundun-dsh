@@ -3,9 +3,7 @@
  *
  * 画布自行注册官方设置面页面（settings.section, id `workspace-canvas`），
  * 不再依赖 dsh-all 聚合设置页骨架与 hundun.settings.item 子槽位。
- * 分组：第一组「启用」（画布开关，enabled-store）；第二组「画布背景风格」
- * （单选，background-store，风格来自 background-styles 注册表）；第三组
- * 「自动归档」（archive-store，005）。
+ * 分组：「视图」（画布开关 + 背景风格）与「自动归档」（archive-store，005）。
  * 读写均走 localStorage 持久化 + 事件广播（官方 settings 命名空间白名单硬编码，
  * 第三方 namespace 无法暴露给浏览器设置客户端，见 enabled-store.ts 注释）。
  */
@@ -24,6 +22,7 @@ import {
   subscribeArchiveConfig,
   type AutoArchiveConfig,
 } from './archive-store.ts'
+import { ArchivePolicyFields } from './archive-controls.tsx'
 import { dictionary } from './locales.ts'
 
 const GROUP: React.CSSProperties = {
@@ -41,6 +40,14 @@ const GROUP_TITLE: React.CSSProperties = {
   color: 'var(--dsw-alias-label-tertiary)',
   borderBottom: '1px solid var(--dsw-alias-border-l2)',
 }
+const SUBTITLE: React.CSSProperties = {
+  margin: '14px 0 8px',
+  paddingTop: 12,
+  fontSize: 12,
+  fontWeight: 600,
+  color: 'var(--dsw-alias-label-tertiary)',
+  borderTop: '1px solid var(--dsw-alias-border-l2)',
+}
 const STYLE_OPTION: React.CSSProperties = {
   display: 'flex',
   alignItems: 'center',
@@ -52,7 +59,7 @@ const STYLE_OPTION: React.CSSProperties = {
 const STYLE_NAME: React.CSSProperties = { flex: '0 0 auto', minWidth: 64 }
 const STYLE_DESC: React.CSSProperties = { flex: 1, fontSize: 11, color: 'var(--dsw-alias-label-tertiary)' }
 
-/** 画布设置页卡片：分组「启用」+「画布背景风格」+「自动归档」（均本地持久化）。 */
+/** 画布设置页卡片：分组「视图」+「自动归档」（均本地持久化）。 */
 export function CanvasSettingsCard() {
   const [enabled, setEnabled] = useState<boolean>(getCanvasEnabled() ?? true)
   const [backgroundId, setBackgroundId] = useState<string>(getCanvasBackgroundId() ?? DEFAULT_BACKGROUND_ID)
@@ -83,14 +90,17 @@ export function CanvasSettingsCard() {
     'div',
     { 'data-dsh-canvas-settings-column': '', style: { padding: '8px 0' } },
     [
-      // 组一 · 启用
-      createElement('div', { key: 'group-enabled', 'data-dsh-settings-group': 'enabled', style: GROUP }, [
-        createElement('h4', { key: 'title', style: GROUP_TITLE }, '启用'),
+      // 组一 · 视图（开关 + 背景风格）
+      createElement('div', { key: 'group-view', 'data-dsh-settings-group': 'view', style: GROUP }, [
+        createElement('h4', { key: 'title', style: GROUP_TITLE }, '视图'),
         createElement(
           'label',
-          { style: { display: 'flex', alignItems: 'center', gap: 8, cursor: 'pointer', fontSize: 14 } },
+          { key: 'canvas-enabled', style: { display: 'flex', alignItems: 'center', gap: 10, cursor: 'pointer', fontSize: 14 } },
           [
-            createElement('span', { key: 'text' }, '画布视图'),
+            createElement('span', { key: 'text', style: { flex: 1 } }, [
+              createElement('span', { key: 'name', style: { display: 'block' } }, '画布视图'),
+              createElement('span', { key: 'desc', style: STYLE_DESC }, '在工作区中显示画布入口'),
+            ]),
             createElement('input', {
               key: 'switch',
               type: 'checkbox',
@@ -100,87 +110,31 @@ export function CanvasSettingsCard() {
             }),
           ],
         ),
+        ...(enabled
+          ? [
+            createElement('h5', { key: 'background-title', style: SUBTITLE }, '画布背景风格'),
+            ...CANVAS_BACKGROUND_STYLES.map((style) => createElement(
+              'label',
+              { key: style.id, style: STYLE_OPTION, 'data-dsh-background-setting': style.id },
+              [
+                createElement('input', {
+                  key: 'radio',
+                  type: 'radio',
+                  name: 'canvas-background',
+                  checked: style.id === backgroundId,
+                  onChange: () => pickStyle(style.id),
+                }),
+                createElement('span', { key: 'name', style: STYLE_NAME }, style.name),
+                createElement('span', { key: 'desc', style: STYLE_DESC }, style.description),
+              ],
+            )),
+          ]
+          : []),
       ]),
-      // 组二 · 画布背景风格（单选，来自注册表）
-      createElement('div', { key: 'group-background', 'data-dsh-settings-group': 'background', style: GROUP }, [
-        createElement('h4', { key: 'title', style: GROUP_TITLE }, '画布背景风格'),
-        ...CANVAS_BACKGROUND_STYLES.map((style) => createElement(
-          'label',
-          { key: style.id, style: STYLE_OPTION, 'data-dsh-background-setting': style.id },
-          [
-            createElement('input', {
-              key: 'radio',
-              type: 'radio',
-              name: 'canvas-background',
-              checked: style.id === backgroundId,
-              onChange: () => pickStyle(style.id),
-            }),
-            createElement('span', { key: 'name', style: STYLE_NAME }, style.name),
-            createElement('span', { key: 'desc', style: STYLE_DESC }, style.description),
-          ],
-        )),
-      ]),
-      // 组三 · 自动归档（005：全局默认，即改即存）
+      // 组二 · 自动归档策略（005：全局默认，即改即存）
       createElement('div', { key: 'group-archive', 'data-dsh-settings-group': 'archive', style: GROUP }, [
         createElement('h4', { key: 'title', style: GROUP_TITLE }, '自动归档'),
-        createElement(
-          'label',
-          { key: 'enabled', style: { display: 'flex', alignItems: 'center', gap: 8, cursor: 'pointer', fontSize: 14 } },
-          [
-            createElement('span', { key: 'text' }, '启用自动归档'),
-            createElement('input', {
-              key: 'switch',
-              type: 'checkbox',
-              'data-dsh-archive-enabled': '',
-              checked: archive.enabled,
-              onChange: () => patchArchive({ enabled: !archive.enabled }),
-            }),
-          ],
-        ),
-        createElement(
-          'label',
-          { key: 'idle', style: { display: 'flex', alignItems: 'center', gap: 8, marginTop: 6, fontSize: 13 } },
-          [
-            createElement('span', { key: 'text' }, '闲置时长'),
-            createElement('input', {
-              key: 'input',
-              type: 'number',
-              min: 1,
-              'data-dsh-archive-idle-days': '',
-              value: archive.idleDays,
-              onChange: (event) => patchArchive({ idleDays: Number(event.currentTarget.value) || 1 }),
-              style: { width: 70, padding: '2px 6px', fontSize: 13 },
-            }),
-            createElement('select', {
-              key: 'unit',
-              'data-dsh-archive-idle-unit': '',
-              value: archive.idleUnit ?? 'day',
-              onChange: (event: { currentTarget: { value: string } }) => patchArchive({ idleUnit: event.currentTarget.value as 'day' | 'hour' | 'minute' }),
-              style: { padding: '2px 4px', fontSize: 13 },
-            }, [
-              createElement('option', { key: 'day', value: 'day' }, '天'),
-              createElement('option', { key: 'hour', value: 'hour' }, '小时'),
-              createElement('option', { key: 'minute', value: 'minute' }, '分钟'),
-            ]),
-          ],
-        ),
-        createElement(
-          'label',
-          { key: 'max', style: { display: 'flex', alignItems: 'center', gap: 8, marginTop: 6, fontSize: 13 } },
-          [
-            createElement('span', { key: 'text' }, '会话数上限'),
-            createElement('input', {
-              key: 'input',
-              type: 'number',
-              min: 0,
-              'data-dsh-archive-max-sessions': '',
-              value: archive.maxSessions,
-              onChange: (event) => patchArchive({ maxSessions: Math.max(0, Number(event.currentTarget.value) || 0) }),
-              style: { width: 70, padding: '2px 6px', fontSize: 13 },
-            }),
-            createElement('span', { key: 'hint', style: { fontSize: 11, color: 'var(--dsw-alias-label-tertiary)' } }, '0=不限'),
-          ],
-        ),
+        createElement(ArchivePolicyFields, { key: 'policy', config: archive, onPatch: patchArchive, dataPrefix: 'global' }),
       ]),
     ],
   )
@@ -189,6 +143,49 @@ export function CanvasSettingsCard() {
 /** 画布设置页导航 tab 标签（本地化；随挂载语言取字典）。 */
 export function canvasSettingsLabel(): string {
   return dictionary()['canvas.settings'] ?? '工作区'
+}
+
+const FOLDER_ICON_SVG = '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="black" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 5a2 2 0 0 1 2-2h4l2 2h8a2 2 0 0 1 2 2v10a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/><path d="M3 8h18"/></svg>'
+const FOLDER_ICON_MASK = `data:image/svg+xml,${encodeURIComponent(FOLDER_ICON_SVG)}`
+
+/** 将设置导航默认齿轮替换为文件夹图标；返回值绑定到插件 fiber。 */
+export function installCanvasNavIconOverride(): () => void {
+  const style = document.createElement('style')
+  style.dataset.plugin = 'dsh-workspace-canvas'
+  style.textContent = `
+[data-dsh-workspace-nav] > svg { display: none; }
+[data-dsh-workspace-nav]::before {
+  content: '';
+  display: inline-block;
+  width: 16px;
+  height: 16px;
+  flex: none;
+  vertical-align: -3px;
+  background-color: currentColor;
+  -webkit-mask: url("${FOLDER_ICON_MASK}") center / contain no-repeat;
+  mask: url("${FOLDER_ICON_MASK}") center / contain no-repeat;
+}
+`
+  document.head.appendChild(style)
+
+  const mark = (): void => {
+    const label = canvasSettingsLabel()
+    for (const button of document.querySelectorAll<HTMLElement>('button')) {
+      if (button.hasAttribute('data-dsh-workspace-nav')) continue
+      // 只匹配宿主导航按钮：画布卡片即使包含同名文本，也不会被替换图标。
+      if (button.querySelector('svg') === null) continue
+      if (button.textContent?.trim() === label) button.setAttribute('data-dsh-workspace-nav', '')
+    }
+  }
+  const observer = new MutationObserver(mark)
+  observer.observe(document.body, { childList: true, subtree: true })
+  mark()
+
+  return () => {
+    observer.disconnect()
+    document.querySelectorAll('[data-dsh-workspace-nav]').forEach((node) => node.removeAttribute('data-dsh-workspace-nav'))
+    style.remove()
+  }
 }
 
 /** 注册画布设置页到官方设置面（settings.section）；返回 disposer。 */

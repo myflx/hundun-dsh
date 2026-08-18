@@ -66,6 +66,10 @@ describe('画布操作栏（对齐 hundun-web：缩小/重置/放大/刷新/背�
       expect(btn.querySelector('svg')).not.toBeNull()
       expect(btn.textContent?.trim() ?? '').toBe('')
     }
+    // 背景按钮与其余操作按钮一致，默认不携带亮色内联覆盖。
+    const backgroundButton = bar!.querySelector<HTMLButtonElement>('[data-dsh-action-background]')
+    expect(backgroundButton!.style.color).toBe('')
+    expect([...container.querySelectorAll('style')].some((style) => style.textContent?.includes('[data-dsh-action-bar] button { color: var(--dsw-alias-label-tertiary)'))).toBe(true)
     // 图标语义 aria-label（悬停提示）
     expect(bar!.querySelector('[data-dsh-action-zoom-out]')?.getAttribute('aria-label')).toBe('缩小')
     expect(bar!.querySelector('[data-dsh-action-reset]')?.getAttribute('aria-label')).toBe('重置视图')

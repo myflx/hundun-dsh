@@ -169,6 +169,7 @@ describe('双击进入新会话（T012/T014，双击进入）', () => {
     await act(async () => { vi.advanceTimersByTime(300) }) // 单击延迟 250ms
     expect(startSession).not.toHaveBeenCalled() // 单击不进入会话
     expect(container.querySelector('[data-dsh-canvas-detail]')).not.toBeNull() // 自动弹详情
+    expect(card!.style.zIndex).toBe('10') // 选中的工作区置顶
     await act(async () => root.unmount())
     vi.useRealTimers()
   })
@@ -199,6 +200,7 @@ describe('拖拽落位防重叠（强行拖到一起也被推挤）', () => {
     await act(async () => {
       cardA.dispatchEvent(new PointerEvent('pointerdown', { bubbles: true, button: 0, clientX: 20, clientY: 20 }))
     })
+    expect(cardA.style.zIndex).toBe('10') // 拖动中的工作区置顶
     await act(async () => {
       cardA.dispatchEvent(new PointerEvent('pointermove', { bubbles: true, button: 0, clientX: 228, clientY: 12 }))
     })

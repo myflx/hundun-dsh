@@ -4,17 +4,20 @@
  * 三块区域（卡片式明显划分）：身份区（顶行，大字号标题 + 最近活跃徽标）→ 基本信息区
  * （目录 / 路径 / 工作区 ID，键值对）→ 会话信息区（会话数量列表：总数/活跃/归档/运行中）。
  * 随机码（workspaceId）不再裸显示：无标题时用路径文件夹名（workspace-title），路径也缺时
- * 才回退「未命名工作区」；ID 以「工作区 ID」标签 + 说明呈现，支持复制。
+ * 才回退「未命名工作区」；基本信息右值支持点击复制。
  * 样式全部走系统令牌（背景分层 / 边框 / primary-secondary-tertiary 文字色）。
  */
 import { createElement, useEffect, useRef, useState } from 'react'
 import { folderName, workspaceDisplayTitle } from './workspace-title.ts'
 import {
+  getGlobalArchiveConfig,
   getWorkspaceArchiveSetting,
+  resolveArchiveConfig,
   setWorkspaceArchiveSetting,
   subscribeArchiveConfig,
   type WorkspaceArchiveSetting,
 } from '../../archive-store.ts'
+import { ArchivePolicyFields } from '../../archive-controls.tsx'
 
 export interface WorkspaceDetailProps {
   /** feed 投影实例（标题/路径/会话数/工作区 ID 来自官方数据）。 */
@@ -42,9 +45,10 @@ const SECTION_TITLE: React.CSSProperties = {
   textTransform: 'uppercase',
   letterSpacing: 0.4,
 }
-const KV: React.CSSProperties = { display: 'flex', alignItems: 'flex-start', gap: 10, margin: '5px 0', fontSize: 13 }
+const KV: React.CSSProperties = { display: 'flex', alignItems: 'flex-start', gap: 2, margin: '5px 0', fontSize: 13 }
 const LABEL: React.CSSProperties = {
-  flex: '0 0 64px',
+  flex: '0 0 70px',
+  whiteSpace: 'nowrap',
   color: 'var(--dsw-alias-label-tertiary)',
   lineHeight: '20px',
 }
@@ -65,32 +69,22 @@ const BADGE: React.CSSProperties = {
   background: 'color-mix(in srgb, var(--dsw-alias-state-business-primary) 14%, transparent)',
   border: '1px solid color-mix(in srgb, var(--dsw-alias-state-business-primary) 40%, transparent)',
 }
-const ID_ROW: React.CSSProperties = { display: 'flex', alignItems: 'flex-start', gap: 8, margin: '5px 0', fontSize: 13 }
-const CODE: React.CSSProperties = {
-  flex: 1,
-  minWidth: 0,
-  padding: '2px 8px',
-  fontSize: 12,
-  lineHeight: '20px',
-  color: 'var(--dsw-alias-label-primary)',
-  background: 'var(--dsw-alias-bg-layer-2)',
-  border: '1px solid var(--dsw-alias-border-l2)',
+const COPY_ROW: React.CSSProperties = {
+  ...KV,
+  width: '100%',
+  padding: '4px 6px',
+  border: 0,
   borderRadius: 4,
-  wordBreak: 'break-all',
-  fontFamily: 'ui-monospace, SFMono-Regular, Consolas, monospace',
-}
-const COPY_BTN: React.CSSProperties = {
-  flex: '0 0 auto',
-  padding: '1px 10px',
-  fontSize: 12,
-  lineHeight: '20px',
+  color: 'inherit',
+  background: 'transparent',
+  textAlign: 'left',
   cursor: 'pointer',
-  color: 'var(--dsw-alias-label-secondary)',
-  background: 'var(--dsw-alias-bg-layer-2)',
-  border: '1px solid var(--dsw-alias-border-l2)',
-  borderRadius: 4,
 }
-const HINT: React.CSSProperties = { margin: '4px 0 0', fontSize: 12, color: 'var(--dsw-alias-label-tertiary)' }
+const COPY_STATUS: React.CSSProperties = {
+  flex: '0 0 auto',
+  fontSize: 11,
+  color: 'var(--dsw-alias-state-business-primary)',
+}
 const TABLE: React.CSSProperties = {
   width: '100%',
   margin: '4px 0',
@@ -119,29 +113,20 @@ const TD_RUNNING: React.CSSProperties = {
 
 /** 工作区明细：身份区 / 基本信息区 / 标识区；ID 语义化 + 复制。 */
 export function WorkspaceDetail({ view, recent, sessionStats }: WorkspaceDetailProps) {
-  const [copied, setCopied] = useState<boolean>(false)
+  const [copied, setCopied] = useState<string | null>(null)
+  const dirRef = useRef<HTMLElement | null>(null)
+  const pathRef = useRef<HTMLElement | null>(null)
   const idRef = useRef<HTMLElement | null>(null)
 
   // 复制成功提示 1.5s 后自动复位；组件卸载时清理 timer（fiber 回收）。
   useEffect(() => {
     if (!copied) return
-    const timer = setTimeout(() => setCopied(false), 1500)
+    const timer = setTimeout(() => setCopied(null), 1500)
     return () => clearTimeout(timer)
   }, [copied])
 
-  const copyId = (): void => {
-    // 剪贴板可用 → 复制并反馈；被拒绝 → 降级全选文本（手动 Ctrl+C）。
-    if (navigator.clipboard !== undefined) {
-      navigator.clipboard.writeText(view.workspaceId).then(
-        () => setCopied(true),
-        () => selectIdText(),
-      )
-      return
-    }
-    selectIdText()
-  }
-  const selectIdText = (): void => {
-    const el = idRef.current
+  const selectText = (ref: { current: HTMLElement | null }): void => {
+    const el = ref.current
     if (el === null) return
     const range = document.createRange()
     range.selectNodeContents(el)
@@ -150,6 +135,16 @@ export function WorkspaceDetail({ view, recent, sessionStats }: WorkspaceDetailP
       selection.removeAllRanges()
       selection.addRange(range)
     }
+  }
+  const copyValue = (key: string, value: string, ref: { current: HTMLElement | null }): void => {
+    if (navigator.clipboard !== undefined) {
+      navigator.clipboard.writeText(value).then(
+        () => setCopied(key),
+        () => selectText(ref),
+      )
+      return
+    }
+    selectText(ref)
   }
 
   // 标题：自定义标题 → 路径文件夹名 → 「未命名工作区」（不裸显示随机码）
@@ -164,8 +159,10 @@ export function WorkspaceDetail({ view, recent, sessionStats }: WorkspaceDetailP
     [view.workspaceId],
   )
   const archiveMode = archiveSetting?.mode ?? 'default'
+  const effectiveArchive = resolveArchiveConfig(getGlobalArchiveConfig(), archiveSetting)
   const patchArchive = (patch: Partial<WorkspaceArchiveSetting>): void => {
     const next: WorkspaceArchiveSetting = { ...archiveSetting, ...patch, mode: 'custom' }
+    setArchiveSetting(next)
     setWorkspaceArchiveSetting(view.workspaceId, next)
   }
 
@@ -187,25 +184,23 @@ export function WorkspaceDetail({ view, recent, sessionStats }: WorkspaceDetailP
       // 区域二 · 基本信息区（卡片）：仅 目录 / 路径 / 工作区 ID
       createElement('section', { key: 'info', 'data-dsh-ws-section': 'info', style: CARD }, [
         createElement('h4', { key: 'label', style: SECTION_TITLE }, '基本信息'),
-        createElement('div', { key: 'dir', style: KV }, [
-          createElement('span', { key: 'k', style: LABEL }, '目录'),
-          // 目录 = 路径的文件夹名（bugfix：不是工作区显示标题；标题在顶行身份区展示）
-          createElement('span', { key: 'v', style: VALUE }, folderName(view.path) !== '' ? folderName(view.path) : '未知目录'),
+        createElement('button', { key: 'dir', type: 'button', 'data-dsh-ws-copy-row': 'directory', onClick: () => copyValue('directory', folderName(view.path) !== '' ? folderName(view.path) : '未知目录', dirRef), style: COPY_ROW }, [
+          createElement('span', { key: 'k', style: LABEL }, '目录名：'),
+          createElement('span', { key: 'v', ref: dirRef, style: VALUE }, folderName(view.path) !== '' ? folderName(view.path) : '未知目录'),
+          copied === 'directory' ? createElement('span', { key: 'status', style: COPY_STATUS }, '已复制') : null,
         ]),
-        createElement('div', { key: 'path', style: KV }, [
-          createElement('span', { key: 'k', style: LABEL }, '路径'),
-          createElement('span', { key: 'v', style: VALUE }, view.path.trim() === '' ? '未知路径' : view.path),
+        createElement('button', { key: 'path', type: 'button', 'data-dsh-ws-copy-row': 'path', onClick: () => copyValue('path', view.path.trim() === '' ? '未知路径' : view.path, pathRef), style: COPY_ROW }, [
+          createElement('span', { key: 'k', style: LABEL }, '绝对路径：'),
+          createElement('span', { key: 'v', ref: pathRef, style: VALUE }, view.path.trim() === '' ? '未知路径' : view.path),
+          copied === 'path' ? createElement('span', { key: 'status', style: COPY_STATUS }, '已复制') : null,
         ]),
-        createElement('div', { key: 'id', style: ID_ROW }, [
-          createElement('span', { key: 'k', style: LABEL }, '工作区 ID'),
-          createElement('code', { key: 'v', ref: idRef, style: CODE, 'data-dsh-ws-id': '' }, view.workspaceId),
-          createElement(
-            'button',
-            { key: 'copy', type: 'button', 'data-dsh-ws-copy': '', onClick: copyId, style: COPY_BTN },
-            copied ? '已复制' : '复制',
-          ),
+        createElement('button', { key: 'id', type: 'button', 'data-dsh-ws-copy-row': 'workspace-id', onClick: () => copyValue('workspace-id', view.workspaceId, idRef), style: COPY_ROW }, [
+          createElement('span', { key: 'k', style: LABEL }, [
+            createElement('span', { key: 'name', style: { display: 'block' } }, '工作区ID：'),
+          ]),
+          createElement('span', { key: 'v', ref: idRef, style: { ...VALUE, fontFamily: 'ui-monospace, SFMono-Regular, Consolas, monospace' }, 'data-dsh-ws-id': '' }, view.workspaceId),
+          copied === 'workspace-id' ? createElement('span', { key: 'status', style: COPY_STATUS }, '已复制') : null,
         ]),
-        createElement('p', { key: 'hint', style: HINT }, '内部标识，用于唯一区分工作区；不会随标题重命名改变。'),
       ]),
       // 区域三 · 会话信息区（卡片）：会话数量列表（总数 / 活跃 / 归档 / 运行中）
       createElement('section', { key: 'sessions-card', 'data-dsh-ws-section': 'sessions', style: CARD }, [
@@ -268,66 +263,7 @@ export function WorkspaceDetail({ view, recent, sessionStats }: WorkspaceDetailP
           ? createElement(
             'div',
             { key: 'custom-fields', 'data-dsh-ws-archive-custom': '', style: { marginTop: 6 } },
-            [
-              createElement(
-                'label',
-                { key: 'enabled', style: { display: 'flex', alignItems: 'center', gap: 8, cursor: 'pointer', fontSize: 13 } },
-                [
-                  createElement('span', { key: 'text' }, '启用自动归档'),
-                  createElement('input', {
-                    key: 'switch',
-                    type: 'checkbox',
-                    'data-dsh-ws-archive-enabled': '',
-                    checked: archiveSetting?.enabled ?? false,
-                    onChange: () => patchArchive({ enabled: !(archiveSetting?.enabled ?? false) }),
-                  }),
-                ],
-              ),
-              createElement(
-                'label',
-                { key: 'idle', style: { display: 'flex', alignItems: 'center', gap: 8, marginTop: 6, fontSize: 13 } },
-                [
-                  createElement('span', { key: 'text' }, '闲置时长'),
-                  createElement('input', {
-                    key: 'input',
-                    type: 'number',
-                    min: 1,
-                    'data-dsh-ws-archive-idle-days': '',
-                    value: archiveSetting?.idleDays ?? 30,
-                    onChange: (event) => patchArchive({ idleDays: Number(event.currentTarget.value) || 1 }),
-                    style: { width: 64, padding: '2px 6px', fontSize: 13 },
-                  }),
-                  createElement('select', {
-                    key: 'unit',
-                    'data-dsh-ws-archive-idle-unit': '',
-                    value: archiveSetting?.idleUnit ?? 'day',
-                    onChange: (event: { currentTarget: { value: string } }) => patchArchive({ idleUnit: event.currentTarget.value as 'day' | 'hour' | 'minute' }),
-                    style: { padding: '2px 4px', fontSize: 13 },
-                  }, [
-                    createElement('option', { key: 'day', value: 'day' }, '天'),
-                    createElement('option', { key: 'hour', value: 'hour' }, '小时'),
-                    createElement('option', { key: 'minute', value: 'minute' }, '分钟'),
-                  ]),
-                ],
-              ),
-              createElement(
-                'label',
-                { key: 'max', style: { display: 'flex', alignItems: 'center', gap: 8, marginTop: 6, fontSize: 13 } },
-                [
-                  createElement('span', { key: 'text' }, '会话数上限'),
-                  createElement('input', {
-                    key: 'input',
-                    type: 'number',
-                    min: 0,
-                    'data-dsh-ws-archive-max-sessions': '',
-                    value: archiveSetting?.maxSessions ?? 0,
-                    onChange: (event) => patchArchive({ maxSessions: Math.max(0, Number(event.currentTarget.value) || 0) }),
-                    style: { width: 64, padding: '2px 6px', fontSize: 13 },
-                  }),
-                  createElement('span', { key: 'hint', style: { fontSize: 11, color: 'var(--dsw-alias-label-tertiary)' } }, '0=不限'),
-                ],
-              ),
-            ],
+            createElement(ArchivePolicyFields, { key: 'policy', config: effectiveArchive, onPatch: patchArchive, dataPrefix: 'workspace' }),
           )
           : null,
       ]),

@@ -3,7 +3,7 @@
  *
  * 组合渲染：类型所有者 detail（若有）+ 扩展区块（registerNodeDetailSection，
  * 按 order 排序，由调用方合并）。面板在画布视图内部右侧固定列；
- * **宽度有限调节**：左侧边缘拖拽手柄可调整宽度（默认 360，范围 240–560）。
+ * **宽度有限调节**：左侧边缘拖拽手柄可调整宽度（默认 420，范围 240–560）。
  */
 import { createElement, useRef, useState } from 'react'
 import type { ComponentType, PointerEvent as ReactPointerEvent } from 'react'
@@ -26,7 +26,7 @@ export interface DetailPanelProps {
 /** 详情框宽度范围（有限调节）。默认加宽：工作区 ID 一行摊开不换行；可拉伸范围放宽。 */
 export const DETAIL_WIDTH_MIN = 240
 export const DETAIL_WIDTH_MAX = 560
-export const DETAIL_WIDTH_DEFAULT = 360
+export const DETAIL_WIDTH_DEFAULT = 420
 
 /** 拖拽手柄样式（左侧边缘，竖条）。 */
 const RESIZE_HANDLE_STYLE: React.CSSProperties = {
@@ -74,6 +74,7 @@ export function DetailPanel({ node, instance, doc, ownerDetail, sections, title,
     overflowY: 'auto',
     // 显式文字色走系统令牌（避免在画布浮层上下文继承浅色导致白字白底）
     color: 'var(--dsw-alias-label-primary)',
+    cursor: 'default',
   }
 
   const onPanelPointerDown = (event: ReactPointerEvent<HTMLDivElement>): void => {

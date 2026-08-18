@@ -5,7 +5,7 @@
  * 跨页 storage 事件。两类配置：
  * - 全局默认（AutoArchiveConfig）：设置页「归档」分组读写；
  * - 工作区自定义（WorkspaceArchiveSetting）：详情框归档区读写，按 workspaceId 键存。
- * 解析优先级：工作区自定义 > 全局默认 > 内置默认（关闭 / 30 天 / 不限会话数）。
+ * 解析优先级：工作区自定义 > 全局默认 > 内置默认（关闭 / 30 天 / 最多保留 30 个会话）。
  */
 export const ARCHIVE_CONFIG_KEY = 'dsh.workspaceCanvas.archive'
 export const ARCHIVE_WORKSPACES_KEY = 'dsh.workspaceCanvas.archive.workspaces'
@@ -67,7 +67,7 @@ export interface AutoArchiveConfig {
 }
 
 /** 内置默认（全局未设置时）。默认关闭（安全，不静默改动用户会话）。 */
-export const ARCHIVE_DEFAULT: AutoArchiveConfig = { enabled: false, idleDays: 30, idleUnit: 'day', maxSessions: 0 }
+export const ARCHIVE_DEFAULT: AutoArchiveConfig = { enabled: false, idleDays: 30, idleUnit: 'day', maxSessions: 30 }
 
 /** 把闲置时长换算为毫秒（按单位：天 / 小时 / 分钟）。 */
 export function idleMsOf(config: Pick<AutoArchiveConfig, 'idleDays' | 'idleUnit'>): number {
