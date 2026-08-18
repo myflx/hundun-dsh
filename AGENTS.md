@@ -20,7 +20,7 @@ node scripts/aggregate.mjs --check   # 校验未漂移（CI 用）
 node scripts/plugin-new.mjs <name> --description "..."   # 脚手架新插件
 ```
 
-## 单插件包结构（以 dsh-hello 为模板）
+## 单插件包结构（模板见 templates/plugin，示例见 packages/dsh-workspace-canvas）
 
 ```
 packages/dsh-<name>/
@@ -56,9 +56,9 @@ packages/dsh-<name>/
 
 ```yaml
 patchFrom:
-  - ../dsh-hello        # 贡献其 cordis.patch.yml 的 insert 行
+  - ../dsh-workspace-canvas  # 贡献其 cordis.patch.yml 的 insert 行
 deps:
-  - ../dsh-hello        # 写入聚合包 dependencies: workspace:*
+  - ../dsh-workspace-canvas  # 写入聚合包 dependencies: workspace:*
 ```
 
 `node scripts/aggregate.mjs` 扫描 `packages/*` 下带 `aggregate.yml` 的包，重写其

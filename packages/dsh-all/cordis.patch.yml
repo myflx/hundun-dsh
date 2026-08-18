@@ -7,11 +7,6 @@
     - id: hundun-all
       name: '@hundun/dsh-all'
 
-# from ../dsh-hello
-- insert:
-    - id: hundun-hello
-      name: '@hundun/dsh-hello'
-
 # from ../dsh-workspace-canvas
 - insert:
     - id: hundun-workspace-canvas

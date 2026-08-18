@@ -1,10 +1,8 @@
 # hundun-dsh 聚合载包清单（手写；cordis.patch.yml 与 package.json 的
 # dependencies 由 scripts/aggregate.mjs 据此生成，勿手改生成物）。
 patchFrom:
-  - ../dsh-hello
   - ../dsh-workspace-canvas
 deps:
-  - ../dsh-hello
   - ../dsh-workspace-canvas
 # 聚合包自身作为插件行加载（宿主半区空 apply；设置页由各功能插件自持）。
 self:

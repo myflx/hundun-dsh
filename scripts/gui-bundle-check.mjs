@@ -1,5 +1,5 @@
 /**
- * 检查运行中的 dsh web 是否已加载新增 bundle（dsh-hello / dsh-all）。
+ * 检查运行中的 dsh web 是否已加载新增 bundle（dsh-all / dsh-workspace-canvas）。
  * 用法：
  *   $env:NODE_PATH = "C:\Users\luoshanglin\AppData\Roaming\npm\node_modules"
  *   node scripts/gui-bundle-check.mjs
@@ -24,7 +24,6 @@ const facts = await page.evaluate(() => {
   return {
     hasLoader: !!loader,
     idCount: Array.isArray(ids) ? ids.length : (ids ? 'non-array' : null),
-    hasHello: Array.isArray(ids) ? ids.some((i) => String(i).includes('hundun-hello') || String(i).includes('dsh-hello')) : null,
     hasAll: Array.isArray(ids) ? ids.some((i) => String(i).includes('hundun-all') || String(i).includes('dsh-all')) : null,
     hasCanvas: Array.isArray(ids) ? ids.some((i) => String(i).includes('hundun-canvas') || String(i).includes('workspace-canvas')) : null,
     sampleIds: Array.isArray(ids) ? ids.slice(0, 12) : null,

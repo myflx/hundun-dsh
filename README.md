@@ -18,13 +18,15 @@
 
 - 画布设置页（`settings.section`「workspace-canvas」）：启用开关 / 背景风格 / 自动归档，分组展示；设置归功能插件自持，不再依赖聚合包骨架
 
-### 👋 示例插件（dsh-hello）
-
-- 宿主问候工具 `hello_greet` + 侧边栏问候按钮，演示一个标准插件包的两个扩展面
-
 ## 截图
 
-> 待补充：工作区画布视图、详情框、背景风格切换等截图。
+**工作区画布视图**：侧边栏搜索框一键打开，全部工作区渲染为可拖拽卡片，支持缩放 / 平移与背景风格切换。
+
+![工作区画布视图](docs/workspace-canvas-vision.png)
+
+**画布设置页**：启用开关 / 背景风格 / 自动归档，分组展示（`settings.section`「workspace-canvas」）。
+
+![画布设置页](docs/workspace-setting.png)
 
 ## 快速开始（开发）
 
@@ -61,7 +63,6 @@ node scripts/aggregate.mjs --check   # 校验聚合补丁与依赖未漂移
 | --- | --- |
 | `@hundun/dsh-workspace-canvas` | 工作区画布视图（本仓库主插件） |
 | `@hundun/dsh-all` | 聚合载包：一键装配全部插件（设置页由各功能插件自持） |
-| `@hundun/dsh-hello` | 示例插件：问候工具 + 侧边栏按钮 |
 
 ## 开发
 
@@ -78,7 +79,6 @@ hundun-dsh/
 ├── templates/plugin/       # 插件包模板（宿主工具 + 客户端槽位 UI 的完整最小示例）
 └── packages/
     ├── dsh-workspace-canvas/  # 工作区画布
-    ├── dsh-hello/             # 示例插件
     └── dsh-all/               # 聚合载包
 ```
 
@@ -104,10 +104,10 @@ node scripts/aggregate.mjs   # 把新插件并入聚合包 dsh-all
 
 hundun 开源系列规划：
 
-- [x] **第一个项目 · hundun-dsh**：工作区画布 + 聚合插件框架（本仓库）
-- [ ] 编排画布：在工作区内放置 agent 预设 / 任务 / 通道等节点，跨插件注册扩展
-- [ ] 更多工作流插件：画布编排的配套工具
+- [x] step.1 **· hundun-dsh**：工作区管理(画布视图、会话自动归档) + 聚合插件框架（本仓库）
+- [ ] step.2 hundun生态： agent presets/ agent instance / task / chanel/ 跨插件注册&扩展
+- [ ] step.3 更多工作流插件：画布编排的配套工具
 
 ## 许可
 
-Apache-2.0（见 [LICENSE](./LICENSE)）。共享构建预设派生自 dsh-web-ui（Apache-2.0，其源出 DeepSeek Harness 官方 client 构建），派生声明见 LICENSE。
+Apache-2.0（见 [LICENSE](./LICENSE)）。（Apache-2.0，其源出 DeepSeek Harness 官方 client 构建），派生声明见 LICENSE。

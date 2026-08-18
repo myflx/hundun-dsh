@@ -4,6 +4,7 @@ import { afterEach, describe, expect, it, vi } from 'vitest'
 import { CanvasDocumentStore } from '../src/client/canvas/document.ts'
 import { ContextMenu, MENU_ITEM_ICONS } from '../src/client/canvas/menu.ts'
 import { CanvasRegistryImpl } from '../src/client/canvas/registry.ts'
+import { ConfirmDialog } from '../src/client/canvas/CanvasView.tsx'
 import { workspaceActions } from '../src/client/canvas/workspace-actions.ts'
 
 function makeCtx(): any {
@@ -45,7 +46,7 @@ describe('工作区内置动作（T024）', () => {
     const confirm = vi.fn(() => true)
     const actions = workspaceActions({ ctx, store, doc: store.read(), confirm })
     await actions.find((a) => a.id === 'delete')!.run(wsNode(), store.read())
-    expect(confirm).toHaveBeenCalledWith(expect.stringContaining('1 个成员'))
+    expect(confirm).toHaveBeenCalledWith(expect.objectContaining({ title: '删除工作区', description: expect.stringContaining('1 个成员'), confirmLabel: '删除（级联）', danger: true }))
     expect(store.read().nodes.some((n) => n.id === 'm1')).toBe(false)
     expect(ctx.workspaces.delete).toHaveBeenCalledWith('ws-1')
   })
@@ -74,22 +75,72 @@ describe('工作区内置动作（T024）', () => {
     })
     await actions.find((a) => a.id === 'delete')!.run(wsNode(), store.read())
     expect(ctx.workspaces.archiveSession).toHaveBeenCalledTimes(2) // 先归档
-    expect(confirm).toHaveBeenCalledWith(expect.stringContaining('归档其 2 个会话'))
+    expect(confirm).toHaveBeenCalledWith(expect.objectContaining({ description: expect.stringContaining('归档其 2 个会话') }))
     expect(ctx.workspaces.delete).toHaveBeenCalledWith('ws-1') // 再删除
   })
 
-  it('归档：对该工作区每个会话调 archiveSession（成功逐项归档）', async () => {
+  it('全部归档：二次确认（列出未归档会话数）→ 逐项调 archiveSession', async () => {
     const ctx = makeCtx()
+    const confirm = vi.fn(() => true)
     const actions = workspaceActions({
       ctx,
       store: new CanvasDocumentStore(localStorage),
       doc: emptyDoc(),
       view: { sessionIds: ['s1', 's2'] },
+      confirm,
     })
     await actions.find((a) => a.id === 'archive')!.run(wsNode(), emptyDoc())
+    expect(confirm).toHaveBeenCalledWith(expect.objectContaining({ title: '全部归档', description: '确认归档全部 2 个会话？', confirmLabel: '全部归档' }))
     expect(ctx.workspaces.archiveSession).toHaveBeenCalledTimes(2)
     expect(ctx.workspaces.archiveSession).toHaveBeenCalledWith('s1')
     expect(ctx.workspaces.archiveSession).toHaveBeenCalledWith('s2')
+  })
+
+  it('全部归档：已归档会话不计入确认数量，且不重复归档（未归档数语义）', async () => {
+    const ctx = makeCtx()
+    const confirm = vi.fn(() => true)
+    const actions = workspaceActions({
+      ctx,
+      store: new CanvasDocumentStore(localStorage),
+      doc: emptyDoc(),
+      view: { sessionIds: ['s1', 's2', 's3'], archivedSessionIds: ['s2'] },
+      confirm,
+    })
+    await actions.find((a) => a.id === 'archive')!.run(wsNode(), emptyDoc())
+    expect(confirm).toHaveBeenCalledWith(expect.objectContaining({ description: '确认归档全部 2 个会话？' }))
+    expect(ctx.workspaces.archiveSession).toHaveBeenCalledTimes(2)
+    expect(ctx.workspaces.archiveSession).toHaveBeenCalledWith('s1')
+    expect(ctx.workspaces.archiveSession).toHaveBeenCalledWith('s3')
+  })
+
+  it('全部归档取消：不调官方 archiveSession', async () => {
+    const ctx = makeCtx()
+    const confirm = vi.fn(() => false)
+    const actions = workspaceActions({
+      ctx,
+      store: new CanvasDocumentStore(localStorage),
+      doc: emptyDoc(),
+      view: { sessionIds: ['s1', 's2'] },
+      confirm,
+    })
+    await actions.find((a) => a.id === 'archive')!.run(wsNode(), emptyDoc())
+    expect(confirm).toHaveBeenCalled()
+    expect(ctx.workspaces.archiveSession).not.toHaveBeenCalled()
+  })
+
+  it('全部归档：无会话时直接跳过（不弹确认、不调 API）', async () => {
+    const ctx = makeCtx()
+    const confirm = vi.fn(() => true)
+    const actions = workspaceActions({
+      ctx,
+      store: new CanvasDocumentStore(localStorage),
+      doc: emptyDoc(),
+      view: { sessionIds: [] },
+      confirm,
+    })
+    await actions.find((a) => a.id === 'archive')!.run(wsNode(), emptyDoc())
+    expect(confirm).not.toHaveBeenCalled()
+    expect(ctx.workspaces.archiveSession).not.toHaveBeenCalled()
   })
 
   it('归档失败 → onNotify 提示且不再继续（不静默）', async () => {
@@ -102,6 +153,7 @@ describe('工作区内置动作（T024）', () => {
       doc: emptyDoc(),
       view: { sessionIds: ['s1', 's2'] },
       onNotify,
+      confirm: () => true,
     })
     await actions.find((a) => a.id === 'archive')!.run(wsNode(), emptyDoc())
     expect(onNotify).toHaveBeenCalledWith('归档会话失败：gone')
@@ -113,6 +165,35 @@ describe('工作区内置动作（T024）', () => {
     const actions = workspaceActions({ ctx: makeCtx(), store: new CanvasDocumentStore(localStorage), doc: emptyDoc(), onRequestDetail })
     actions.find((a) => a.id === 'detail')!.run(wsNode(), emptyDoc())
     expect(onRequestDetail).toHaveBeenCalledWith('ws-1')
+  })
+
+  it('重命名：弹窗初始值为工作区标题（非工作区 ID）；提交后调官方 rename', async () => {
+    const ctx = makeCtx()
+    const prompt = vi.fn(() => '新名字')
+    const actions = workspaceActions({
+      ctx,
+      store: new CanvasDocumentStore(localStorage),
+      doc: emptyDoc(),
+      view: { sessionIds: [], title: '我的工作区', path: '/home/user/proj' },
+      prompt,
+    })
+    await actions.find((a) => a.id === 'rename')!.run(wsNode(), emptyDoc())
+    expect(prompt).toHaveBeenCalledWith('请输入新的工作区标题', '我的工作区')
+    expect(ctx.workspaces.rename).toHaveBeenCalledWith('ws-1', '新名字')
+  })
+
+  it('重命名：无标题时初始值为目录名（默认目录名称），仍不显示工作区 ID', async () => {
+    const ctx = makeCtx()
+    const prompt = vi.fn(() => null)
+    const actions = workspaceActions({
+      ctx,
+      store: new CanvasDocumentStore(localStorage),
+      doc: emptyDoc(),
+      view: { sessionIds: [], title: '', path: '/home/user/proj' },
+      prompt,
+    })
+    await actions.find((a) => a.id === 'rename')!.run(wsNode(), emptyDoc())
+    expect(prompt).toHaveBeenCalledWith('请输入新的工作区标题', 'proj')
   })
 })
 
@@ -173,6 +254,51 @@ describe('ContextMenu（T023，原生 Menu 组件）', () => {
     expect(renameItem).not.toBeNull()
     expect(renameItem!.querySelector('svg')).not.toBeNull() // 系统图标
     expect(findItem('删除')).not.toBeNull()
+    await act(async () => root.unmount())
+  })
+})
+
+describe('ConfirmDialog（DSH 系统样式二次确认，同官方删除确认）', () => {
+  /** 按可见文本找 footer 按钮（Modal 关闭 × 是纯图标，不含文本）。 */
+  const findButton = (text: string): HTMLButtonElement | undefined =>
+    [...document.body.querySelectorAll('button')].find((el) => el.textContent?.trim() === text) as HTMLButtonElement | undefined
+
+  it('渲染系统 Modal：标题 + 描述 + 取消/确认按钮；取消 → onResolve(false)', async () => {
+    const onResolve = vi.fn()
+    const container = document.createElement('div')
+    document.body.appendChild(container)
+    const root = createRoot(container)
+    await act(async () => {
+      root.render(createElement(ConfirmDialog, {
+        request: { title: '全部归档', description: '确认归档全部 2 个会话？', confirmLabel: '全部归档' },
+        onResolve,
+      }))
+    })
+    expect(document.body.textContent).toContain('全部归档')
+    expect(document.body.textContent).toContain('确认归档全部 2 个会话？')
+    expect(findButton('取消')).not.toBeNull()
+    expect(findButton('全部归档')).not.toBeNull()
+    await act(async () => { findButton('取消')!.click() })
+    expect(onResolve).toHaveBeenCalledWith(false)
+    await act(async () => root.unmount())
+  })
+
+  it('确认按钮 → onResolve(true)；danger 请求确认按钮带系统错误色（参考删除）', async () => {
+    const onResolve = vi.fn()
+    const container = document.createElement('div')
+    document.body.appendChild(container)
+    const root = createRoot(container)
+    await act(async () => {
+      root.render(createElement(ConfirmDialog, {
+        request: { title: '删除工作区', description: '确定删除该工作区？', confirmLabel: '删除（级联）', danger: true },
+        onResolve,
+      }))
+    })
+    const confirmBtn = findButton('删除（级联）')
+    expect(confirmBtn).not.toBeNull()
+    expect(confirmBtn!.style.color).toBe('var(--dsw-alias-state-error-primary)')
+    await act(async () => { confirmBtn!.click() })
+    expect(onResolve).toHaveBeenCalledWith(true)
     await act(async () => root.unmount())
   })
 })

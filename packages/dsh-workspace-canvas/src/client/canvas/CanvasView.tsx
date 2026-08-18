@@ -4,11 +4,11 @@ import type { ClientContext } from '@deepseek-ai/dsh-client-runtime/client'
 import type { IWorkspaces, WorkspaceListState } from '@deepseek-ai/dsh-client-runtime/client'
 import type { WorkspaceId, WorkspaceView } from '@deepseek-ai/dsh-client-connection/client'
 // 系统组件/图标（primitives 在客户端平台表；操作栏用系统 Button toolbar 变体，颜色交互系统保证）
-import { Button, IconRefreshOutline16, IconPersonalizationOutline16, IconCheckOutline16 } from '@deepseek-ai/dsh-client-ui-primitives'
+import { Button, IconRefreshOutline16, IconPersonalizationOutline16, IconCheckOutline16, Modal } from '@deepseek-ai/dsh-client-ui-primitives'
 import type { CanvasDocumentStore, CanvasNode } from './document.ts'
 import type { CanvasRegistryImpl } from './registry.ts'
 import { ContextMenu, MENU_ITEM_ICONS, type MenuItem } from './menu.ts'
-import { workspaceActions } from './workspace-actions.ts'
+import { workspaceActions, type ConfirmRequest } from './workspace-actions.ts'
 import { DetailPanel } from './detail/panel.tsx'
 import { WorkspaceDetail } from './detail/workspace-detail.tsx'
 import { workspaceDisplayTitle } from './detail/workspace-title.ts'
@@ -19,6 +19,7 @@ import { canvasText } from './text.ts'
 import { CANVAS_BACKGROUND_STYLES, DEFAULT_BACKGROUND_ID, getCanvasBackgroundStyle } from './background-styles.ts'
 import { getCanvasBackgroundId, setCanvasBackgroundId, subscribeCanvasBackgroundId } from '../background-store.ts'
 import { runAutoArchive } from '../archive-runner.ts'
+import styles from './rename-dialog.module.css'
 import {
   getOptimisticArchived,
   subscribeOptimisticArchived,
@@ -32,6 +33,58 @@ export interface CanvasViewProps {
   onClose: () => void
   ctx?: ClientContext
   registry?: CanvasRegistryImpl
+}
+
+function RenameDialog({ initial, onResolve }: { initial: string; onResolve: (value: string | null) => void }) {
+  const [value, setValue] = useState(initial)
+  const inputRef = useRef<HTMLInputElement>(null)
+  useEffect(() => { inputRef.current?.focus(); inputRef.current?.select() }, [])
+  return (
+    <div className={styles.backdrop} role="presentation" onMouseDown={(event) => { if (event.target === event.currentTarget) onResolve(null) }}>
+      <div className={styles.dialog} role="dialog" aria-modal="true" aria-labelledby="dsh-rename-title">
+        <h2 id="dsh-rename-title" className={styles.title}>重命名工作区</h2>
+        <p className={styles.description}>这里只修改工作区的展示名，不会修改工作区对应的目录名。</p>
+        <input ref={inputRef} className={styles.input} value={value} aria-label="工作区展示名" onChange={(event) => setValue(event.target.value)} onKeyDown={(event) => { if (event.key === 'Enter') onResolve(value); if (event.key === 'Escape') onResolve(null) }} />
+        <div className={styles.actions}>
+          <button type="button" className={styles.button} onClick={() => onResolve(null)}>取消</button>
+          <button type="button" className={`${styles.button} ${styles.primary}`} onClick={() => onResolve(value)}>确定</button>
+        </div>
+      </div>
+    </div>
+  )
+}
+
+/** 危险确认按钮：与官方删除确认同款（outline 变体 + 系统错误色文字）。 */
+const CONFIRM_DANGER_BUTTON_STYLE: CSSProperties = {
+  color: 'var(--dsw-alias-state-error-primary)',
+}
+
+/**
+ * 二次确认弹窗：DSH 系统样式（Modal + 系统 Button），与官方删除确认同款。
+ * 取消（×/遮罩/Escape/取消按钮）→ onResolve(false)；确认按钮 → onResolve(true)。
+ */
+export function ConfirmDialog({ request, onResolve }: { request: ConfirmRequest; onResolve: (ok: boolean) => void }) {
+  return (
+    <Modal
+      open
+      onClose={() => onResolve(false)}
+      closeLabel="取消"
+      title={request.title}
+      description={request.description}
+      footer={
+        <>
+          <Button variant="outline" onClick={() => onResolve(false)}>取消</Button>
+          <Button
+            variant="outline"
+            style={request.danger === true ? CONFIRM_DANGER_BUTTON_STYLE : undefined}
+            onClick={() => onResolve(true)}
+          >
+            {request.confirmLabel}
+          </Button>
+        </>
+      }
+    />
+  )
 }
 
 /** 编排节点渲染位置：绝对 = 工作区位置 + 区域内局部坐标（T019 分区渲染）。 */
@@ -549,7 +602,9 @@ export const CanvasView = memo(function CanvasView({ workspaces, store, onClose,
   }
 
   // 右键菜单与选中明细状态（T023-T027）。
-  const [menu, setMenu] = useState<{ x: number; y: number; node: CanvasNode; view?: { sessionIds: ReadonlyArray<string> } } | undefined>()
+  const [menu, setMenu] = useState<{ x: number; y: number; node: CanvasNode; view?: { sessionIds: ReadonlyArray<string>; title?: string; path?: string; archivedSessionIds?: ReadonlyArray<string> } } | undefined>()
+  const [renameDialog, setRenameDialog] = useState<{ initial: string; resolve: (value: string | null) => void } | undefined>()
+  const [confirmDialog, setConfirmDialog] = useState<{ request: ConfirmRequest; resolve: (ok: boolean) => void } | undefined>()
   const [selectedId, setSelectedId] = useState<string | undefined>()
   const [draggingId, setDraggingId] = useState<string | undefined>()
 
@@ -692,7 +747,7 @@ export const CanvasView = memo(function CanvasView({ workspaces, store, onClose,
   const openMenu = (
     event: { clientX: number; clientY: number; preventDefault(): void },
     node: CanvasNode,
-    view?: { sessionIds: ReadonlyArray<string> },
+    view?: { sessionIds: ReadonlyArray<string>; title?: string; path?: string; archivedSessionIds?: ReadonlyArray<string> },
   ): void => {
     event.preventDefault()
     setMenu({ x: event.clientX, y: event.clientY, node, view })
@@ -709,6 +764,12 @@ export const CanvasView = memo(function CanvasView({ workspaces, store, onClose,
           view: menu.view,
           onRequestDetail: (id) => setSelectedId(`ws:${id}`),
           onNotify: (m) => setOpenError(m),
+          confirm: (request) => new Promise<boolean>((resolve) => {
+            setConfirmDialog({ request, resolve })
+          }),
+          prompt: async (_message, initial) => new Promise<string | null>((resolve) => {
+            setRenameDialog({ initial: initial ?? '', resolve })
+          }),
         }),
         ...(registry?.mergeActions('workspace') ?? []),
       ]
@@ -822,7 +883,7 @@ export const CanvasView = memo(function CanvasView({ workspaces, store, onClose,
                         onDragState={(id, active) => setDraggingId(active ? String(id) : undefined)}
                         onOpen={handleOpen}
                         onSelect={(id) => setSelectedId(`ws:${String(id)}`)}
-                        onContextMenu={(event) => openMenu(event, workspaceNode, { sessionIds: workspace.sessionIds })}
+                        onContextMenu={(event) => openMenu(event, workspaceNode, { sessionIds: workspace.sessionIds, title: workspace.title, path: workspace.path, archivedSessionIds: [...archivedSessionIds] })}
                         zoom={view.zoom}
                         toScene={toScene}
                         sessionStats={statsForWorkspace(workspace)}
@@ -910,6 +971,26 @@ export const CanvasView = memo(function CanvasView({ workspaces, store, onClose,
           )}
       {menu !== undefined && ctx !== undefined && (
         <ContextMenu x={menu.x} y={menu.y} items={menuItems()} onClose={() => setMenu(undefined)} />
+      )}
+      {renameDialog !== undefined && (
+        <RenameDialog
+          initial={renameDialog.initial}
+          onResolve={(value) => {
+            const resolve = renameDialog.resolve
+            setRenameDialog(undefined)
+            resolve(value)
+          }}
+        />
+      )}
+      {confirmDialog !== undefined && (
+        <ConfirmDialog
+          request={confirmDialog.request}
+          onResolve={(ok) => {
+            const resolve = confirmDialog.resolve
+            setConfirmDialog(undefined)
+            resolve(ok)
+          }}
+        />
       )}
     </div>
   )

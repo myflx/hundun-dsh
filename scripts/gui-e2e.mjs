@@ -73,7 +73,7 @@ await sleep(5000)
   await card.click({ button: 'right' })
   await sleep(600)
   const f = await canvasFacts()
-  const want = ['详情', '重命名', '归档会话', '删除（级联）']
+  const want = ['详情', '重命名', '全部归档', '删除（级联）']
   const missing = want.filter((w) => !f.menuItems.includes(w))
   record('E2E-10', f.menuItems.length >= 4 && missing.length === 0 && !f.menuItems.includes('进入'), { menu: f.menuItems }, missing.length ? `缺: ${missing.join(',')}` : '')
 }

@@ -14,9 +14,9 @@
  * 每个聚合包带一份手写的 aggregate.yml 清单：
  *
  *   patchFrom:
- *     - ../dsh-hello       # 贡献该子包 cordis.patch.yml 的 insert 行（嵌套聚合递归展开）
+ *     - ../dsh-workspace-canvas  # 贡献该子包 cordis.patch.yml 的 insert 行（嵌套聚合递归展开）
  *   deps:
- *     - ../dsh-hello       # 解析为子包 package.json 的 name，写入 dependencies: workspace:*
+ *     - ../dsh-workspace-canvas  # 解析为子包 package.json 的 name，写入 dependencies: workspace:*
  *   self: compat           # 可选：聚合包自身作为插件加载（宿主/浏览器半区）的补丁行
  *
  * 幂等：可随时重跑。只写它拥有的聚合包内文件，不碰其他包或 git 状态。
@@ -193,13 +193,18 @@ function resolveEntries(pkgDir, entries, section, errors) {
 
 /**
  * 重建聚合包 package.json：清单每个 deps 条目成为 "workspace:*" 依赖；
- * 其余字段保留，残留的 peerDependencies 移除。
+ * 其余字段保留。dependencies 中残留的 "workspace:*" 条目（不再在清单内）删除——
+ * 聚合载包的 workspace 依赖以清单为唯一事实源（删除子插件时同步移除），
+ * 非 workspace 的手写依赖（版本锁定等）保留。
  */
 function renderPackageJson(pkgPath, resolvedDeps) {
   const pkg = JSON.parse(readFileSync(pkgPath, 'utf8'))
   const next = {}
   for (const { name } of resolvedDeps) next[name] = 'workspace:*'
   for (const key of Object.keys(pkg.dependencies ?? {}).filter((k) => !(k in next)).sort()) {
+    // 残留的 workspace:* 引用视为清单删除的遗留（如 dsh-hello 移除），丢弃；
+    // 其余（版本锁定等手写依赖）保留。
+    if (pkg.dependencies[key] === 'workspace:*') continue
     next[key] = pkg.dependencies[key]
   }
   if (Object.keys(next).length) pkg.dependencies = next
