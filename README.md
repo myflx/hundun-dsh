@@ -1,6 +1,6 @@
 # hundun-dsh
 
-**hundun-dsh** 是 [DeepSeek Harness](https://github.com/deepseek-ai/dsh)（DSH）Web GUI 的开源插件集合，也是 **hundun 开源系列的第一个项目**。
+**hundun-dsh** 是 [DeepSeek Harness](https://github.com/deepseek-ai/deepseek-harness)（DSH）Web GUI 的开源插件集合，也是 **hundun 开源系列的第一个项目**。
 
 每个插件都是一个符合 DSH 官方标准、可独立安装的 npm 包（宿主半区 + 浏览器半区），聚合包 `dsh-all` 一键装配全部插件。当前主打 **工作区画布**——把散落在侧边栏的工作区渲染成一张可视化的画布。
 
